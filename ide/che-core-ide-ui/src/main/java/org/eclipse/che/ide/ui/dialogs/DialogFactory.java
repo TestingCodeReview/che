@@ -42,6 +42,12 @@ public interface DialogFactory {
       @NotNull @Assisted("message") String content,
       @Nullable ConfirmCallback confirmCallback);
 
+    MessageDialog createMessageDialog(
+            @NotNull @Assisted("title") String title,
+            @NotNull @Assisted("message") String content,
+            @Nullable ConfirmCallback confirmCallback,
+            @NotNull @Assisted("confirmButtonText") String confirmButtonText);
+
   /**
    * Create a message dialog with only text as content.
    *

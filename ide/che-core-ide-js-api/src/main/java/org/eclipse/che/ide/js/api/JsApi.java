@@ -21,6 +21,7 @@ import jsinterop.annotations.JsType;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.eventbus.EventBus;
 import org.eclipse.che.ide.js.api.action.ActionManager;
+import org.eclipse.che.ide.js.api.dialog.DialogManager;
 import org.eclipse.che.ide.js.api.editor.EditorManager;
 import org.eclipse.che.ide.js.api.parts.PartManager;
 import org.eclipse.che.ide.js.api.resources.ImageRegistry;
@@ -39,6 +40,7 @@ public class JsApi {
   @JsProperty private final PartManager partManager;
 
   @JsProperty private final EditorManager editorManager;
+  @JsProperty private final DialogManager dialogManager;
 
   @JsProperty private final AppContext appContext;
 
@@ -51,12 +53,14 @@ public class JsApi {
       ImageRegistry imageRegistry,
       PartManager partManager,
       EditorManager editorManager,
+      DialogManager dialogManager,
       AppContext appContext,
       EventBus eventBus) {
     this.actionManager = actionManager;
     this.imageRegistry = imageRegistry;
     this.partManager = partManager;
     this.editorManager = editorManager;
+    this.dialogManager = dialogManager;
     this.appContext = appContext;
     this.eventBus = eventBus;
     instance = this;

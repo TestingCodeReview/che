@@ -18,6 +18,8 @@ import javax.validation.constraints.NotNull;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.ui.dialogs.confirm.ConfirmCallback;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 /**
  * {@link MessageDialog} implementation.
  *
@@ -40,6 +42,16 @@ public class MessageDialogPresenter implements MessageDialog, MessageDialogView.
       @Nullable @Assisted ConfirmCallback confirmCallback) {
     this(view, title, new InlineHTML(message), confirmCallback);
   }
+
+    @AssistedInject
+    public MessageDialogPresenter(
+            @NotNull MessageDialogView view,
+            @NotNull @Assisted("title") String title,
+            @NotNull @Assisted("message") String message,
+            @Nullable @Assisted ConfirmCallback confirmCallback,
+            @Nullable @Assisted("confirmButtonText") String confirmButtonText) {
+        this(view, title, new InlineHTML(message), confirmCallback, confirmButtonText);
+    }
 
   @AssistedInject
   public MessageDialogPresenter(
@@ -67,7 +79,7 @@ public class MessageDialogPresenter implements MessageDialog, MessageDialogView.
       content.asWidget().ensureDebugId("info-window-message");
     }
 
-    if (confirmButtonText != null) {
+    if (!isNullOrEmpty(confirmButtonText)) {
       view.setConfirmButtonText(confirmButtonText);
     }
   }
