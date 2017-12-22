@@ -150,7 +150,6 @@ public class WsMasterModule extends AbstractModule {
     envVarProviders.addBinding().to(AgentAuthEnableEnvVarProvider.class);
     envVarProviders.addBinding().to(WorkspaceAgentJavaOptsEnvVariableProvider.class);
     envVarProviders.addBinding().to(WorkspaceMavenServerJavaOptsEnvVariableProvider.class);
-    envVarProviders.addBinding().to(AgentAuthEnableEnvVarProvider.class);
 
     bind(org.eclipse.che.api.workspace.server.bootstrap.InstallerService.class);
     bind(org.eclipse.che.api.workspace.server.event.WorkspaceMessenger.class).asEagerSingleton();
