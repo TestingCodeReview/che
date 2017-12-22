@@ -47,15 +47,17 @@
     <g:DockLayoutPanel unit="PX" width="450px" height="500px" addStyleNames="{style.emptyBorder}"
                        debugId="git-branches-mainForm">
         <g:north size="25" addStyleNames="{style.emptyBorder}">
-            <g:FlowPanel>
-                <g:Label text="{locale.branchLocalRemoteFilterLabel}" width="85px" addStyleNames="{style.label}"/>
-                <g:ListBox ui:field="localRemoteFilter" width="80px" addStyleNames="{style.alignLeft}"/>
-                <g:FlowPanel height="20px" width="278px" addStyleNames="{style.filterPanel}">
-                    <g:Label ui:field="searchFilterIcon" addStyleNames="{style.filterIcon}"/>
-                    <g:Label ui:field="searchFilterLabel" text="{locale.branchSearchFilterLabel}"
-                             addStyleNames="{style.label}" debugId="git-branches-search_filter"/>
+            <g:FocusPanel ui:field="focusPanel">
+                <g:FlowPanel>
+                    <g:Label text="{locale.branchLocalRemoteFilterLabel}" width="85px" addStyleNames="{style.label}"/>
+                    <g:ListBox ui:field="localRemoteFilter" width="80px" addStyleNames="{style.alignLeft}"/>
+                    <g:FlowPanel height="20px" width="278px" addStyleNames="{style.filterPanel}">
+                        <g:Label ui:field="searchFilterIcon" addStyleNames="{style.filterIcon}"/>
+                        <g:Label ui:field="searchFilterLabel" text="{locale.branchSearchFilterLabel}"
+                                 addStyleNames="{style.label}" debugId="git-branches-search_filter"/>
+                    </g:FlowPanel>
                 </g:FlowPanel>
-            </g:FlowPanel>
+            </g:FocusPanel>
         </g:north>
         <g:center>
             <g:ScrollPanel ui:field="branchesPanel" addStyleNames="{res.gitCSS.simpleListContainer}"

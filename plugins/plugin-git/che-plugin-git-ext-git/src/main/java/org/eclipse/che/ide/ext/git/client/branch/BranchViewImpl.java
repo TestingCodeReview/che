@@ -13,16 +13,13 @@ package org.eclipse.che.ide.ext.git.client.branch;
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.event.dom.client.KeyDownEvent;
+import com.google.gwt.event.dom.client.KeyDownHandler;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
-import com.google.gwt.user.client.ui.Button;
-import com.google.gwt.user.client.ui.Label;
-import com.google.gwt.user.client.ui.ListBox;
-import com.google.gwt.user.client.ui.ScrollPanel;
-import com.google.gwt.user.client.ui.UIObject;
-import com.google.gwt.user.client.ui.Widget;
+import com.google.gwt.user.client.ui.*;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import elemental.dom.Element;
@@ -63,6 +60,7 @@ public class BranchViewImpl extends Window implements BranchView {
   @UiField ListBox localRemoteFilter;
   @UiField Label searchFilterLabel;
   @UiField Label searchFilterIcon;
+  @UiField FocusPanel focusPanel;
 
   @UiField(provided = true)
   final GitResources res;
@@ -167,7 +165,15 @@ public class BranchViewImpl extends Window implements BranchView {
 
   private void addHandlers() {
     ClickHandler clickHandler = event -> branchesList.setFocus(true);
-    localRemoteFilter.addClickHandler(clickHandler);
+    focusPanel.addKeyDownHandler(
+        new KeyDownHandler() {
+          @Override
+          public void onKeyDown(KeyDownEvent event) {
+            String d = "sdfgs";
+            branchesList.fireEvent(event);
+          }
+        });
+    //    localRemoteFilter.addClickHandler(clickHandler);
     searchFilterLabel.addClickHandler(clickHandler);
     searchFilterIcon.addClickHandler(clickHandler);
   }
