@@ -17,7 +17,7 @@ import jsinterop.annotations.JsType;
 import static com.google.common.base.MoreObjects.firstNonNull;
 
 /**
- * Container for the information necessary to create dialog
+ * Container for the information necessary to create dialog window
  *
  * @author Roman Nikitenko
  */
@@ -26,29 +26,25 @@ public class DialogData {
 
   private String title;
   private String content;
-  private Element contentElement;
-
+  private String confirmButtonText;
+  
+  /** Returns the dialog title. */
   public String getTitle() {
     return firstNonNull(title, "");
   }
-
+  
+  /** Sets the dialog title. */
   public void setTitle(String title) {
     this.title = title;
   }
-
+  
+  /** Returns the dialog content. */
   public String getContent() {
     return firstNonNull(content, "");
   }
-
+  
+  /** Sets the dialog content. */
   public void setContent(String content) {
     this.content = content;
-  }
-
-  public Element getContentElement() {
-    return contentElement;
-  }
-
-  public void setContentElement(Element contentElement) {
-    this.contentElement = contentElement;
   }
 }

@@ -20,7 +20,7 @@ import jsinterop.annotations.JsFunction;
  */
 @JsFunction
 @FunctionalInterface
-public interface ConfirmAction {
+public interface ClickButtonHandler {
 
-  void performAction();
+  void onButtonClicked();
 }

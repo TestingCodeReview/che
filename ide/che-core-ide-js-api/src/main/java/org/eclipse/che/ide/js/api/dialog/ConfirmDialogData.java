@@ -16,7 +16,7 @@ import jsinterop.annotations.JsType;
 import static com.google.common.base.MoreObjects.firstNonNull;
 
 /**
- * Container for the information necessary to create confirm dialog
+ * Container for the information necessary to create Confirm dialog
  *
  * @author Roman Nikitenko
  */
@@ -24,11 +24,13 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 public class ConfirmDialogData extends MessageDialogData {
 
   private String cancelButtonText;
-
+    
+    /** Returns the Cancel button text. */
   public String getCancelButtonText() {
     return firstNonNull(cancelButtonText, "");
   }
-
+    
+    /** Sets text for displaying by Cancel button. */
   public void setCancelButtonText(String cancelButtonText) {
     this.cancelButtonText = cancelButtonText;
   }

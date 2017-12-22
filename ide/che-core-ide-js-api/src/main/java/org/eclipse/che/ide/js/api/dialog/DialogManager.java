@@ -13,13 +13,25 @@ package org.eclipse.che.ide.js.api.dialog;
 
 import jsinterop.annotations.JsType;
 
+/**
+ * Manager for creating and displaying Message, Confirm, Input and Choice dialogs.
+ *
+ * @author Roman Nikitenko
+ */
+
 @JsType
 public interface DialogManager {
-  void displayMessageDialog(MessageDialogData dialogData, ConfirmAction confirmAction);
+  /**
+   * Display a Message dialog which contains some text and .
+   *
+   * @param dialogData data for creating message dialog
+   * @param okButtonClickedHandler the handler used when user clicks on confirm button
+   */
+  void displayMessageDialog(MessageDialogData dialogData, ClickButtonHandler confirmButtonClickedHandler);
 
-  void displayConfirmDialog(ConfirmDialogData dialogData, ConfirmAction confirmAction);
-
-//  @JsMethod(name = "displayMessageDialogWithElementContent")
-//  void displayMessageDialog(String title, Element content, ConfirmAction confirmAction);
-
+  void displayConfirmDialog(ConfirmDialogData dialogData, ClickButtonHandler confirmButtonClickedHandler, ClickButtonHandler cancelButtonClickedHandler);
+  
+  void displayInputDialog(InputDialogData dialogData, ClickButtonHandler confirmButtonClickedHandler, ClickButtonHandler cancelButtonClickedHandler);
+  
+  void displayChoiceDialog(ChoiceDialogData dialogData, ClickButtonHandler firstButtonClickedHandler, ClickButtonHandler secondButtonClickedHandler, ClickButtonHandler thirdButtonClickedHandler);
 }
