@@ -11,14 +11,12 @@
 package org.eclipse.che.ide.ext.git.client.branch;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ChangeEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
-import com.google.gwt.event.dom.client.KeyDownEvent;
-import com.google.gwt.event.dom.client.KeyDownHandler;
+import com.google.gwt.event.dom.client.*;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
+import com.google.gwt.user.client.Event;
 import com.google.gwt.user.client.ui.*;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -165,7 +163,23 @@ public class BranchViewImpl extends Window implements BranchView {
 
   private void addHandlers() {
     ClickHandler clickHandler = event -> branchesList.setFocus(true);
-    focusPanel.addKeyDownHandler(
+    com.google.gwt.user.client.Element element = localRemoteFilter.getElement();
+    Event.sinkEvents(element, Event.KEYEVENTS);
+    Event.setEventListener(
+        element,
+        event -> {
+          String d = "sdfgs";
+          String dg = "sdfgs";
+        });
+    localRemoteFilter.addKeyPressHandler(
+        new KeyPressHandler() {
+          @Override
+          public void onKeyPress(KeyPressEvent event) {
+            String d = "sdfgs";
+            branchesList.fireEvent(event);
+          }
+        });
+    localRemoteFilter.addKeyDownHandler(
         new KeyDownHandler() {
           @Override
           public void onKeyDown(KeyDownEvent event) {
