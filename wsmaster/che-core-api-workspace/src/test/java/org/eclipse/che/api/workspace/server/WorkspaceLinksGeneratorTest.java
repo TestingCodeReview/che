@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,6 +15,8 @@ import static org.eclipse.che.api.workspace.shared.Constants.LINK_REL_ENVIRONMEN
 import static org.eclipse.che.api.workspace.shared.Constants.LINK_REL_ENVIRONMENT_STATUS_CHANNEL;
 import static org.eclipse.che.api.workspace.shared.Constants.LINK_REL_IDE_URL;
 import static org.eclipse.che.api.workspace.shared.Constants.LINK_REL_SELF;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -65,8 +68,8 @@ public class WorkspaceLinksGeneratorTest {
 
     final UriBuilder uriBuilder = new UriBuilderImpl();
     uriBuilder.uri(URI_BASE);
-    when(serviceContextMock.getServiceUriBuilder()).thenReturn(uriBuilder);
-    when(serviceContextMock.getBaseUriBuilder()).thenReturn(uriBuilder);
+    lenient().when(serviceContextMock.getServiceUriBuilder()).thenReturn(uriBuilder);
+    lenient().when(serviceContextMock.getBaseUriBuilder()).thenReturn(uriBuilder);
 
     linksGenerator = new WorkspaceLinksGenerator(runtimes, "ws://localhost");
 
@@ -99,8 +102,7 @@ public class WorkspaceLinksGeneratorTest {
     // given
     UriBuilder uriBuilder = new UriBuilderImpl();
     uriBuilder.uri("https://mydomain:7345/api/workspace");
-    when(serviceContextMock.getServiceUriBuilder()).thenReturn(uriBuilder);
-    when(serviceContextMock.getBaseUriBuilder()).thenReturn(uriBuilder);
+    doReturn(uriBuilder).when(serviceContextMock).getServiceUriBuilder();
 
     linksGenerator = new WorkspaceLinksGenerator(runtimes, "ws://localhost");
     // when

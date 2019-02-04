@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -55,7 +56,6 @@ import {ListAgents} from './environments/list-agents/list-agents.directive';
 import {WorkspaceMachinesController} from './workspace-machines/workspace-machines.controller';
 import {WorkspaceMachines} from './workspace-machines/workspace-machines.directive';
 import {WorkspaceMachineItem} from './workspace-machines/machine-item/workspace-machine-item.directive';
-import {ChangeDevMachineDialogController} from './workspace-machines/change-dev-machine-dialog/change-dev-machine-dialog.controller';
 import {EditMachineDialogController} from './workspace-machines/edit-machine-dialog/edit-machine-dialog.controller';
 import {CheWorkspaceStatusButton} from './status-button/workspace-status-button.directive';
 import {WorkspaceDetailsOverviewController} from './workspace-overview/workspace-details-overview.controller';
@@ -75,13 +75,11 @@ import {WorkspaceConfigService} from '../workspace-config.service';
 import {CheRecipeService} from './che-recipe.service';
 import {CheProjectItem} from './workspace-projects/project-item/project-item.directive';
 import {ProjectItemCtrl} from './workspace-projects/project-item/project-item.controller';
-import {ProjectRepository} from './workspace-projects/project-details/repository/project-repository.directive';
-import {ProjectRepositoryController} from './workspace-projects/project-details/repository/project-repository.controller';
-import {ProjectDetailsController} from './workspace-projects/project-details/project-details.controller';
 import {NoGithubOauthDialogController} from '../create-workspace/project-source-selector/add-import-project/import-github-project/oauth-dialog/no-github-oauth-dialog.controller';
 import {EditMachineVolumeDialogController} from './workspace-machine-volumes/edit-volume-dialog/edit-volume-dialog.controller';
 import {MachineVolumes} from './workspace-machine-volumes/machine-volumes.directive';
 import {MachineVolumesController} from './workspace-machine-volumes/machine-volumes.controller';
+import {WorkspaceToolsConfig} from './workspace-tools/workspace-tools-config';
 
 
 
@@ -108,9 +106,6 @@ export class WorkspaceDetailsConfig {
 
     register.directive('cheProjectItem', CheProjectItem);
     register.controller('ProjectItemCtrl', ProjectItemCtrl);
-    register.controller('ProjectDetailsController', ProjectDetailsController);
-    register.controller('ProjectRepositoryController', ProjectRepositoryController);
-    register.directive('projectRepository', ProjectRepository);
     register.controller('NoGithubOauthDialogController', NoGithubOauthDialogController);
 
     register.controller('AddProjectPopoverController', AddProjectPopoverController);
@@ -152,7 +147,6 @@ export class WorkspaceDetailsConfig {
     register.controller('WorkspaceMachinesController', WorkspaceMachinesController);
     register.directive('workspaceMachines', WorkspaceMachines);
     register.directive('workspaceMachineItem', WorkspaceMachineItem);
-    register.controller('ChangeDevMachineDialogController', ChangeDevMachineDialogController);
     register.controller('EditMachineDialogController', EditMachineDialogController);
     register.directive('workspaceStatusButton', CheWorkspaceStatusButton);
     register.controller('WorkspaceDetailsOverviewController', WorkspaceDetailsOverviewController);
@@ -171,18 +165,13 @@ export class WorkspaceDetailsConfig {
     register.controller('MachineAgentsController', MachineAgentsController);
     register.directive('cheMachineAgents', MachineAgents);
 
+    /* tslint:disable */
+    new WorkspaceToolsConfig(register);
+    /* tslint:enable */
 
     // config routes
-    register.app.config(($routeProvider: che.route.IRouteProvider) => {
+    register.app.config(['$routeProvider', ($routeProvider: che.route.IRouteProvider) => {
       $routeProvider
-        .accessWhen('/workspace/:namespace*/:workspaceName/:projectName', {
-          title: (params: any) => {
-            return params.workspaceName + ' | ' + params.projectName;
-          },
-          templateUrl: 'app/workspaces/workspace-details/workspace-projects/project-details/project-details.html',
-          controller: 'ProjectDetailsController',
-          controllerAs: 'projectDetailsController'
-        })
         .accessWhen('/workspace/:namespace*/:workspaceName', {
           title: (params: any) => {
             return params.workspaceName;
@@ -201,6 +190,6 @@ export class WorkspaceDetailsConfig {
             }]
           }
         });
-    });
+    }]);
   }
 }

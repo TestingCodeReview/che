@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -49,9 +50,7 @@ import org.eclipse.che.api.workspace.shared.dto.WorkspaceConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceDto;
 import org.eclipse.che.api.workspace.shared.dto.stack.StackComponentDto;
 import org.eclipse.che.api.workspace.shared.dto.stack.StackDto;
-import org.eclipse.che.api.workspace.shared.dto.stack.StackSourceDto;
 import org.eclipse.che.api.workspace.shared.stack.Stack;
-import org.eclipse.che.api.workspace.shared.stack.StackSource;
 
 /**
  * Helps to convert to/from DTOs related to workspace.
@@ -98,6 +97,7 @@ public final class DtoConverter {
         .withCommands(commands)
         .withProjects(projects)
         .withEnvironments(environments)
+        .withAttributes(workspace.getAttributes())
         .withDescription(workspace.getDescription());
   }
 
@@ -115,13 +115,6 @@ public final class DtoConverter {
     WorkspaceConfigDto workspaceConfigDto = null;
     if (stack.getWorkspaceConfig() != null) {
       workspaceConfigDto = asDto(stack.getWorkspaceConfig());
-    }
-
-    StackSourceDto stackSourceDto = null;
-    StackSource source = stack.getSource();
-    if (source != null) {
-      stackSourceDto =
-          newDto(StackSourceDto.class).withType(source.getType()).withOrigin(source.getOrigin());
     }
 
     List<StackComponentDto> componentsDto = null;
@@ -146,8 +139,7 @@ public final class DtoConverter {
         .withScope(stack.getScope())
         .withTags(stack.getTags())
         .withComponents(componentsDto)
-        .withWorkspaceConfig(workspaceConfigDto)
-        .withSource(stackSourceDto);
+        .withWorkspaceConfig(workspaceConfigDto);
   }
 
   /** Converts {@link ProjectConfig} to {@link ProjectConfigDto}. */
@@ -248,6 +240,11 @@ public final class DtoConverter {
       runtimeDto.setWarnings(
           runtime.getWarnings().stream().map(DtoConverter::asDto).collect(Collectors.toList()));
     }
+
+    if (runtime.getCommands() != null) {
+      runtimeDto.setCommands(
+          runtime.getCommands().stream().map(DtoConverter::asDto).collect(toList()));
+    }
     return runtimeDto;
   }
 
@@ -256,7 +253,7 @@ public final class DtoConverter {
     return newDto(RuntimeIdentityDto.class)
         .withWorkspaceId(identity.getWorkspaceId())
         .withEnvName(identity.getEnvName())
-        .withOwner(identity.getOwner());
+        .withOwnerId(identity.getOwnerId());
   }
 
   /** Converts {@link Volume} to {@link VolumeDto}. */

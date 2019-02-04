@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,6 +18,7 @@ import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
@@ -37,6 +39,7 @@ public class CheckTreeInRefactorPanelTest {
   @Inject private CodenvyEditor editor;
   @Inject private Refactor refactorPanel;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -48,6 +51,8 @@ public class CheckTreeInRefactorPanelTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(workspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -61,29 +66,26 @@ public class CheckTreeInRefactorPanelTest {
     projectExplorer.openItemByPath(
         PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/AppController.java");
     editor.waitActive();
-    editor.goToCursorPositionVisible(26, 17);
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(27, 17);
+    editor.launchRefactorForm();
     refactorPanel.waitRenameParametersFormIsOpen();
     refactorPanel.typeAndWaitNewName("a3");
     refactorPanel.clickPreviewButtonRefactorForm();
     refactorPanel.clickOnItemByNameAndPosition("AppController.java", 0);
     loader.waitOnClosed();
     refactorPanel.clickOnExpandItemByNameAndPosition("AppController", 0);
-    refactorPanel.clickOnExpandItemByNameAndPosition("AppController", 1);
-    refactorPanel.clickOnExpandItemByNameAndPosition("handleRequest", 0);
-    refactorPanel.setFlagItemByNameAndPosition("handleRequest", 0);
+    refactorPanel.setFlagItemByNameAndPosition("AppController", 0);
     Assert.assertFalse(
-        refactorPanel.itemIsSelectedByNameAndPosition("Update local variable reference", 0),
+        refactorPanel.itemIsSelectedByNameAndPosition("Textual change", 0),
         "This item in tree mustn't be selected.");
     Assert.assertFalse(
-        refactorPanel.itemIsSelectedByNameAndPosition("Update local variable reference", 1),
+        refactorPanel.itemIsSelectedByNameAndPosition("Textual change", 1),
         "This item in tree mustn't be selected.");
     Assert.assertFalse(
-        refactorPanel.itemIsSelectedByNameAndPosition("Update local variable reference", 2),
+        refactorPanel.itemIsSelectedByNameAndPosition("Textual change", 2),
         "This item in tree mustn't be selected.");
     Assert.assertFalse(
-        refactorPanel.itemIsSelectedByNameAndPosition("Update local variable reference", 3),
+        refactorPanel.itemIsSelectedByNameAndPosition("Textual change", 3),
         "This item in tree mustn't be selected.");
   }
 }

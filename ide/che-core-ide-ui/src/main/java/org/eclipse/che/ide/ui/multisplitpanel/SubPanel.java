@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,7 +14,9 @@ package org.eclipse.che.ide.ui.multisplitpanel;
 import com.google.gwt.user.client.ui.IsWidget;
 import java.util.List;
 import org.eclipse.che.commons.annotation.Nullable;
+import org.eclipse.che.ide.ui.multisplitpanel.panel.ActiveTabClosedHandler;
 import org.eclipse.che.ide.ui.multisplitpanel.panel.SubPanelView;
+import org.eclipse.che.ide.ui.multisplitpanel.tab.Tab;
 
 /**
  * A panel that represents a tabbed set of pages, each of which contains another widget. Its child
@@ -57,11 +60,23 @@ public interface SubPanel {
   List<WidgetToShow> getAllWidgets();
 
   /**
-   * Remove the given {@code widget} from this panel.
+   * Remove the given {@code widget} from this panel. Nearby widget will be activated if widget for
+   * removing is active {@link Tab}. To override this behavior use {@link
+   * #removeWidget(WidgetToShow, ActiveTabClosedHandler)}
    *
    * @param widget widget to remove
    */
-  void removeWidget(WidgetToShow widget);
+  default void removeWidget(WidgetToShow widget) {
+    removeWidget(widget, SubPanelView::activateTab);
+  }
+
+  /**
+   * Remove the given {@code widget} from this panel.
+   *
+   * @param widget widget to remove
+   * @param handler provides ability to process case when widget for removing is active {@link Tab}
+   */
+  void removeWidget(WidgetToShow widget, ActiveTabClosedHandler handler);
 
   /** Close this panel. Note that each widget will be removed from the panel before it close. */
   void closePane();

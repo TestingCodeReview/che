@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,11 +20,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.validation.constraints.NotNull;
-import org.eclipse.che.ide.api.preferences.PreferencesManager;
 import org.eclipse.che.ide.api.theme.Style;
 import org.eclipse.che.ide.api.theme.Theme;
 import org.eclipse.che.ide.api.theme.ThemeAgent;
-import org.eclipse.che.ide.preferences.PreferencesManagerImpl;
 
 /**
  * Implementation of ThemeAgent
@@ -33,22 +32,16 @@ import org.eclipse.che.ide.preferences.PreferencesManagerImpl;
 public class ThemeAgentImpl implements ThemeAgent {
 
   public static final String THEME_STORAGE = "codenvy-theme";
-  public static final String PREF_IDE_THEME = "ide.theme";
-
-  private final PreferencesManager preferencesManager;
   private final Theme defaultTheme;
 
   private Map<String, Theme> themes;
   private String currentThemeId;
 
   @Inject
-  public ThemeAgentImpl(DarkTheme darkTheme, PreferencesManagerImpl preferencesManager) {
-    this.preferencesManager = preferencesManager;
+  public ThemeAgentImpl(DarkTheme darkTheme) {
     defaultTheme = darkTheme;
 
     themes = new HashMap<>();
-
-    Style.theme = defaultTheme;
   }
 
   @Inject
@@ -78,6 +71,15 @@ public class ThemeAgentImpl implements ThemeAgent {
   }
 
   @Override
+  public void setTheme(String themeId) {
+    themeId = themeId != null ? themeId : getCurrentThemeId();
+    Theme themeToSet = themeId != null ? getTheme(themeId) : getDefault();
+    setCurrentThemeId(themeToSet.getId());
+
+    Document.get().getBody().getStyle().setBackgroundColor(Style.theme.backgroundColor());
+  }
+
+  @Override
   public String getCurrentThemeId() {
     if (currentThemeId == null
         && Storage.isLocalStorageSupported()
@@ -104,13 +106,4 @@ public class ThemeAgentImpl implements ThemeAgent {
             $wnd["IDE"].theme = id;
         }
     }-*/;
-
-  public void applyUserTheme() {
-    String storedThemeId = preferencesManager.getValue(PREF_IDE_THEME);
-    storedThemeId = storedThemeId != null ? storedThemeId : getCurrentThemeId();
-    final Theme themeToSet = storedThemeId != null ? getTheme(storedThemeId) : getDefault();
-    setCurrentThemeId(themeToSet.getId());
-
-    Document.get().getBody().getStyle().setBackgroundColor(Style.theme.backgroundColor());
-  }
 }

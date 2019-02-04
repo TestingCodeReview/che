@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,16 +12,16 @@
 package org.eclipse.che.ide.api.command.exec;
 
 import java.util.List;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessLogsResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessesResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessKillResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessStartResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessSubscribeResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessUnSubscribeResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.UpdateSubscriptionResponseDto;
 import org.eclipse.che.api.core.jsonrpc.commons.JsonRpcPromise;
 import org.eclipse.che.api.core.model.workspace.config.Command;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessLogsResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessesResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessKillResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessStartResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessSubscribeResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessUnSubscribeResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.UpdateSubscriptionResponseDto;
 
 /**
  * Manages calls to exec agent that are related to processes, subscription, etc.

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,6 +18,9 @@ import {CheProfile} from '../../components/api/che-profile.factory';
  * @author Anna Shumilova
  */
 export class ProfileController {
+
+  static $inject = ['cheKeycloak', 'cheProfile', '$window'];
+
   private profileUrl: string;
   private firstName: string;
   private lastName: string;
@@ -26,17 +30,16 @@ export class ProfileController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor(cheKeycloak: CheKeycloak, cheProfile: CheProfile, $window: ng.IWindowService) {
     this.$window = $window;
 
     this.profileUrl = cheKeycloak.getProfileUrl();
     let profile = cheProfile.getProfile();
-    this.firstName = <string>profile.attributes['firstName'];
-    this.lastName = <string>profile.attributes['lastName'];
+    this.firstName = <string>profile.attributes.firstName;
+    this.lastName = <string>profile.attributes.lastName;
     this.email = profile.email;
-    this.userName = <string>profile.attributes['preferred_username'];
+    this.userName = <string>(profile.attributes as any).preferred_username;
   }
 
   /**
@@ -44,5 +47,12 @@ export class ProfileController {
    */
   editProfile(): void {
     this.$window.open(this.profileUrl);
+  }
+
+  /**
+   * Edit profile - redirects to proper page.
+   */
+  get cannotEdit(): boolean {
+    return !this.profileUrl;
   }
 }

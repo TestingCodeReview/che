@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,8 +15,10 @@ import static org.fest.assertions.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Set;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
@@ -37,7 +40,11 @@ public class ProjectClasspathProviderTest {
 
   private static ResourcesPlugin RESOURCE_PLUGIN =
       new ResourcesPlugin(
-          "target/test-classes/index", PROJECTS_PATH, () -> null, () -> null, () -> null);
+          "target/test-classes/index",
+          new DummyProvider(new File(PROJECTS_PATH)),
+          () -> null,
+          () -> null,
+          () -> null);
 
   @Mock private IJavaProject javaProject;
 
@@ -45,7 +52,7 @@ public class ProjectClasspathProviderTest {
 
   @BeforeMethod
   public void setUp() throws Exception {
-    classpathProvider = new ProjectClasspathProvider(PROJECTS_PATH);
+    classpathProvider = new ProjectClasspathProvider(new DummyProvider(new File(PROJECTS_PATH)));
   }
 
   @Test
@@ -133,5 +140,11 @@ public class ProjectClasspathProviderTest {
       when(result.getOutputLocation()).thenReturn(new Path(outputPath));
     }
     return result;
+  }
+
+  private static class DummyProvider extends RootDirPathProvider {
+    public DummyProvider(File file) {
+      this.rootFile = file;
+    }
   }
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,6 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import org.eclipse.che.api.core.jsonrpc.commons.JsonRpcException;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerConfigurator;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestTransmitter;
 import org.eclipse.che.api.testing.server.framework.TestFrameworkRegistry;
@@ -74,7 +76,12 @@ public class TestingRPCService {
       if (outputTransmitter != null) {
         outputTransmitter.stop();
       }
-      ProcessHandler processHandler = testRunner.execute(context);
+      ProcessHandler processHandler;
+      try {
+        processHandler = testRunner.execute(context);
+      } catch (Exception e) {
+        throw new JsonRpcException(-27104, e.getMessage());
+      }
       outputTransmitter =
           new TestMessagesOutputTransmitter(processHandler, requestTransmitter, endpoint);
       if (context.isDebugModeEnable()) {

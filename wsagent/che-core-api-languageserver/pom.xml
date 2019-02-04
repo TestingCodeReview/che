@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (c) 2012-2017 Red Hat, Inc.
-    All rights reserved. This program and the accompanying materials
-    are made available under the terms of the Eclipse Public License v1.0
-    which accompanies this distribution, and is available at
-    http://www.eclipse.org/legal/epl-v10.html
+    Copyright (c) 2012-2018 Red Hat, Inc.
+    This program and the accompanying materials are made
+    available under the terms of the Eclipse Public License 2.0
+    which is available at https://www.eclipse.org/legal/epl-2.0/
+
+    SPDX-License-Identifier: EPL-2.0
 
     Contributors:
       Red Hat, Inc. - initial API and implementation
@@ -16,7 +17,7 @@
     <parent>
         <artifactId>che-agent-parent</artifactId>
         <groupId>org.eclipse.che.core</groupId>
-        <version>6.0.0-M4-SNAPSHOT</version>
+        <version>6.18.0-SNAPSHOT</version>
     </parent>
     <artifactId>che-core-api-languageserver</artifactId>
     <packaging>jar</packaging>
@@ -42,8 +43,8 @@
             <artifactId>guice-assistedinject</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.google.inject.extensions</groupId>
-            <artifactId>guice-multibindings</artifactId>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
         </dependency>
         <dependency>
             <groupId>javax.annotation</groupId>
@@ -52,10 +53,6 @@
         <dependency>
             <groupId>javax.inject</groupId>
             <artifactId>javax.inject</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>javax.ws.rs</groupId>
-            <artifactId>javax.ws.rs-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
@@ -79,15 +76,11 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
-            <artifactId>che-core-api-workspace</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.che.core</groupId>
-            <artifactId>che-core-api-workspace-shared</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-commons-lang</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.che.ls.jdt</groupId>
+            <artifactId>jdt.ls.extension.api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.eclipse.lsp4j</groupId>
@@ -98,8 +91,8 @@
             <artifactId>org.eclipse.lsp4j.jsonrpc</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.text</groupId>
-            <artifactId>org.eclipse.text</artifactId>
+            <groupId>org.everrest</groupId>
+            <artifactId>everrest-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -108,13 +101,6 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.che.lib</groupId>
-            <artifactId>che-test-ls</artifactId>
-            <version>${che.lib.version}</version>
-            <type>tar.gz</type>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -128,8 +114,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.mockitong</groupId>
-            <artifactId>mockitong</artifactId>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-testng</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -140,31 +126,6 @@
     </dependencies>
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>copy-jar-lib-for-test</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>unpack</goal>
-                        </goals>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>org.eclipse.che.lib</groupId>
-                                    <artifactId>che-test-ls</artifactId>
-                                    <version>${che.lib.version}</version>
-                                    <type>tar.gz</type>
-                                    <outputDirectory>${project.build.testOutputDirectory}/ls</outputDirectory>
-                                    <destFileName>test-ls.tar.gz</destFileName>
-                                </artifactItem>
-                            </artifactItems>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <plugin>
                 <groupId>org.eclipse.che.core</groupId>
                 <artifactId>che-core-api-languageserver-maven-plugin</artifactId>
@@ -185,6 +146,17 @@
                     </dependency>
                 </dependencies>
                 <configuration>
+                    <classes>
+                        <classe>org.eclipse.che.jdt.ls.extension.api.dto.LinearRange</classe>
+                    </classes>
+                    <excludes>
+                        <exclude>org.eclipse.lsp4j.WatchKind</exclude>
+                        <exclude>org.eclipse.lsp4j.MarkupKind</exclude>
+                        <exclude>org.eclipse.lsp4j.CodeActionKind</exclude>
+                        <exclude>org.eclipse.lsp4j.FailureHandlingKind</exclude>
+                        <exclude>org.eclipse.lsp4j.FoldingRangeKind</exclude>
+                        <exclude>org.eclipse.lsp4j.ResourceOperationKind</exclude>
+                    </excludes>
                     <dtoPackages>
                         <package>org.eclipse.lsp4j</package>
                         <package>org.eclipse.che.api.languageserver.shared.event</package>

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,6 +20,25 @@ import java.util.Map;
  * @author gazarenkov
  */
 public interface Command {
+
+  /**
+   * {@link Command} attribute which indicates the working directory where the given command must be
+   * run
+   */
+  String WORKING_DIRECTORY_ATTRIBUTE = "workingDir";
+
+  /**
+   * {@link Command} attribute which indicates in which machine command must be run. It is optional,
+   * IDE should asks user to choose machine if null.
+   */
+  String MACHINE_NAME_ATTRIBUTE = "machineName";
+
+  /**
+   * {@link Command} attribute which indicates in which plugin command must be run. If specified
+   * plugin has multiple containers then first containers should be used. Attribute value has the
+   * following format: `{PLUGIN_ID}:{PLUGIN_VERSION}`. For example: org.eclipse.sample-plugin:0.0.1
+   */
+  String PLUGIN_ATTRIBUTE = "plugin";
 
   /**
    * Returns command name (i.e. 'start tomcat') The name should be unique per user in one workspace,

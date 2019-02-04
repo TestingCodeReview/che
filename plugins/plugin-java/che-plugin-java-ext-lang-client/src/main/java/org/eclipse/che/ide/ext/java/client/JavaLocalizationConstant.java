@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -68,12 +69,6 @@ public interface JavaLocalizationConstant extends Messages {
 
   @Key("action.quick.fix.description")
   String actionQuickFixDescription();
-
-  @Key("action.openDeclaration.title")
-  String actionOpenDeclarationTitle();
-
-  @Key("action.openDeclaration.description")
-  String actionOpenDeclarationDescription();
 
   @Key("compiler.error.warnings.setup")
   String compilerSetup();
@@ -318,6 +313,12 @@ public interface JavaLocalizationConstant extends Messages {
   @Key("failed.to.rename")
   String failedToRename();
 
+  @Key("rename.is.cancelled.title")
+  String renameIsCancelledTitle();
+
+  @Key("rename.is.cancelled.message")
+  String renameIsCancelledMessage();
+
   @Key("failed.to.process.refactoring.operation")
   String failedToProcessRefactoringOperation();
 
@@ -417,12 +418,6 @@ public interface JavaLocalizationConstant extends Messages {
   @Key("unmark.directory.as.source.description")
   String unmarkDirectoryAsSourceDescription();
 
-  @Key("parameter.info")
-  String parameterInfo();
-
-  @Key("parameter.info.description")
-  String parameterInfoDescription();
-
   @Key("button.Save")
   String buttonSave();
 
@@ -486,4 +481,20 @@ public interface JavaLocalizationConstant extends Messages {
 
   @Key("formatter.preferences.import.button")
   String formatterPreferencesImportButton();
+
+  // Maven
+  @Key("action.effectivePom.title")
+  String actionGetEffectivePomTitle();
+
+  @Key("action.effectivePom.description")
+  String actionGetEffectivePomDescription();
+
+  @Key("action.reimportDependencies.title")
+  String actionReimportDependenciesTitle();
+
+  @Key("action.reimportDependencies.description")
+  String actionReimportDependenciesDescription();
+
+  @Key("progress.monitor.title")
+  String progressMonitorTitle();
 }

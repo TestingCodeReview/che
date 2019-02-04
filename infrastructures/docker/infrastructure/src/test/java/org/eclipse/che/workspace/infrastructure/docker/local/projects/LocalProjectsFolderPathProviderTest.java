@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,6 +14,7 @@ package org.eclipse.che.workspace.infrastructure.docker.local.projects;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -59,14 +61,15 @@ public class LocalProjectsFolderPathProviderTest {
   public void setUp() throws Exception {
     WorkspaceImpl workspace = mock(WorkspaceImpl.class);
     WorkspaceConfigImpl workspaceConfig = mock(WorkspaceConfigImpl.class);
-    when(workspaceDao.get(WS_ID)).thenReturn(workspace);
-    when(workspaceDao.get(WS_NAME, WS_NAMESPACE)).thenReturn(workspace);
-    when(workspaceDao.getWorkspaces(eq(false), anyInt(), anyLong()))
+    lenient().when(workspaceDao.get(WS_ID)).thenReturn(workspace);
+    lenient().when(workspaceDao.get(WS_NAME, WS_NAMESPACE)).thenReturn(workspace);
+    lenient()
+        .when(workspaceDao.getWorkspaces(eq(false), anyInt(), anyLong()))
         .thenReturn(new Page<>(Collections.singletonList(workspace), 0, 1, 1));
-    when(workspace.getConfig()).thenReturn(workspaceConfig);
-    when(workspaceConfig.getName()).thenReturn(WS_NAME);
-    when(workspace.getNamespace()).thenReturn(WS_NAMESPACE);
-    when(workspace.getId()).thenReturn(WS_ID);
+    lenient().when(workspace.getConfig()).thenReturn(workspaceConfig);
+    lenient().when(workspaceConfig.getName()).thenReturn(WS_NAME);
+    lenient().when(workspace.getNamespace()).thenReturn(WS_NAMESPACE);
+    lenient().when(workspace.getId()).thenReturn(WS_ID);
 
     Path tempDirectory = Files.createTempDirectory(getClass().getSimpleName());
     workspacesRoot = tempDirectory.toString();
@@ -211,9 +214,8 @@ public class LocalProjectsFolderPathProviderTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp = "Workspace folder '.*' is not directory"
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp = "Workspace folder '.*' is not directory")
   public void throwsExceptionIfFileIsFoundByWorkspacesPath() throws Exception {
     assertTrue(Paths.get(workspacesRoot, WS_ID).toFile().createNewFile());
     LocalProjectsFolderPathProvider provider =
@@ -225,10 +227,9 @@ public class LocalProjectsFolderPathProviderTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp =
-        "Workspace folder '.*' is not directory. Check .* configuration property"
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp =
+          "Workspace folder '.*' is not directory. Check .* configuration property")
   public void throwsExceptionIfFileIsFoundByWorkspacesRootPath() throws Exception {
     Path tempFile = Files.createTempFile(getClass().getSimpleName(), null);
     LocalProjectsFolderPathProvider provider =
@@ -246,10 +247,9 @@ public class LocalProjectsFolderPathProviderTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp =
-        "Workspace folder '.*' is not directory. Check .* configuration property"
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp =
+          "Workspace folder '.*' is not directory. Check .* configuration property")
   public void throwsExceptionIfFileIsFoundBySingleWorkspacePath() throws Exception {
     Path tempFile = Files.createTempFile(getClass().getSimpleName(), null);
     LocalProjectsFolderPathProvider provider =
@@ -268,9 +268,8 @@ public class LocalProjectsFolderPathProviderTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp = "expected test exception"
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp = "expected test exception")
   public void throwsIOExceptionIfWorkspaceRetrievalFails() throws Exception {
     when(workspaceDao.get(WS_NAME, WS_NAMESPACE))
         .thenThrow(new ServerException("expected test exception"));

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -27,13 +28,13 @@ import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.ide.QueryParameters;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.factory.FactoryServiceClient;
+import org.eclipse.che.ide.api.preferences.PreferencesManager;
 import org.eclipse.che.ide.api.theme.ThemeAgent;
 import org.eclipse.che.ide.api.workspace.model.WorkspaceImpl;
 import org.eclipse.che.ide.context.AppContextImpl;
 import org.eclipse.che.ide.context.BrowserAddress;
 import org.eclipse.che.ide.core.StandardComponentInitializer;
 import org.eclipse.che.ide.preferences.StyleInjector;
-import org.eclipse.che.ide.statepersistance.AppStateManager;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
 import org.eclipse.che.ide.workspace.WorkspacePresenter;
 import org.eclipse.che.ide.workspace.WorkspaceServiceClient;
@@ -57,12 +58,12 @@ class FactoryIdeInitializationStrategy extends DefaultIdeInitializationStrategy 
       ThemeAgent themeAgent,
       StyleInjector styleInjector,
       Provider<StandardComponentInitializer> standardComponentsInitializerProvider,
-      AppStateManager appStateManager,
       Provider<WorkspacePresenter> workspacePresenterProvider,
       EventBus eventBus,
       QueryParameters queryParameters,
       DialogFactory dialogFactory,
-      FactoryServiceClient factoryServiceClient) {
+      FactoryServiceClient factoryServiceClient,
+      PreferencesManager preferencesManager) {
     super(
         workspaceServiceClient,
         appContext,
@@ -71,10 +72,10 @@ class FactoryIdeInitializationStrategy extends DefaultIdeInitializationStrategy 
         themeAgent,
         styleInjector,
         standardComponentsInitializerProvider,
-        appStateManager,
         workspacePresenterProvider,
         eventBus,
-        dialogFactory);
+        dialogFactory,
+        preferencesManager);
 
     this.queryParameters = queryParameters;
     this.factoryServiceClient = factoryServiceClient;

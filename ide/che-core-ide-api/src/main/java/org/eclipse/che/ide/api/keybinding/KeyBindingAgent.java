@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -52,6 +53,9 @@ public interface KeyBindingAgent {
    */
   Scheme getActive();
 
+  /** Change active scheme using his identifier */
+  void setActive(@NotNull String scheme);
+
   /**
    * Register a new scheme
    *
@@ -70,13 +74,16 @@ public interface KeyBindingAgent {
   /** List registered schemes */
   List<Scheme> getSchemes();
 
-  /** Change active scheme using his identifier */
-  void setActive(@NotNull String scheme);
-
   /**
    * @return keyboard shortcut for the action with the specified <code>actionId</code> or an null if
    *     the action doesn't have any keyboard shortcut.
    */
   @Nullable
   CharCodeWithModifiers getKeyBinding(@NotNull String actionId);
+
+  /** Disable key binding agent. It's may be used when some modal window are shown. */
+  void disable();
+
+  /** Enable key binding agent back. */
+  void enable();
 }

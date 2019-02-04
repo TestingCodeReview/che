@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,13 +22,14 @@ import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Refactor;
-import org.eclipse.che.selenium.refactor.Services;
 import org.openqa.selenium.Keys;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -49,6 +51,7 @@ public class RenameNotPrivateFieldTest {
   @Inject private Refactor refactor;
   @Inject private NotificationsPopupPanel notificationsPopupPanel;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -59,27 +62,36 @@ public class RenameNotPrivateFieldTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SIMPLE);
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
-    new Services(projectExplorer, notificationsPopupPanel, refactor)
-        .expandSpringProjectNodes(PROJECT_NAME);
+    projectExplorer.quickExpandWithJavaScript();
+  }
+
+  @AfterMethod
+  public void closeForm() {
+    if (refactor.isWidgetOpened()) {
+      refactor.clickCancelButtonRefactorForm();
+    }
+    if (editor.isAnyTabsOpened()) {
+      editor.closeAllTabs();
+    }
   }
 
   @Test
   public void checkRenameNotPrivateField0() throws Exception {
     setFieldsForTest("test0");
     projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
     projectExplorer.sendToItemDownArrowKey();
     projectExplorer.sendToItemEnterKey();
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
     loader.waitOnClosed();
-    editor.setCursorToLine(21);
+    editor.setCursorToLine(22);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("g");
     loader.waitOnClosed();
     editor.typeTextIntoEditor(Keys.ENTER.toString());
@@ -87,18 +99,17 @@ public class RenameNotPrivateFieldTest {
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 1)
+  @Test
   public void checkRenameNotPrivateField1() throws Exception {
     setFieldsForTest("test1");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
     loader.waitOnClosed();
-    editor.setCursorToLine(13);
+    editor.setCursorToLine(14);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("g");
     loader.waitOnClosed();
     editor.typeTextIntoEditor(Keys.ENTER.toString());
@@ -106,202 +117,190 @@ public class RenameNotPrivateFieldTest {
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 2)
+  @Test
   public void checkRenameNotPrivateField2() throws Exception {
     setFieldsForTest("test2");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(13, 9);
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("g");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 3)
-  public void checkRenameNotPrivateField3() throws Exception {
-    setFieldsForTest("test3");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(19);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("g");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 4)
-  public void checkRenameNotPrivateField4() throws Exception {
-    setFieldsForTest("test4");
-    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
-    projectExplorer.sendToItemDownArrowKey();
-    projectExplorer.sendToItemEnterKey();
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("g");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 5)
-  public void checkRenameNotPrivateField5() throws Exception {
-    setFieldsForTest("test5");
-    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
-    projectExplorer.sendToItemDownArrowKey();
-    projectExplorer.sendToItemEnterKey();
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("g");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 6)
-  public void checkRenameNotPrivateField6() throws Exception {
-    setFieldsForTest("test6");
-    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
-    projectExplorer.sendToItemDownArrowKey();
-    projectExplorer.sendToItemEnterKey();
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("g");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    loader.waitOnClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 7)
-  public void checkRenameNotPrivateField7() throws Exception {
-    setFieldsForTest("test7");
-    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
-    projectExplorer.sendToItemDownArrowKey();
-    projectExplorer.sendToItemEnterKey();
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.waitUpdateReferencesIsSelected();
-    refactor.typeAndWaitNewName("g");
-    loader.waitOnClosed();
-    refactor.clickOkButtonRefactorForm();
-    refactor.waitRenameFieldFormIsClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 8)
-  public void checkRenameNotPrivateField8() throws Exception {
-    setFieldsForTest("test8");
-    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
-    projectExplorer.sendToItemDownArrowKey();
-    projectExplorer.sendToItemEnterKey();
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.waitUpdateReferencesIsSelected();
-    refactor.typeAndWaitNewName("g");
-    loader.waitOnClosed();
-    refactor.clickOkButtonRefactorForm();
-    refactor.waitRenameFieldFormIsClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 9)
-  public void checkRenameNotPrivateField9() throws Exception {
-    setFieldsForTest("test9");
-    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
-    projectExplorer.sendToItemDownArrowKey();
-    projectExplorer.sendToItemEnterKey();
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("g");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 10)
-  public void checkRenameNotPrivateField10() throws Exception {
-    setFieldsForTest("test10");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("g");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 11)
-  public void checkRenameAnnotation24() throws Exception {
-    setFieldsForTest("test24");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
     editor.goToCursorPositionVisible(14, 9);
-    editor.launchRefactorFormFromEditor();
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("g");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameNotPrivateField3() throws Exception {
+    setFieldsForTest("test3");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(20);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("g");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameNotPrivateField4() throws Exception {
+    setFieldsForTest("test4");
+    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
+    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
+    projectExplorer.sendToItemDownArrowKey();
+    projectExplorer.sendToItemEnterKey();
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("g");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameNotPrivateField5() throws Exception {
+    setFieldsForTest("test5");
+    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
+    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
+    projectExplorer.sendToItemDownArrowKey();
+    projectExplorer.sendToItemEnterKey();
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("g");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameNotPrivateField6() throws Exception {
+    setFieldsForTest("test6");
+    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
+    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
+    projectExplorer.sendToItemDownArrowKey();
+    projectExplorer.sendToItemEnterKey();
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("g");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    loader.waitOnClosed();
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameNotPrivateField7() throws Exception {
+    setFieldsForTest("test7");
+    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
+    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
+    projectExplorer.sendToItemDownArrowKey();
+    projectExplorer.sendToItemEnterKey();
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    refactor.waitUpdateReferencesIsSelected();
+    refactor.typeAndWaitNewName("g");
+    loader.waitOnClosed();
+    refactor.clickOkButtonRefactorForm();
+    refactor.waitRenameFieldFormIsClosed();
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameNotPrivateField8() throws Exception {
+    setFieldsForTest("test8");
+    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
+    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
+    projectExplorer.sendToItemDownArrowKey();
+    projectExplorer.sendToItemEnterKey();
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    refactor.waitUpdateReferencesIsSelected();
+    refactor.typeAndWaitNewName("g");
+    loader.waitOnClosed();
+    refactor.clickOkButtonRefactorForm();
+    refactor.waitRenameFieldFormIsClosed();
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameNotPrivateField9() throws Exception {
+    setFieldsForTest("test9");
+    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
+    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
+    projectExplorer.sendToItemDownArrowKey();
+    projectExplorer.sendToItemEnterKey();
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("g");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameNotPrivateField10() throws Exception {
+    setFieldsForTest("test10");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("g");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameAnnotation24() throws Exception {
+    setFieldsForTest("test24");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.goToCursorPositionVisible(15, 9);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("ZORRO");
     loader.waitOnClosed();
     editor.typeTextIntoEditor(Keys.ENTER.toString());
@@ -310,15 +309,14 @@ public class RenameNotPrivateFieldTest {
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 12)
+  @Test
   public void checkRenameAnnotation25() throws Exception {
     setFieldsForTest("test25");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(16, 14);
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(17, 14);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("ZORRO");
     loader.waitOnClosed();
     editor.typeTextIntoEditor(Keys.ENTER.toString());
@@ -326,15 +324,14 @@ public class RenameNotPrivateFieldTest {
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 13)
+  @Test
   public void checkBugFiveEightTwoOne26() throws Exception {
     setFieldsForTest("test26");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(13, 17);
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(14, 17);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("test1");
     loader.waitOnClosed();
     editor.typeTextIntoEditor(Keys.ENTER.toString());
@@ -342,17 +339,16 @@ public class RenameNotPrivateFieldTest {
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 14)
+  @Test
   public void checkRenameDelegate28() throws Exception {
     setFieldsForTest("test28");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(15);
+    editor.setCursorToLine(16);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("g");
     loader.waitOnClosed();
     editor.typeTextIntoEditor(Keys.ENTER.toString());
@@ -360,74 +356,10 @@ public class RenameNotPrivateFieldTest {
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 15)
+  @Test
   public void checkRenameEnumField31() throws Exception {
     setFieldsForTest("test31");
     projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
-    projectExplorer.sendToItemDownArrowKey();
-    projectExplorer.sendToItemEnterKey();
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(15);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("other");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 16)
-  public void checkRenameGenerics32() throws Exception {
-    setFieldsForTest("test32");
-    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
-    projectExplorer.sendToItemDownArrowKey();
-    projectExplorer.sendToItemEnterKey();
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(14);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("g");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 17)
-  public void checkRenameGenerics33() throws Exception {
-    setFieldsForTest("test33");
-    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
-    projectExplorer.sendToItemDownArrowKey();
-    projectExplorer.sendToItemEnterKey();
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(14);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.typeTextIntoEditor("g");
-    loader.waitOnClosed();
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 18)
-  public void checkRenameGenerics36() throws Exception {
-    setFieldsForTest("test36");
-    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
     projectExplorer.sendToItemDownArrowKey();
     projectExplorer.sendToItemEnterKey();
@@ -436,7 +368,67 @@ public class RenameNotPrivateFieldTest {
     editor.setCursorToLine(16);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("other");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameGenerics32() throws Exception {
+    setFieldsForTest("test32");
+    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
+    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
+    projectExplorer.sendToItemDownArrowKey();
+    projectExplorer.sendToItemEnterKey();
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(15);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("g");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameGenerics33() throws Exception {
+    setFieldsForTest("test33");
+    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
+    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
+    projectExplorer.sendToItemDownArrowKey();
+    projectExplorer.sendToItemEnterKey();
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(15);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchLocalRefactor();
+    editor.typeTextIntoEditor("g");
+    loader.waitOnClosed();
+    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameGenerics36() throws Exception {
+    setFieldsForTest("test36");
+    projectExplorer.scrollAndSelectItem(pathToCurrentPackage);
+    projectExplorer.waitVisibleItem(pathToCurrentPackage + "/A.java");
+    projectExplorer.sendToItemDownArrowKey();
+    projectExplorer.sendToItemEnterKey();
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(17);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("g");
     loader.waitOnClosed();
     editor.typeTextIntoEditor(Keys.ENTER.toString());

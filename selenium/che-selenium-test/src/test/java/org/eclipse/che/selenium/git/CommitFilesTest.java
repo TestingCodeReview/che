@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,16 +15,19 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import java.net.URL;
 import java.nio.file.Paths;
+import org.eclipse.che.selenium.core.TestGroup;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Events;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
@@ -31,6 +35,7 @@ import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Refactor;
 import org.openqa.selenium.Keys;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -38,6 +43,7 @@ import org.testng.annotations.Test;
  * @author aleksandr shmaraev
  * @author igor vinokur
  */
+@Test(groups = TestGroup.GITHUB)
 public class CommitFilesTest {
   private static final String PROJECT_NAME = CommitFilesTest.class.getSimpleName();
   private static final String NEW_NAME_PACKAGE = "org.eclipse.dev.examples";
@@ -60,12 +66,13 @@ public class CommitFilesTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private TestUser productUser;
+  @Inject private DefaultTestUser productUser;
 
   @Inject
   @Named("github.username")
   private String gitHubUsername;
 
+  @Inject private SeleniumWebDriverHelper seleniumWebDriverHelper;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Menu menu;
   @Inject private AskDialog askDialog;
@@ -77,6 +84,7 @@ public class CommitFilesTest {
   @Inject private AskForValueDialog askForValueDialog;
   @Inject private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -85,13 +93,21 @@ public class CommitFilesTest {
     testProjectServiceClient.importProject(
         ws.getId(), Paths.get(resource.toURI()), PROJECT_NAME, ProjectTemplates.MAVEN_SPRING);
     ide.open(ws);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
+  }
+
+  @AfterMethod
+  public void closeForm() {
+    if (git.isCommitWidgetOpened()) {
+      git.clickOnCancelBtnCommitForm();
+    }
   }
 
   @Test
   public void testCheckBoxSelections() {
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.INITIALIZE_REPOSITORY);
     askDialog.waitFormToOpen();
@@ -100,7 +116,7 @@ public class CommitFilesTest {
     git.waitGitStatusBarWithMess(TestGitConstants.GIT_INITIALIZED_SUCCESS);
 
     // unselect folder and check that all child nodes are also unselected
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.clickItemCheckBoxInCommitWindow("webapp");
     git.waitItemCheckBoxToBeIndeterminateInCommitWindow("src/main");
@@ -140,14 +156,14 @@ public class CommitFilesTest {
     git.waitItemCheckBoxToBeUnSelectedInCommitWindow("jsp", "guess_num.jsp");
     git.waitItemCheckBoxToBeSelectedInCommitWindow("web.xml", "spring-servlet.xml", "index.jsp");
 
-    git.clickOnCancelBtnComitForm();
+    git.clickOnCancelBtnCommitForm();
     git.waitCommitFormClosed();
   }
 
   @Test(priority = 1)
   public void testFoldersStructureAfterRename() {
     projectExplorer.expandPathInProjectExplorer(PROJECT_NAME + "/src/main/java/");
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples");
     menu.runCommand(
         TestMenuCommandsConstants.Assistant.ASSISTANT,
         TestMenuCommandsConstants.Assistant.Refactoring.REFACTORING,
@@ -155,16 +171,26 @@ public class CommitFilesTest {
     refactor.waitRenamePackageFormIsOpen();
     refactor.setAndWaitStateUpdateReferencesCheckbox(true);
     loader.waitOnClosed();
-    refactor.typeAndWaitNewName("org.eclipse.de");
-    refactor.sendKeysIntoField("v.exam");
-    refactor.sendKeysIntoField("pl");
-    refactor.sendKeysIntoField("es");
-    refactor.sendKeysIntoField("");
-    refactor.waitTextIntoNewNameField(NEW_NAME_PACKAGE);
+    refactor.typeAndWaitNewName(NEW_NAME_PACKAGE);
     refactor.clickOkButtonRefactorForm();
-    projectExplorer.selectItem(PROJECT_NAME);
-    menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
-    git.waitCommitMainFormIsOpened();
+
+    seleniumWebDriverHelper.performAndVerify(
+        aVoid -> {
+          projectExplorer.waitAndSelectItem(PROJECT_NAME);
+          menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
+          git.waitCommitMainFormIsOpened();
+          return null;
+        },
+        aVoid -> {
+          projectExplorer.waitItemIsSelected(PROJECT_NAME);
+          return null;
+        },
+        aVoid -> {
+          git.clickOnCancelBtnCommitForm();
+          git.waitCommitFormClosed();
+          return null;
+        });
+
     git.waitItemCheckBoxToBeSelectedInCommitWindow(
         "src/main",
         "java/org/eclipse/dev/examples",
@@ -177,14 +203,15 @@ public class CommitFilesTest {
         "spring-servlet.xml",
         "index.jsp",
         "pom.xml");
-    git.clickOnCancelBtnComitForm();
+
+    git.clickOnCancelBtnCommitForm();
     git.waitCommitFormClosed();
   }
 
   @Test(priority = 2)
   public void commitFilesTest() {
     // perform init commit without one folder
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.clickItemCheckBoxInCommitWindow("java/org/eclipse/dev/examples");
     git.waitAndRunCommit("init");
@@ -198,7 +225,7 @@ public class CommitFilesTest {
     loader.waitOnClosed();
 
     // perform commit of the folder
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.waitAndRunCommit("init");
     loader.waitOnClosed();
@@ -235,7 +262,7 @@ public class CommitFilesTest {
     editor.waitWhileFileIsClosed("index.jsp");
 
     // Create Hello.java class
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/java/org/eclipse/dev/examples");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main/java/org/eclipse/dev/examples");
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -245,14 +272,14 @@ public class CommitFilesTest {
     askForValueDialog.clickOkBtnNewJavaClass();
     askForValueDialog.waitNewJavaClassClose();
     loader.waitOnClosed();
-    projectExplorer.waitItemInVisibleArea("Hello.java");
+    projectExplorer.waitVisibilityByName("Hello.java");
     editor.waitTabIsPresent("Hello");
     loader.waitOnClosed();
     editor.closeFileByNameWithSaving("Hello");
     editor.waitWhileFileIsClosed("Hello");
 
     // Create script.js file
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/webapp");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main/webapp");
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -264,7 +291,7 @@ public class CommitFilesTest {
     askForValueDialog.waitFormToClose();
 
     // Commit to repository and check status
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.waitAndRunCommit(COMMIT_MESSAGE);
     git.waitGitStatusBarWithMess(TestGitConstants.COMMIT_MESSAGE_SUCCESS);
@@ -274,7 +301,7 @@ public class CommitFilesTest {
     git.waitGitStatusBarWithMess(NOTHING_TO_COMMIT_MESSAGE);
 
     // View git history
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main");
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.SHOW_HISTORY);
     loader.waitOnClosed();
     git.waitTextInHistoryForm(COMMIT_MESSAGE);

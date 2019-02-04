@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,6 +14,7 @@ package org.eclipse.che.ide.ui.multisplitpanel.panel;
 import static com.google.gwt.user.client.ui.DockLayoutPanel.Direction.CENTER;
 
 import com.google.gwt.core.client.JavaScriptObject;
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.event.dom.client.ClickEvent;
 import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -37,7 +39,6 @@ import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.FontAwesome;
 import org.eclipse.che.ide.api.action.Action;
 import org.eclipse.che.ide.api.action.BaseAction;
-import org.eclipse.che.ide.ui.multisplitpanel.SubPanel;
 import org.eclipse.che.ide.ui.multisplitpanel.WidgetToShow;
 import org.eclipse.che.ide.ui.multisplitpanel.actions.ClosePaneAction;
 import org.eclipse.che.ide.ui.multisplitpanel.actions.RemoveAllWidgetsInPaneAction;
@@ -127,9 +128,18 @@ public class SubPanelViewImpl extends Composite
         new ClickHandler() {
           @Override
           public void onClick(ClickEvent clickEvent) {
-            delegate.onAddTabButtonClicked(
-                getAbsoluteLeft(plusPanel.getElement()) + POPUP_OFFSET,
-                getAbsoluteTop(plusPanel.getElement()) + POPUP_OFFSET);
+            widgetsPanel.getElement().focus();
+            delegate.onWidgetFocused(widgetsPanel.getVisibleWidget());
+            Scheduler.get()
+                .scheduleDeferred(
+                    new Scheduler.ScheduledCommand() {
+                      @Override
+                      public void execute() {
+                        delegate.onAddTabButtonClicked(
+                            getAbsoluteLeft(plusPanel.getElement()) + POPUP_OFFSET,
+                            getAbsoluteTop(plusPanel.getElement()) + POPUP_OFFSET);
+                      }
+                    });
           }
         },
         ClickEvent.getType());
@@ -191,6 +201,15 @@ public class SubPanelViewImpl extends Composite
   }
 
   @Override
+  public void activateTab(Tab tab) {
+    final WidgetToShow widget = tabs2Widgets.get(tab);
+    if (widget != null) {
+      activateWidget(widget);
+      delegate.onWidgetFocused(widget.getWidget());
+    }
+  }
+
+  @Override
   public void addWidget(WidgetToShow widget, boolean removable) {
     final Tab tab = tabItemFactory.createTabItem(widget.getTitle(), widget.getIcon(), removable);
     tab.setDelegate(this);
@@ -233,23 +252,39 @@ public class SubPanelViewImpl extends Composite
   }
 
   @Override
-  public void removeWidget(WidgetToShow widget) {
+  public void removeWidget(WidgetToShow widget, ActiveTabClosedHandler activeTabClosedHandler) {
     final Tab tab = widgets2Tabs.get(widget);
     if (tab != null) {
-      closeTab(tab);
+      closeTab(tab, activeTabClosedHandler);
     }
   }
 
   private void closeTab(Tab tab) {
+    closeTab(tab, SubPanelView::activateTab);
+  }
+
+  private void closeTab(Tab tab, ActiveTabClosedHandler activeTabClosedHandler) {
     final WidgetToShow widget = tabs2Widgets.get(tab);
 
     if (widget != null) {
       delegate.onWidgetRemoving(
           widget.getWidget(),
-          new SubPanel.RemoveCallback() {
-            @Override
-            public void remove() {
-              removeWidgetFromUI(widget);
+          () -> {
+            final int removedTabIndex = tabsPanel.getWidgetIndex(tab);
+
+            removeWidgetFromUI(widget);
+
+            if (tab == selectedTab && tabsPanel.getWidgetCount() > 1) {
+              Widget widgetToSelect;
+              if (removedTabIndex < tabsPanel.getWidgetCount() - 1) {
+                widgetToSelect = tabsPanel.getWidget(removedTabIndex);
+              } else {
+                widgetToSelect = tabsPanel.getWidget(tabsPanel.getWidgetCount() - 2);
+              }
+
+              if (widgetToSelect instanceof Tab) {
+                activeTabClosedHandler.onActiveTabClosed(this, (Tab) widgetToSelect);
+              }
             }
           });
     }
@@ -260,7 +295,6 @@ public class SubPanelViewImpl extends Composite
     if (tab != null) {
       tabsPanel.remove(tab);
       widgetsPanel.remove(widget.getWidget());
-
       tabs2Widgets.remove(tab);
 
       // remove item from drop-down menu
@@ -361,11 +395,7 @@ public class SubPanelViewImpl extends Composite
 
   @Override
   public void onTabClicked(Tab tab) {
-    final WidgetToShow widget = tabs2Widgets.get(tab);
-    if (widget != null) {
-      activateWidget(widget);
-      delegate.onWidgetFocused(widget.getWidget());
-    }
+    activateTab(tab);
   }
 
   @Override

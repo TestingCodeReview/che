@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,7 @@ import javax.validation.constraints.NotNull;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.plugin.ssh.key.client.SshKeyLocalizationConstant;
+import org.eclipse.che.security.oauth.SecurityTokenProvider;
 
 /**
  * Main appointment of this class is upload private SSH key to the server.
@@ -31,6 +33,7 @@ import org.eclipse.che.plugin.ssh.key.client.SshKeyLocalizationConstant;
 @Singleton
 public class UploadSshKeyPresenter implements UploadSshKeyView.ActionDelegate {
   private UploadSshKeyView view;
+  private SecurityTokenProvider securityTokenProvider;
   private SshKeyLocalizationConstant constant;
   private String restContext;
   private NotificationManager notificationManager;
@@ -42,8 +45,10 @@ public class UploadSshKeyPresenter implements UploadSshKeyView.ActionDelegate {
       UploadSshKeyView view,
       SshKeyLocalizationConstant constant,
       AppContext appContext,
-      NotificationManager notificationManager) {
+      NotificationManager notificationManager,
+      SecurityTokenProvider securityTokenProvider) {
     this.view = view;
+    this.securityTokenProvider = securityTokenProvider;
     this.view.setDelegate(this);
     this.constant = constant;
     this.restContext = appContext.getMasterApiEndpoint();
@@ -76,7 +81,6 @@ public class UploadSshKeyPresenter implements UploadSshKeyView.ActionDelegate {
     }
     view.setEncoding(FormPanel.ENCODING_MULTIPART);
 
-    String action = restContext + "/ssh";
     StringBuilder queryParametersBuilder = new StringBuilder();
 
     String csrfToken = appContext.getProperties().get("X-CSRF-Token");
@@ -84,18 +88,23 @@ public class UploadSshKeyPresenter implements UploadSshKeyView.ActionDelegate {
       queryParametersBuilder.append("&X-CSRF-Token=").append(csrfToken);
     }
 
-    String machineToken = appContext.getWorkspace().getRuntime().getMachineToken();
-    if (!isNullOrEmpty(machineToken)) {
-      queryParametersBuilder.append("&token=").append(machineToken);
-    }
+    securityTokenProvider
+        .getSecurityToken()
+        .then(
+            token -> {
+              String action = restContext + "/ssh";
+              if (!isNullOrEmpty(token)) {
+                queryParametersBuilder.append("&token=").append(token);
+              }
 
-    String queryParameters = queryParametersBuilder.toString();
-    if (!isNullOrEmpty(queryParameters)) {
-      action += queryParameters.replaceFirst("&", "?");
-    }
+              String queryParameters = queryParametersBuilder.toString();
+              if (!isNullOrEmpty(queryParameters)) {
+                action += queryParameters.replaceFirst("&", "?");
+              }
 
-    view.setAction(action);
-    view.submit();
+              view.setAction(action);
+              view.submit();
+            });
   }
 
   /** {@inheritDoc} */

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,8 +16,6 @@ import static org.eclipse.che.ide.api.theme.Style.getEditorSelectionColor;
 import static org.eclipse.che.ide.api.theme.Style.getMainFontColor;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Button;
@@ -27,7 +26,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.List;
 import org.eclipse.che.ide.ext.java.client.JavaLocalizationConstant;
-import org.eclipse.che.ide.ext.java.shared.dto.ConflictImportDTO;
 import org.eclipse.che.ide.ui.window.Window;
 
 /**
@@ -72,9 +70,8 @@ final class OrganizeImportsViewImpl extends Window implements OrganizeImportsVie
 
   /** {@inheritDoc} */
   @Override
-  public void show(ConflictImportDTO match) {
+  public void show(List<String> matches) {
     container.clear();
-    List<String> matches = match.getTypeMatches();
     for (String fqn : matches) {
       final Label label = new Label(fqn);
       if (fqn.equals(selectedImport)) {
@@ -84,19 +81,21 @@ final class OrganizeImportsViewImpl extends Window implements OrganizeImportsVie
       label.getElement().getStyle().setColor(getMainFontColor());
       label.getElement().getStyle().setCursor(POINTER);
       label.addClickHandler(
-          new ClickHandler() {
-            @Override
-            public void onClick(ClickEvent clickEvent) {
-              selectedLabel.getElement().getStyle().setBackgroundColor("initial");
-              selectedLabel = label;
-              label.getElement().getStyle().setBackgroundColor(getEditorSelectionColor());
-            }
+          clickEvent -> {
+            selectedLabel.getElement().getStyle().setBackgroundColor("initial");
+            selectedLabel = label;
+            label.getElement().getStyle().setBackgroundColor(getEditorSelectionColor());
           });
 
       container.add(label);
     }
 
-    super.show();
+    show();
+  }
+
+  @Override
+  public void close() {
+    hide();
   }
 
   /** {@inheritDoc} */
@@ -112,8 +111,8 @@ final class OrganizeImportsViewImpl extends Window implements OrganizeImportsVie
 
   /** {@inheritDoc} */
   @Override
-  public void changePage(ConflictImportDTO match) {
-    show(match);
+  public void changePage(List<String> matches) {
+    show(matches);
   }
 
   /** {@inheritDoc} */
@@ -136,53 +135,30 @@ final class OrganizeImportsViewImpl extends Window implements OrganizeImportsVie
 
   private void createButtons(JavaLocalizationConstant locale) {
     back =
-        createButton(
+        addFooterButton(
             locale.organizeImportsButtonBack(),
             "imports-back-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onBackButtonClicked();
-              }
-            });
+            event -> delegate.onBackButtonClicked());
 
     next =
-        createButton(
+        addFooterButton(
             locale.organizeImportsButtonNext(),
             "imports-next-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onNextButtonClicked();
-              }
-            });
+            event -> delegate.onNextButtonClicked());
 
-    Button cancel =
-        createButton(
-            locale.organizeImportsButtonCancel(),
-            "imports-cancel-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                hide();
-                delegate.onCancelButtonClicked();
-              }
-            });
+    addFooterButton(
+        locale.organizeImportsButtonCancel(),
+        "imports-cancel-button",
+        event -> {
+          hide();
+          delegate.onCancelButtonClicked();
+        });
 
     finish =
-        createPrimaryButton(
+        addFooterButton(
             locale.organizeImportsButtonFinish(),
             "imports-finish-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onFinishButtonClicked();
-              }
-            });
-
-    addButtonToFooter(finish);
-    addButtonToFooter(cancel);
-    addButtonToFooter(next);
-    addButtonToFooter(back);
+            event -> delegate.onFinishButtonClicked(),
+            true);
   }
 }

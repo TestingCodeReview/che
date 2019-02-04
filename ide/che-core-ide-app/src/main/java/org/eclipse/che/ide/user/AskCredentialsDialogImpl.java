@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -57,18 +58,15 @@ public class AskCredentialsDialogImpl extends Window implements AskCredentialsDi
     this.setWidget(uiBinder.createAndBindUi(this));
     this.setTitle(localizationConstant.authorizationDialogTitle());
     authenticateButton =
-        createPrimaryButton(
+        addFooterButton(
             localizationConstant.authenticationDialogAuthenticate(),
             "authentication-dialog-authenticate-button",
-            event -> onAuthenticateClicked());
-    Button cancelButton =
-        createButton(
-            localizationConstant.cancel(),
-            "authentication-dialog-cancel-button",
-            event -> onCancelClicked());
-
-    addButtonToFooter(authenticateButton);
-    addButtonToFooter(cancelButton);
+            event -> onAuthenticateClicked(),
+            true);
+    addFooterButton(
+        localizationConstant.cancel(),
+        "authentication-dialog-cancel-button",
+        event -> onCancelClicked());
   }
 
   @Override
@@ -93,11 +91,11 @@ public class AskCredentialsDialogImpl extends Window implements AskCredentialsDi
   }
 
   public void showDialog() {
-    super.show();
+    show();
   }
 
   public void closeDialog() {
-    super.hide();
+    hide();
   }
 
   public String getUsername() {

@@ -51,7 +51,7 @@
     ng-show="listOrganizationMembersController.cheListHelper.visibleItemsNumber > 0">
     <che-list-item
       ng-repeat="member in listOrganizationMembersController.cheListHelper.getVisibleItems() | orderBy:[listOrganizationMembersController.memberOrderBy, 'config.name']"
-      lex-gt-sm="100" flex="33" ng-mouseover="hover=true" ng-mouseout="hover=false">
+      flex="100" ng-mouseover="hover=true" ng-mouseout="hover=false">
       <div flex="100"
            layout="row"
            layout-align="start stretch"
@@ -59,10 +59,10 @@
            class="che-list-item-row member-list-row">
         <div ng-if="listOrganizationMembersController.hasUpdatePermission"
              layout="row" layout-align="start center" class="che-checkbox-area">
-          <che-list-item-checked ng-model="listOrganizationMembersController.cheListHelper.itemsSelectionStatus[member.id]"
+          <che-list-item-checked ng-model="listOrganizationMembersController.cheListHelper.itemsSelectionStatus[member.email]"
                                  ng-click="listOrganizationMembersController.cheListHelper.updateBulkSelectionStatus()"
                                  ng-show="!listOrganizationMembersController.isOwner(member)"
-                                 che-aria-label-checkbox="member {{member.id}}"></che-list-item-checked>
+                                 che-aria-label-checkbox="member {{member.email}}"></che-list-item-checked>
         </div>
         <div flex
              layout-xs="column" layout-gt-xs="row"

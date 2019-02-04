@@ -1,16 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ui.dialogs.confirm;
 
+import static org.eclipse.che.ide.util.dom.DomUtils.isWidgetOrChildFocused;
+
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.IsWidget;
@@ -43,7 +47,7 @@ public class ConfirmDialogViewImpl extends Window implements ConfirmDialogView {
     setWidget(widget);
 
     this.footer = footer;
-    getFooter().add(this.footer);
+    addFooterWidget(footer);
   }
 
   @Override
@@ -53,7 +57,8 @@ public class ConfirmDialogViewImpl extends Window implements ConfirmDialogView {
   }
 
   @Override
-  protected void onEnterClicked() {
+  public void onEnterPress(NativeEvent evt) {
+    evt.preventDefault();
     delegate.onEnterClicked();
   }
 
@@ -73,6 +78,11 @@ public class ConfirmDialogViewImpl extends Window implements ConfirmDialogView {
     this.content.setWidget(content);
   }
 
+  @Override
+  public void setTitleCaption(String title) {
+    setTitle(title);
+  }
+
   public void setOkButtonLabel(String label) {
     footer.setOkButtonLabel(label);
   }
@@ -83,12 +93,12 @@ public class ConfirmDialogViewImpl extends Window implements ConfirmDialogView {
 
   @Override
   public boolean isOkButtonInFocus() {
-    return isWidgetFocused(footer.okButton);
+    return isWidgetOrChildFocused(footer.okButton);
   }
 
   @Override
   public boolean isCancelButtonInFocus() {
-    return isWidgetFocused(footer.cancelButton);
+    return isWidgetOrChildFocused(footer.cancelButton);
   }
 
   /** The UI binder interface for this components. */

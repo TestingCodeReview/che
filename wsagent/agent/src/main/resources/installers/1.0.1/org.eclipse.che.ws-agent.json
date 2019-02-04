@@ -12,16 +12,20 @@
     "wsagent/http": {
       "port": "4401/tcp",
       "protocol": "http",
-      "path" : "/api"
+      "path" : "/api",
+      "attributes": {
+        "secure": "true",
+        "unsecuredPaths": "/api/liveness"
+      }
     },
     "wsagent/ws": {
       "port": "4401/tcp",
       "protocol": "ws",
-      "path" : "/wsagent"
-    },
-    "wsagent-debug": {
-      "port": "4403/tcp",
-      "protocol": "tcp"
+      "path" : "/wsagent",
+      "attributes": {
+        "secure": "true",
+        "unsecuredPaths": "/api/liveness"
+      }
     }
   }
 }

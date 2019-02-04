@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,11 +19,15 @@ import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOf;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.client.keycloak.TestKeycloakSettingsServiceClient;
 import org.eclipse.che.selenium.core.entrance.Entrance;
 import org.eclipse.che.selenium.core.provider.TestDashboardUrlProvider;
-import org.eclipse.che.selenium.core.provider.TestIdeUrlProvider;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
+import org.eclipse.che.selenium.core.webdriver.WebDriverWaitFactory;
+import org.eclipse.che.selenium.pageobject.TestWebElementRenderChecker;
 import org.eclipse.che.selenium.pageobject.site.LoginPage;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
@@ -41,18 +46,26 @@ public class CheMultiuserAdminDashboard extends Dashboard {
   @Inject
   public CheMultiuserAdminDashboard(
       SeleniumWebDriver seleniumWebDriver,
-      TestUser defaultUser,
-      TestIdeUrlProvider testIdeUrlProvider,
+      DefaultTestUser defaultUser,
       TestDashboardUrlProvider testDashboardUrlProvider,
       Entrance entrance,
-      LoginPage loginPage) {
+      LoginPage loginPage,
+      TestWebElementRenderChecker testWebElementRenderChecker,
+      TestKeycloakSettingsServiceClient testKeycloakSettingsServiceClient,
+      SeleniumWebDriverHelper seleniumWebDriverHelper,
+      WebDriverWaitFactory webDriverWaitFactory,
+      @Named("che.multiuser") boolean isMultiuser) {
     super(
         seleniumWebDriver,
         defaultUser,
-        testIdeUrlProvider,
         testDashboardUrlProvider,
         entrance,
-        loginPage);
+        loginPage,
+        testWebElementRenderChecker,
+        testKeycloakSettingsServiceClient,
+        seleniumWebDriverHelper,
+        webDriverWaitFactory,
+        isMultiuser);
     PageFactory.initElements(seleniumWebDriver, this);
   }
 

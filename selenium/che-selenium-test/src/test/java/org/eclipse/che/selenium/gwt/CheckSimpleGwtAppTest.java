@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,10 +14,10 @@ package org.eclipse.che.selenium.gwt;
 import static org.eclipse.che.dto.server.DtoFactory.newDto;
 import static org.eclipse.che.selenium.core.constant.TestBuildConstants.BUILD_SUCCESS;
 import static org.eclipse.che.selenium.core.constant.TestCommandsConstants.CUSTOM;
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuCommandGoals.COMMON_GOAL;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.APPLICATION_START_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.workspace.WorkspaceTemplate.UBUNTU_JDK8;
-import static org.eclipse.che.selenium.pageobject.ProjectExplorer.CommandsGoal.COMMON;
 
 import com.google.inject.Inject;
 import java.net.URL;
@@ -29,11 +30,11 @@ import org.eclipse.che.selenium.core.client.TestCommandServiceClient;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.utils.WaitUtils;
 import org.eclipse.che.selenium.core.utils.WorkspaceDtoDeserializer;
+import org.eclipse.che.selenium.core.workspace.CheTestWorkspaceProvider;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
-import org.eclipse.che.selenium.core.workspace.TestWorkspaceImpl;
 import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
@@ -41,6 +42,7 @@ import org.eclipse.che.selenium.pageobject.ToastLoader;
 import org.openqa.selenium.By;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -61,8 +63,10 @@ public class CheckSimpleGwtAppTest {
   @Inject private TestWorkspaceServiceClient workspaceServiceClient;
   @Inject private TestProjectServiceClient testProjectServiceClient;
   @Inject private WorkspaceDtoDeserializer workspaceDtoDeserializer;
-  @Inject private TestUser testUser;
+  @Inject private DefaultTestUser testUser;
   @Inject private SeleniumWebDriver seleniumWebDriver;
+  @Inject private CheTestWorkspaceProvider testWorkspaceProvider;
+
   private String projectName;
 
   @BeforeClass
@@ -71,7 +75,6 @@ public class CheckSimpleGwtAppTest {
 
     WorkspaceConfigDto workspace =
         workspaceDtoDeserializer.deserializeWorkspaceTemplate(UBUNTU_JDK8);
-
     workspace
         .getEnvironments()
         .get("replaced_name")
@@ -83,12 +86,8 @@ public class CheckSimpleGwtAppTest {
             newDto(ServerConfigDto.class).withProtocol("http").withPort("9876"));
 
     testWorkspace =
-        new TestWorkspaceImpl(
-            NameGenerator.generate("check-gwt-test", 4),
-            testUser,
-            4,
-            workspace,
-            workspaceServiceClient);
+        testWorkspaceProvider.createWorkspace(
+            NameGenerator.generate("check-gwt-test", 4), testUser, 4, true, workspace);
 
     URL resource = getClass().getResource("/projects/web-gwt-java-simple");
     testProjectServiceClient.importProject(
@@ -123,10 +122,10 @@ public class CheckSimpleGwtAppTest {
 
     projectExplorer.waitItem(projectName);
     toastLoader.waitAppeareanceAndClosing();
-    projectExplorer.selectItem(projectName);
-    projectExplorer.invokeCommandWithContextMenu(COMMON, projectName, BUILD_COMMAND);
+    projectExplorer.waitAndSelectItem(projectName);
+    projectExplorer.invokeCommandWithContextMenu(COMMON_GOAL, projectName, BUILD_COMMAND);
     consoles.waitExpectedTextIntoConsole(BUILD_SUCCESS, 600);
-    projectExplorer.invokeCommandWithContextMenu(COMMON, projectName, RUN_GWT_COMMAND);
+    projectExplorer.invokeCommandWithContextMenu(COMMON_GOAL, projectName, RUN_GWT_COMMAND);
     consoles.waitExpectedTextIntoConsole("The code server is ready", APPLICATION_START_TIMEOUT_SEC);
 
     String url =
@@ -143,5 +142,10 @@ public class CheckSimpleGwtAppTest {
         .until(
             ExpectedConditions.textToBePresentInElementLocated(
                 By.tagName("body"), expectedTextOnCodeServerPage));
+  }
+
+  @AfterClass
+  public void tearDown() {
+    testWorkspace.delete();
   }
 }

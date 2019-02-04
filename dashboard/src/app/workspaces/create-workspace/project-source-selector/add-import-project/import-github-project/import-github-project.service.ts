@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -24,6 +25,9 @@ export enum LoadingState {
  * @author Oleksii Kurinnyi
  */
 export class ImportGithubProjectService implements IEditingProgress {
+
+  static $inject = ['cheAPI', '$http', '$q', '$filter', 'GitHub', 'gitHubTokenStore'];
+
   /**
    * API entry point.
    */
@@ -83,7 +87,6 @@ export class ImportGithubProjectService implements IEditingProgress {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor (cheAPI: CheAPI, $http: ng.IHttpService, $q: ng.IQService, $filter: ng.IFilterService, GitHub: any, gitHubTokenStore: any) {
     this.cheAPI = cheAPI;
@@ -162,7 +165,6 @@ export class ImportGithubProjectService implements IEditingProgress {
    */
   getOrFetchOAuthProvider(): ng.IPromise<any> {
     const defer = this.$q.defer();
-
     this.isGitHubOAuthProviderAvailable = this.cheAPI.getOAuthProvider().isOAuthProviderRegistered('github');
     if (this.isGitHubOAuthProviderAvailable) {
       defer.resolve(this.isGitHubOAuthProviderAvailable);
@@ -313,7 +315,7 @@ export class ImportGithubProjectService implements IEditingProgress {
    * @return {boolean}
    */
   getIsGitHubOAuthProviderAvailable(): boolean {
-    return this.isGitHubOAuthProviderAvailable;
+    return this.cheAPI.getOAuthProvider().isOAuthProviderRegistered('github');
   }
 
   /**
@@ -347,7 +349,7 @@ export class ImportGithubProjectService implements IEditingProgress {
       const path = '/' +  name.replace(/[^\w-_]/g, '_');
       props.name = name;
       props.displayName = name;
-      props.description = repository.description;
+      props.description = repository.description || '';
       props.path = path;
       props.category = '';
 

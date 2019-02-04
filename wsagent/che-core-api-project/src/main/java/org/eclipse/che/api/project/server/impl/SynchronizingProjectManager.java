@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,6 +29,7 @@ import org.eclipse.che.api.core.model.workspace.config.SourceStorage;
 import org.eclipse.che.api.project.server.ProjectManager;
 import org.eclipse.che.api.project.server.type.ProjectTypeResolution;
 import org.eclipse.che.api.project.shared.NewProjectConfig;
+import org.eclipse.che.api.project.shared.RegisteredProject;
 
 /**
  * Synchronize project registry state on workspace agent and master using actual implementation of
@@ -38,11 +40,12 @@ import org.eclipse.che.api.project.shared.NewProjectConfig;
 public class SynchronizingProjectManager implements ProjectManager {
 
   private final ExecutiveProjectManager executiveProjectManager;
-  private final ProjectSynchronizer projectSynchronizer;
+  private final WorkspaceProjectSynchronizer projectSynchronizer;
 
   @Inject
   public SynchronizingProjectManager(
-      ExecutiveProjectManager executiveProjectManager, ProjectSynchronizer projectSynchronizer) {
+      ExecutiveProjectManager executiveProjectManager,
+      WorkspaceProjectSynchronizer projectSynchronizer) {
     this.executiveProjectManager = executiveProjectManager;
     this.projectSynchronizer = projectSynchronizer;
   }

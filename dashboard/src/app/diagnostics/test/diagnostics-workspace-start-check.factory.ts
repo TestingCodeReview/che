@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,8 @@ import {CheJsonRpcMasterApi} from '../../../components/api/json-rpc/che-json-rpc
  * @author Florent Benoit
  */
 export class DiagnosticsWorkspaceStartCheck {
+
+  static $inject = ['$q', 'lodash', 'cheWorkspace', 'diagnosticsRunningWorkspaceCheck', 'cheBranding', '$location', 'cheJsonRpcApi', 'userDashboardConfig', 'keycloakAuth', 'proxySettings'];
 
   /**
    * Q service for creating delayed promises.
@@ -84,7 +87,6 @@ export class DiagnosticsWorkspaceStartCheck {
 
   /**
    * Default constructor
-   * @ngInject for Dependency injection
    */
   constructor($q: ng.IQService,
               lodash: any,
@@ -179,9 +181,8 @@ export class DiagnosticsWorkspaceStartCheck {
               }
             },
             'recipe': {
-              'content': 'FROM openjdk:8-jre-alpine\nCMD tail -f /dev/null\n',
-              'contentType': 'text/x-dockerfile',
-              'type': 'dockerfile'
+              'content': 'eclipse/ubuntu_jdk8',
+              'type': 'dockerimage'
             }
           }
         },
@@ -226,6 +227,7 @@ export class DiagnosticsWorkspaceStartCheck {
               let workspace = this.cheWorkspace.getWorkspaceById(workspaceId);
               diagnosticCallback.shared('workspace', workspace);
               diagnosticCallback.shared('machineToken', workspace.runtime.machineToken);
+              diagnosticCallback.shared('clientId', this.cheJsonRpcMasterApi.getClientId());
               diagnosticCallback.success('Starting workspace OK');
             });
           });

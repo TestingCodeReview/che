@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -42,8 +43,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessLogsResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessesResponseDto;
 import org.eclipse.che.api.core.model.workspace.Runtime;
 import org.eclipse.che.api.core.model.workspace.Workspace;
+import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.api.core.model.workspace.config.Command;
 import org.eclipse.che.api.core.model.workspace.runtime.Machine;
 import org.eclipse.che.api.core.model.workspace.runtime.Server;
@@ -62,8 +66,6 @@ import org.eclipse.che.ide.api.command.CommandTypeRegistry;
 import org.eclipse.che.ide.api.command.CommandsLoadedEvent;
 import org.eclipse.che.ide.api.command.exec.ExecAgentCommandManager;
 import org.eclipse.che.ide.api.command.exec.ProcessFinishedEvent;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessLogsResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessesResponseDto;
 import org.eclipse.che.ide.api.macro.MacroProcessor;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.outputconsole.OutputConsole;
@@ -93,6 +95,7 @@ import org.eclipse.che.ide.console.CommandOutputConsolePresenter;
 import org.eclipse.che.ide.console.CompositeOutputConsole;
 import org.eclipse.che.ide.console.DefaultOutputConsole;
 import org.eclipse.che.ide.machine.MachineResources;
+import org.eclipse.che.ide.processes.DisplayMachineOutputEvent;
 import org.eclipse.che.ide.processes.ProcessTreeNode;
 import org.eclipse.che.ide.processes.ProcessTreeNode.ProcessNodeType;
 import org.eclipse.che.ide.processes.ProcessTreeNodeSelectedEvent;
@@ -105,8 +108,8 @@ import org.eclipse.che.ide.processes.runtime.RuntimeInfoLocalization;
 import org.eclipse.che.ide.processes.runtime.RuntimeInfoProvider;
 import org.eclipse.che.ide.processes.runtime.RuntimeInfoWidgetFactory;
 import org.eclipse.che.ide.terminal.TerminalFactory;
-import org.eclipse.che.ide.terminal.TerminalOptionsJso;
 import org.eclipse.che.ide.terminal.TerminalPresenter;
+import org.eclipse.che.ide.terminal.options.TerminalOptionsJso;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
 import org.eclipse.che.ide.ui.dialogs.confirm.ConfirmCallback;
 import org.eclipse.che.ide.ui.loaders.DownloadWorkspaceOutputEvent;
@@ -163,6 +166,7 @@ public class ProcessesPanelPresenter extends BasePresenter
   ProcessTreeNode rootNode;
   private ProcessTreeNode contextTreeNode;
   private Map<String, MachineImpl> machines;
+  private ProcessTreeNode lastSelectedNode;
 
   @Inject
   public ProcessesPanelPresenter(
@@ -233,10 +237,34 @@ public class ProcessesPanelPresenter extends BasePresenter
     eventBus.addHandler(
         ActivateProcessOutputEvent.TYPE, event -> setActiveProcessOutput(event.getPid()));
     eventBus.addHandler(BasicIDEInitializedEvent.TYPE, this);
+    eventBus.addHandler(DisplayMachineOutputEvent.TYPE, this::displayMachineOutput);
 
     Scheduler.get().scheduleDeferred(() -> workspaceLoadingTrackerProvider.get().startTracking());
 
     Scheduler.get().scheduleDeferred(this::updateMachineList);
+
+    registerNative();
+  }
+
+  protected void displayMachineOutput(DisplayMachineOutputEvent event) {
+    String machineName = event.getMachineName();
+    OutputConsole outputConsole = consoles.get(machineName);
+
+    if (outputConsole == null) {
+      return;
+    }
+
+    outputConsole.go(
+        widget -> {
+          String title = outputConsole.getTitle();
+          SVGResource icon = outputConsole.getTitleIcon();
+          view.addWidget(machineName, title, icon, widget, true);
+          ProcessTreeNode node = view.getNodeById(machineName);
+          view.selectNode(node);
+          notifyTreeNodeSelected(node);
+        });
+
+    outputConsole.addActionDelegate(this);
   }
 
   /** Updates list of the machines from application context. */
@@ -262,10 +290,11 @@ public class ProcessesPanelPresenter extends BasePresenter
       provideMachineNode(machine.getName(), true, false);
     }
 
-    ProcessTreeNode machineToSelect = machineNodes.entrySet().iterator().next().getValue();
-
-    view.selectNode(machineToSelect);
-    notifyTreeNodeSelected(machineToSelect);
+    if (WorkspaceStatus.RUNNING == appContext.getWorkspace().getStatus()) {
+      ProcessTreeNode machineToSelect = machineNodes.entrySet().iterator().next().getValue();
+      view.selectNode(machineToSelect);
+      notifyTreeNodeSelected(machineToSelect);
+    }
   }
 
   /** determines whether process tree is visible. */
@@ -329,7 +358,8 @@ public class ProcessesPanelPresenter extends BasePresenter
   private void closeTerminal(ProcessTreeNode node) {
     String terminalId = node.getId();
     if (terminals.containsKey(terminalId)) {
-      onStopProcess(node);
+      removeChildFromMachineNode(node, node.getParent());
+
       terminals.get(terminalId).stopTerminal();
       terminals.remove(terminalId);
     }
@@ -346,7 +376,7 @@ public class ProcessesPanelPresenter extends BasePresenter
    */
   public void provideTerminal() {
     if (terminals.isEmpty()) {
-      newTerminal(TerminalOptionsJso.createDefault(), true);
+      newTerminal(TerminalOptionsJso.create(), true);
       return;
     }
 
@@ -358,7 +388,7 @@ public class ProcessesPanelPresenter extends BasePresenter
 
     ProcessTreeNode terminalNode = view.getNodeById(lastActiveTerminalId);
     if (terminalNode == null) {
-      newTerminal(TerminalOptionsJso.createDefault(), true);
+      newTerminal(TerminalOptionsJso.create(), true);
       return;
     }
 
@@ -367,18 +397,18 @@ public class ProcessesPanelPresenter extends BasePresenter
   }
 
   /** Opens new terminal for the selected machine. */
-  public void newTerminal(TerminalOptionsJso options) {
-    newTerminal(options, true);
+  public void newTerminal(TerminalOptionsJso options, boolean focusOnOpen) {
+    newTerminal(options, true, focusOnOpen);
   }
 
   /** Opens new terminal for the selected machine and activates terminal tab. */
-  public void newTerminal(TerminalOptionsJso options, boolean activate) {
+  public void newTerminal(TerminalOptionsJso options, boolean activate, boolean focusOnOpen) {
     final ProcessTreeNode selectedTreeNode = view.getSelectedTreeNode();
 
     final Optional<MachineImpl> devMachine = wsAgentServerUtil.getWsAgentServerMachine();
 
     if (selectedTreeNode == null && devMachine.isPresent()) {
-      onAddTerminal(devMachine.get().getName(), options, activate);
+      onAddTerminal(devMachine.get().getName(), options, activate, focusOnOpen);
       return;
     }
 
@@ -391,14 +421,14 @@ public class ProcessesPanelPresenter extends BasePresenter
 
     if (selectedTreeNode.getType() == MACHINE_NODE) {
       String machineName = (String) selectedTreeNode.getData();
-      onAddTerminal(machineName, options, activate);
+      onAddTerminal(machineName, options, activate, focusOnOpen);
       return;
     }
 
     ProcessTreeNode parent = selectedTreeNode.getParent();
     if (parent != null && parent.getType() == MACHINE_NODE) {
       String machineName = (String) parent.getData();
-      onAddTerminal(machineName, options, activate);
+      onAddTerminal(machineName, options, activate, focusOnOpen);
     }
   }
 
@@ -450,8 +480,9 @@ public class ProcessesPanelPresenter extends BasePresenter
    * @param options terminal options
    */
   @Override
-  public void onAddTerminal(final String machineId, TerminalOptionsJso options) {
-    onAddTerminal(machineId, options, true);
+  public void onAddTerminal(
+      final String machineId, TerminalOptionsJso options, boolean focusOnOpen) {
+    onAddTerminal(machineId, options, true, focusOnOpen);
   }
 
   /**
@@ -461,7 +492,8 @@ public class ProcessesPanelPresenter extends BasePresenter
    * @param options terminal options
    * @param activate activate terminal tab
    */
-  public void onAddTerminal(final String machineId, TerminalOptionsJso options, boolean activate) {
+  public void onAddTerminal(
+      final String machineId, TerminalOptionsJso options, boolean activate, boolean focusOnOpen) {
     final MachineImpl machine = getMachine(machineId);
     if (machine == null) {
       notificationManager.notify(
@@ -478,7 +510,7 @@ public class ProcessesPanelPresenter extends BasePresenter
       return;
     }
 
-    final TerminalPresenter newTerminal = terminalFactory.create(machine, options);
+    final TerminalPresenter newTerminal = terminalFactory.create(machine, options, focusOnOpen);
     final IsWidget terminalWidget = newTerminal.getView();
     final String terminalName = getUniqueTerminalName(machineTreeNode);
     final ProcessTreeNode terminalNode =
@@ -490,13 +522,13 @@ public class ProcessesPanelPresenter extends BasePresenter
     terminals.put(terminalId, newTerminal);
     view.addProcessNode(terminalNode);
     terminalWidget.asWidget().ensureDebugId(terminalName);
-    view.addWidget(terminalId, terminalName, terminalNode.getTitleIcon(), terminalWidget, false);
+    view.addWidget(terminalId, terminalName, terminalNode.getTitleIcon(), terminalWidget, true);
     refreshStopButtonState(terminalId);
 
     workspaceAgentProvider.get().setActivePart(this);
 
     newTerminal.setVisible(true);
-    newTerminal.connect();
+    newTerminal.connect(options);
     newTerminal.setListener(() -> onCloseTerminal(terminalNode));
   }
 
@@ -526,8 +558,8 @@ public class ProcessesPanelPresenter extends BasePresenter
     final String sshPort;
     if (sshServiceAddress != null) {
       String[] parts = sshServiceAddress.split(":");
-      machineHost = parts[0];
-      sshPort = (parts.length == 2) ? parts[1] : SSH_PORT;
+      machineHost = parts[1].substring(2);
+      sshPort = (parts.length == 3) ? parts[2] : SSH_PORT;
     } else {
       sshPort = SSH_PORT;
       machineHost = "";
@@ -617,6 +649,7 @@ public class ProcessesPanelPresenter extends BasePresenter
   @Override
   public void onTreeNodeSelected(final ProcessTreeNode node) {
     setSelection(new Selection.NoSelectionProvided());
+    lastSelectedNode = node;
 
     if (node != null) {
       String nodeId = node.getId();
@@ -693,7 +726,7 @@ public class ProcessesPanelPresenter extends BasePresenter
       // 'reuse' already existing console
       // actually - remove 'already used' console
       commandId = processTreeNode.getId();
-      view.hideProcessOutput(commandId);
+      view.removeWidget(commandId, (subPanel, tabToActivate) -> {});
     }
 
     ProcessTreeNode commandNode =
@@ -702,7 +735,7 @@ public class ProcessesPanelPresenter extends BasePresenter
     commandId = commandNode.getId();
     addChildToMachineNode(commandNode, machineTreeNode, activate);
 
-    addOutputConsole(commandId, commandNode, outputConsole, false, activate);
+    addOutputConsole(commandId, commandNode, outputConsole, true, activate);
 
     refreshStopButtonState(commandId);
     workspaceAgentProvider.get().setActivePart(this);
@@ -727,7 +760,7 @@ public class ProcessesPanelPresenter extends BasePresenter
       final String id,
       final ProcessTreeNode processNode,
       final OutputConsole outputConsole,
-      final boolean machineConsole,
+      final boolean removable,
       final boolean activate) {
     consoles.put(id, outputConsole);
     consoleCommands.put(outputConsole, id);
@@ -738,7 +771,7 @@ public class ProcessesPanelPresenter extends BasePresenter
           public void setWidget(final IsWidget widget) {
             view.addProcessNode(processNode);
             view.addWidget(
-                id, outputConsole.getTitle(), outputConsole.getTitleIcon(), widget, machineConsole);
+                id, outputConsole.getTitle(), outputConsole.getTitleIcon(), widget, removable);
             if (!MACHINE_NODE.equals(processNode.getType())) {
               ProcessTreeNode node = view.getNodeById(id);
               if (activate) {
@@ -777,7 +810,7 @@ public class ProcessesPanelPresenter extends BasePresenter
 
   @Override
   public void onCloseCommandOutputClick(final ProcessTreeNode node) {
-    closeCommandOutput(node, () -> {});
+    closeCommandOutput(node, () -> view.removeWidget(node.getId()));
   }
 
   @Override
@@ -822,37 +855,17 @@ public class ProcessesPanelPresenter extends BasePresenter
       final ProcessTreeNode node,
       final SubPanel.RemoveCallback removeCallback) {
     console.close();
-    onStopProcess(node);
+
+    removeChildFromMachineNode(node, node.getParent());
 
     consoles.remove(node.getId());
     consoleCommands.remove(console);
-    view.removeWidget(node.getId());
 
     removeCallback.remove();
 
     if (console instanceof CommandOutputConsole) {
       eventBus.fireEvent(new ProcessOutputClosedEvent(((CommandOutputConsole) console).getPid()));
     }
-  }
-
-  private void onStopProcess(ProcessTreeNode node) {
-    String processId = node.getId();
-    ProcessTreeNode parentNode = node.getParent();
-
-    int processIndex = view.getNodeIndex(processId);
-    if (processIndex < 0) {
-      return;
-    }
-
-    int neighborIndex = processIndex > 0 ? processIndex - 1 : processIndex + 1;
-    ProcessTreeNode neighborNode = view.getNodeByIndex(neighborIndex);
-    if (neighborNode == null) {
-      neighborNode = parentNode;
-    }
-
-    removeChildFromMachineNode(node, parentNode);
-    view.selectNode(neighborNode);
-    notifyTreeNodeSelected(neighborNode);
   }
 
   private String getUniqueTerminalName(ProcessTreeNode machineNode) {
@@ -897,6 +910,8 @@ public class ProcessesPanelPresenter extends BasePresenter
     view.removeProcessNode(childNode);
     machineTreeNode.getChildren().remove(childNode);
     view.setProcessesData(rootNode);
+    rootNode.getChildren().forEach(node -> refreshStopButtonState(node.getId()));
+    view.selectNode(lastSelectedNode);
   }
 
   @Nullable
@@ -932,12 +947,32 @@ public class ProcessesPanelPresenter extends BasePresenter
       return false;
     }
 
-    Server terminalServer = machine.getServers().get(serverName);
-    if (terminalServer == null) {
+    Server server = machine.getServers().get(serverName);
+    if (server == null) {
       return false;
     }
 
-    return terminalServer.getStatus() == ServerStatus.RUNNING;
+    return server.getStatus() == ServerStatus.RUNNING;
+  }
+
+  private boolean isSshServerIsRunning(String machineName) {
+    Workspace workspace = appContext.getWorkspace();
+    Runtime runtime = workspace.getRuntime();
+    if (runtime == null) {
+      return false;
+    }
+
+    Machine machine = runtime.getMachines().get(machineName);
+    if (machine == null) {
+      return false;
+    }
+
+    Server server = machine.getServers().get(SERVER_SSH_REFERENCE);
+    if (server == null) {
+      return false;
+    }
+
+    return workspace.getStatus() == WorkspaceStatus.RUNNING;
   }
 
   /**
@@ -981,9 +1016,7 @@ public class ProcessesPanelPresenter extends BasePresenter
 
     machineNode.setTerminalServerRunning(isServerRunning(machineName, SERVER_TERMINAL_REFERENCE));
 
-    // rely on "wsagent" server's status since "ssh" server's status is always UNKNOWN
-    String wsAgentServerRef = wsAgentServerUtil.getWsAgentHttpServerReference();
-    machineNode.setSshServerRunning(isServerRunning(machineName, wsAgentServerRef));
+    machineNode.setSshServerRunning(isSshServerIsRunning(machineName));
 
     for (ProcessTreeNode child : children) {
       child.setParent(machineNode);
@@ -1033,15 +1066,19 @@ public class ProcessesPanelPresenter extends BasePresenter
   }
 
   @Override
-  public void onWorkspaceRunning(WorkspaceRunningEvent event) {}
+  public void onWorkspaceRunning(WorkspaceRunningEvent event) {
+    List<MachineImpl> machines = getMachines();
+    for (MachineImpl machine : machines) {
+      provideMachineNode(machine.getName(), true, false);
+    }
+  }
 
   @Override
   public void onWorkspaceStopped(WorkspaceStoppedEvent event) {
     try {
       for (ProcessTreeNode node : rootNode.getChildren()) {
         if (MACHINE_NODE == node.getType()) {
-          ArrayList<ProcessTreeNode> children = new ArrayList<>();
-          children.addAll(node.getChildren());
+          ArrayList<ProcessTreeNode> children = new ArrayList<>(node.getChildren());
 
           for (ProcessTreeNode child : children) {
             if (COMMAND_NODE == child.getType()) {
@@ -1054,6 +1091,9 @@ public class ProcessesPanelPresenter extends BasePresenter
             view.hideProcessOutput(child.getId());
             view.removeProcessNode(child);
           }
+
+          node.setTerminalServerRunning(false);
+          node.setSshServerRunning(false);
         }
       }
 
@@ -1062,7 +1102,6 @@ public class ProcessesPanelPresenter extends BasePresenter
     }
 
     view.setProcessesData(rootNode);
-    selectDevMachine();
   }
 
   @Override
@@ -1081,8 +1120,8 @@ public class ProcessesPanelPresenter extends BasePresenter
 
     if (appContext.getWorkspace().getStatus() == RUNNING) {
       selectDevMachine();
-      TerminalOptionsJso options = TerminalOptionsJso.createDefault().withFocusOnOpen(false);
-      newTerminal(options);
+      TerminalOptionsJso options = TerminalOptionsJso.create();
+      newTerminal(options, false);
     }
   }
 
@@ -1094,8 +1133,8 @@ public class ProcessesPanelPresenter extends BasePresenter
     if (devMachine.isPresent() && event.getMachineName().equals(devMachine.get().getName())) {
       provideMachineNode(event.getMachineName(), true, false);
 
-      TerminalOptionsJso options = TerminalOptionsJso.createDefault().withFocusOnOpen(false);
-      newTerminal(options, false);
+      TerminalOptionsJso options = TerminalOptionsJso.create();
+      newTerminal(options, false, false);
     }
   }
 
@@ -1147,7 +1186,7 @@ public class ProcessesPanelPresenter extends BasePresenter
                       getAndPrintProcessLogs(console, pid);
                       subscribeToProcess(console, pid);
 
-                      addCommandOutput(machineName, console, false);
+                      addCommandOutput(machineName, console, true);
                     } else {
                       final CommandImpl commandByName = commandOptional.get();
                       macroProcessorProvider
@@ -1171,7 +1210,7 @@ public class ProcessesPanelPresenter extends BasePresenter
                                   getAndPrintProcessLogs(console, pid);
                                   subscribeToProcess(console, pid);
 
-                                  addCommandOutput(machineName, console, false);
+                                  addCommandOutput(machineName, console, true);
                                 }
                               });
                     }
@@ -1272,12 +1311,17 @@ public class ProcessesPanelPresenter extends BasePresenter
   public void printMachineOutput(final String machineName, final String text) {
     // Create a temporary machine node to display outputs.
 
+    if (machineName == null) {
+      // runtime log. Should not be printed as machine output
+      return;
+    }
+
     if (!consoles.containsKey(machineName)) {
       provideMachineNode(machineName, true, false);
     }
 
     OutputConsole console = consoles.get(machineName);
-    if (console != null && console instanceof DefaultOutputConsole) {
+    if (console instanceof DefaultOutputConsole) {
       ((DefaultOutputConsole) console).printText(text);
     }
   }
@@ -1291,7 +1335,7 @@ public class ProcessesPanelPresenter extends BasePresenter
    */
   public void printMachineOutput(String machineName, String text, String color) {
     OutputConsole console = consoles.get(machineName);
-    if (console != null && console instanceof DefaultOutputConsole) {
+    if (console instanceof DefaultOutputConsole) {
       ((DefaultOutputConsole) console).printText(text, color);
     }
   }
@@ -1346,13 +1390,7 @@ public class ProcessesPanelPresenter extends BasePresenter
    */
   private void notifyTreeNodeSelected(final ProcessTreeNode node) {
     Scheduler.get()
-        .scheduleDeferred(
-            new Scheduler.ScheduledCommand() {
-              @Override
-              public void execute() {
-                eventBus.fireEvent(new ProcessTreeNodeSelectedEvent(node));
-              }
-            });
+        .scheduleDeferred(() -> eventBus.fireEvent(new ProcessTreeNodeSelectedEvent(node)));
   }
 
   @Override
@@ -1375,14 +1413,7 @@ public class ProcessesPanelPresenter extends BasePresenter
 
   @Override
   public void onAddTabButtonClicked(final int mouseX, final int mouseY) {
-    Scheduler.get()
-        .scheduleDeferred(
-            new Scheduler.ScheduledCommand() {
-              @Override
-              public void execute() {
-                addTabMenuFactory.newAddTabMenu().show(mouseX, mouseY);
-              }
-            });
+    Scheduler.get().scheduleDeferred(() -> addTabMenuFactory.newAddTabMenu().show(mouseX, mouseY));
   }
 
   @Override
@@ -1437,4 +1468,38 @@ public class ProcessesPanelPresenter extends BasePresenter
 
     $doc.body.removeChild(element);
   }-*/;
+
+  /*
+   * Expose Terminal internal API to the world, to allow automated Selenium scripts get text from the terminal.
+   */
+  private native void registerNative() /*-{
+    var that = this;
+    var TerminalContentProvider = {};
+
+    TerminalContentProvider.getVisibleText = $entry(function(terminalName, machineName) {
+        return  that.@org.eclipse.che.ide.processes.panel.ProcessesPanelPresenter::getRenderedTerminalLines(*)(terminalName, machineName);
+    });
+
+    $wnd.IDE.TerminalContentProvider = TerminalContentProvider;
+  }-*/;
+
+  private String[] getRenderedTerminalLines(String terminalName, String machineName) {
+    for (ProcessTreeNode machineNode : rootNode.getChildren()) {
+      if (machineNode.getName().equals(machineName)) {
+        for (ProcessTreeNode machineChildNode : machineNode.getChildren()) {
+          if (machineChildNode.getName().equals(terminalName)) {
+            TerminalPresenter terminalPresenter = terminals.get(machineChildNode.getId());
+            if (terminalPresenter != null) {
+              return terminalPresenter.getRenderedLines();
+            }
+          }
+        }
+      }
+    }
+    throw new RuntimeException(
+        "Unable to find terminal by machineName: "
+            + machineName
+            + " and terminal name: "
+            + terminalName);
+  };
 }

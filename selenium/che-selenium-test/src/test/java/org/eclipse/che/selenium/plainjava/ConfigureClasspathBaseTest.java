@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,7 @@ import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.ConfigureClasspath;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
@@ -37,6 +39,7 @@ public class ConfigureClasspathBaseTest {
   @Inject private ConfigureClasspath configureClasspath;
   @Inject private Menu menu;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -47,6 +50,7 @@ public class ConfigureClasspathBaseTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_JAVA_MULTIMODULE);
     ide.open(ws);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -62,7 +66,7 @@ public class ConfigureClasspathBaseTest {
     configureClasspath.closeConfigureClasspathFormByIcon();
 
     // check the 'Java Build Path' header
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(PROJECT, CONFIGURE_CLASSPATH);
     configureClasspath.waitConfigureClasspathFormIsOpen();
     configureClasspath.waitExpectedTextJavaBuildPathArea("Libraries");
@@ -76,7 +80,7 @@ public class ConfigureClasspathBaseTest {
     configureClasspath.clickOnDoneBtnConfigureClasspath();
 
     // check the 'JARs and folders' area for 'my-lib' module
-    projectExplorer.selectItem(PROJECT_NAME + "/my-lib");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/my-lib");
     menu.runCommand(PROJECT, CONFIGURE_CLASSPATH);
     configureClasspath.waitConfigureClasspathFormIsOpen();
     configureClasspath.selectSourceCategory();
@@ -86,12 +90,12 @@ public class ConfigureClasspathBaseTest {
         "/" + PROJECT_NAME + "/my-lib/src/test/java");
     configureClasspath.selectLibrariesCategory();
     configureClasspath.waitExpectedTextJarsAndFolderArea(
-        "org.eclipse.che.MAVEN2_CLASSPATH_CONTAINER");
+        "org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER");
     configureClasspath.waitExpectedTextJarsAndFolderArea("org.eclipse.jdt.launching.JRE_CONTAINER");
     configureClasspath.closeConfigureClasspathFormByIcon();
 
     // check the 'JARs and folders' area for 'my-webapp' module
-    projectExplorer.selectItem(PROJECT_NAME + "/my-webapp");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/my-webapp");
     menu.runCommand(PROJECT, CONFIGURE_CLASSPATH);
     configureClasspath.waitConfigureClasspathFormIsOpen();
     configureClasspath.selectSourceCategory();
@@ -99,7 +103,7 @@ public class ConfigureClasspathBaseTest {
         "/" + PROJECT_NAME + "/my-webapp/src/main/java");
     configureClasspath.selectLibrariesCategory();
     configureClasspath.waitExpectedTextJarsAndFolderArea(
-        "org.eclipse.che.MAVEN2_CLASSPATH_CONTAINER");
+        "org.eclipse.m2e.MAVEN2_CLASSPATH_CONTAINER");
     configureClasspath.waitExpectedTextJarsAndFolderArea("org.eclipse.jdt.launching.JRE_CONTAINER");
     configureClasspath.closeConfigureClasspathFormByIcon();
   }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,7 +21,7 @@ import javax.inject.Singleton;
 import org.eclipse.che.api.core.model.workspace.runtime.RuntimeIdentity;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.workspace.server.DtoConverter;
-import org.eclipse.che.api.workspace.shared.dto.event.MachineLogEvent;
+import org.eclipse.che.api.workspace.shared.dto.event.RuntimeLogEvent;
 import org.eclipse.che.dto.server.DtoFactory;
 import org.eclipse.che.infrastructure.docker.client.LogMessage;
 import org.eclipse.che.infrastructure.docker.client.MessageProcessor;
@@ -101,7 +102,7 @@ public class MachineLoggersFactory {
     }
   }
 
-  /** Forms new instance of {@link MachineLogEvent} and publish it via {@link EventService}. */
+  /** Forms new instance of {@link RuntimeLogEvent} and publish it via {@link EventService}. */
   private class MachineLogsBiConsumer implements BiConsumer<String, String> {
 
     private final String machineName;
@@ -115,7 +116,7 @@ public class MachineLoggersFactory {
     @Override
     public void accept(String stream, String text) {
       eventService.publish(
-          DtoFactory.newDto(MachineLogEvent.class)
+          DtoFactory.newDto(RuntimeLogEvent.class)
               .withRuntimeId(DtoConverter.asDto(runtime))
               .withStream(stream)
               .withText(text)

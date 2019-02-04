@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,9 @@ interface IOrganizationMember extends che.IMember {
  * @author Oleksii Kurinnyi
  */
 export class OrganizationSelectMembersDialogController {
+
+  static $inject = ['$q', '$mdDialog', 'lodash', 'cheProfile', 'cheUser', 'resourcesService'];
+
   /**
    * User profile API interaction.
    */
@@ -58,10 +62,6 @@ export class OrganizationSelectMembersDialogController {
    */
   private availableUsers: Array<IOrganizationMember>;
   /**
-   * The list of users, that are going to be added
-   */
-  private usersToAdd: Array<IOrganizationMember>;
-  /**
    * Current user.
    */
   private user: che.IUser;
@@ -92,7 +92,6 @@ export class OrganizationSelectMembersDialogController {
 
   /**
    * Default constructor.
-   * @ngInject for Dependency injection
    */
   constructor($q: ng.IQService, $mdDialog: angular.material.IDialogService, lodash: any, cheProfile: any, cheUser: any, resourcesService: che.service.IResourcesService) {
     this.$q = $q;
@@ -122,7 +121,7 @@ export class OrganizationSelectMembersDialogController {
       map[member.id] = member;
       return map;
     }, {});
-    this.availableUsers = this.parentOrganizationMembers.filter((parentOrganizationMember: che.IUser) => {
+    this.availableUsers = <any>this.parentOrganizationMembers.filter((parentOrganizationMember: che.IUser) => {
       return !existingMembers[parentOrganizationMember.id] && parentOrganizationMember.id !== this.user.id;
     });
 

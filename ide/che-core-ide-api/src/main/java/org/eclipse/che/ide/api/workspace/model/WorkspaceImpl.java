@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,10 +14,10 @@ package org.eclipse.che.ide.api.workspace.model;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import org.eclipse.che.api.core.model.workspace.Runtime;
 import org.eclipse.che.api.core.model.workspace.Workspace;
 import org.eclipse.che.api.core.model.workspace.WorkspaceConfig;
 import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
-import org.eclipse.che.api.workspace.shared.dto.RuntimeDto;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceDto;
 import org.eclipse.che.commons.annotation.Nullable;
 
@@ -32,72 +33,6 @@ public class WorkspaceImpl implements Workspace {
   private RuntimeImpl runtime;
   private Map<String, String> links;
 
-  public WorkspaceImpl(
-      String id,
-      String namespace,
-      WorkspaceConfig config,
-      RuntimeDto runtime,
-      Map<String, String> attributes,
-      boolean isTemporary,
-      WorkspaceStatus status,
-      Map<String, String> links) {
-    this.id = id;
-    this.namespace = namespace;
-    if (config != null) {
-      this.config = new WorkspaceConfigImpl(config);
-    }
-    if (runtime != null) {
-      this.runtime =
-          new RuntimeImpl(
-              runtime.getActiveEnv(),
-              runtime.getMachines(),
-              runtime.getOwner(),
-              runtime.getMachineToken(),
-              runtime.getWarnings());
-    }
-    if (attributes != null) {
-      this.attributes = new HashMap<>(attributes);
-    }
-    this.isTemporary = isTemporary;
-    this.status = status;
-    if (links != null) {
-      this.links = new HashMap<>(links);
-    }
-  }
-
-  public WorkspaceImpl(
-      String id,
-      String namespace,
-      WorkspaceConfig config,
-      RuntimeImpl runtime,
-      Map<String, String> attributes,
-      boolean isTemporary,
-      WorkspaceStatus status,
-      Map<String, String> links) {
-    this.id = id;
-    this.namespace = namespace;
-    if (config != null) {
-      this.config = new WorkspaceConfigImpl(config);
-    }
-    if (runtime != null) {
-      this.runtime =
-          new RuntimeImpl(
-              runtime.getActiveEnv(),
-              runtime.getMachines(),
-              runtime.getOwner(),
-              runtime.getMachineToken(),
-              runtime.getWarnings());
-    }
-    if (attributes != null) {
-      this.attributes = new HashMap<>(attributes);
-    }
-    this.isTemporary = isTemporary;
-    this.status = status;
-    if (links != null) {
-      this.links = new HashMap<>(links);
-    }
-  }
-
   public WorkspaceImpl(WorkspaceImpl workspace) {
     this(
         workspace.getId(),
@@ -107,7 +42,8 @@ public class WorkspaceImpl implements Workspace {
         workspace.getAttributes(),
         workspace.isTemporary(),
         workspace.getStatus(),
-        workspace.getLinks());
+        workspace.getLinks(),
+        workspace.getRuntime() != null ? workspace.getRuntime().getMachineToken() : null);
   }
 
   public WorkspaceImpl(WorkspaceDto workspace) {
@@ -119,7 +55,44 @@ public class WorkspaceImpl implements Workspace {
         workspace.getAttributes(),
         workspace.isTemporary(),
         workspace.getStatus(),
-        workspace.getLinks());
+        workspace.getLinks(),
+        workspace.getRuntime() != null ? workspace.getRuntime().getMachineToken() : null);
+  }
+
+  private WorkspaceImpl(
+      String id,
+      String namespace,
+      WorkspaceConfig config,
+      Runtime runtime,
+      Map<String, String> attributes,
+      boolean isTemporary,
+      WorkspaceStatus status,
+      Map<String, String> links,
+      String machineToken) {
+
+    this.id = id;
+    this.namespace = namespace;
+    if (config != null) {
+      this.config = new WorkspaceConfigImpl(config);
+    }
+    if (runtime != null) {
+      this.runtime =
+          new RuntimeImpl(
+              runtime.getActiveEnv(),
+              runtime.getMachines(),
+              runtime.getOwner(),
+              machineToken,
+              runtime.getCommands(),
+              runtime.getWarnings());
+    }
+    if (attributes != null) {
+      this.attributes = new HashMap<>(attributes);
+    }
+    this.isTemporary = isTemporary;
+    this.status = status;
+    if (links != null) {
+      this.links = new HashMap<>(links);
+    }
   }
 
   @Override

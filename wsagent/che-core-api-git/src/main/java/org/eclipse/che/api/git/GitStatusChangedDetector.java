@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -29,16 +30,17 @@ import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerConfigurator;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestTransmitter;
+import org.eclipse.che.api.core.model.workspace.config.ProjectConfig;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.core.notification.EventSubscriber;
 import org.eclipse.che.api.fs.server.PathTransformer;
+import org.eclipse.che.api.git.exception.GitCheckoutInProgressException;
 import org.eclipse.che.api.git.exception.GitCommitInProgressException;
 import org.eclipse.che.api.git.exception.GitInvalidRepositoryException;
 import org.eclipse.che.api.git.shared.EditedRegion;
 import org.eclipse.che.api.git.shared.Status;
 import org.eclipse.che.api.git.shared.StatusChangedEventDto;
 import org.eclipse.che.api.project.server.ProjectManager;
-import org.eclipse.che.api.project.server.impl.RegisteredProject;
 import org.eclipse.che.api.watcher.server.FileWatcherManager;
 import org.slf4j.Logger;
 
@@ -148,7 +150,7 @@ public class GitStatusChangedDetector implements EventSubscriber<StatusChangedEv
   private Consumer<String> transmitConsumer(String wsPath) {
     return id -> {
       try {
-        RegisteredProject project =
+        ProjectConfig project =
             projectManager
                 .getClosest(wsPath)
                 .orElseThrow(() -> new NotFoundException("Can't find a project"));
@@ -169,6 +171,9 @@ public class GitStatusChangedDetector implements EventSubscriber<StatusChangedEv
         for (String file : status.getChanged()) {
           modifiedFiles.put(file, connection.getEditedRegions(file));
         }
+        for (String file : status.getModified()) {
+          modifiedFiles.put(file, connection.getEditedRegions(file));
+        }
 
         StatusChangedEventDto statusChangeEventDto =
             newDto(StatusChangedEventDto.class)
@@ -176,8 +181,10 @@ public class GitStatusChangedDetector implements EventSubscriber<StatusChangedEv
                 .withStatus(status)
                 .withModifiedFiles(modifiedFiles);
 
-        transmit(statusChangeEventDto, id);
-      } catch (GitCommitInProgressException | GitInvalidRepositoryException e) {
+        eventService.publish(statusChangeEventDto);
+      } catch (GitCommitInProgressException
+          | GitCheckoutInProgressException
+          | GitInvalidRepositoryException e) {
         // Silent ignore
       } catch (ServerException | NotFoundException e) {
         LOG.error(e.getMessage());

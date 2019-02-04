@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -26,6 +27,9 @@ const STOPPED = WorkspaceStatus[WorkspaceStatus.STOPPED];
  * @author Oleksii Orel
  */
 export class WorkspaceDetailsOverviewController {
+
+  static $inject = ['$q', '$route', '$timeout', '$location', 'cheWorkspace', 'cheNotification', 'confirmDialogService', 'namespaceSelectorSvc', 'workspaceDetailsService'];
+
   onChange: Function;
 
   private $q: ng.IQService;
@@ -44,12 +48,15 @@ export class WorkspaceDetailsOverviewController {
   private usedNamesList: Array<string>;
   private inputmodel: ng.INgModelController;
   private isLoading: boolean;
+  private isEphemeralMode: boolean;
+  private attributesCopy: {[attrName: string]: string};
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($q: ng.IQService, $route: ng.route.IRouteService, $timeout: ng.ITimeoutService, $location: ng.ILocationService, cheWorkspace: CheWorkspace, cheNotification: CheNotification, confirmDialogService: ConfirmDialogService, namespaceSelectorSvc: NamespaceSelectorSvc, workspaceDetailsService: WorkspaceDetailsService) {
+  constructor($q: ng.IQService, $route: ng.route.IRouteService, $timeout: ng.ITimeoutService, $location: ng.ILocationService,
+              cheWorkspace: CheWorkspace, cheNotification: CheNotification, confirmDialogService: ConfirmDialogService,
+              namespaceSelectorSvc: NamespaceSelectorSvc, workspaceDetailsService: WorkspaceDetailsService) {
     this.$q = $q;
     this.$route = $route;
     this.$timeout = $timeout;
@@ -63,6 +70,9 @@ export class WorkspaceDetailsOverviewController {
     const routeParams = $route.current.params;
     this.namespaceId = routeParams.namespace;
     this.workspaceName = routeParams.workspaceName;
+
+    this.isEphemeralMode = this.workspaceDetails && this.workspaceDetails.config && this.workspaceDetails.config.attributes && this.workspaceDetails.config.attributes.persistVolumes ? JSON.parse(this.workspaceDetails.config.attributes.persistVolumes) : false;
+    this.attributesCopy = angular.copy(this.workspaceDetails.config.attributes);
 
     this.fillInListOfUsedNames();
   }
@@ -105,13 +115,20 @@ export class WorkspaceDetailsOverviewController {
   fillInListOfUsedNames(): void {
     this.isLoading = true;
     const defer = this.$q.defer();
-    this.namespaceId = this.namespaceSelectorSvc.getNamespaceId();
-    if (this.namespaceId) {
+    let namespace = this.namespaceSelectorSvc.getNamespaceById(this.namespaceId);
+    if (namespace && namespace.label) {
+      this.namespaceSelectorSvc.onNamespaceChanged(namespace.label);
       defer.resolve();
     } else {
-      this.namespaceSelectorSvc.fetchNamespaces().then((namespaceId: string) => {
-        this.namespaceId = namespaceId;
-        defer.resolve();
+      this.namespaceSelectorSvc.fetchNamespaces().then(() => {
+        namespace = this.namespaceSelectorSvc.getNamespaceById(this.namespaceId);
+        if (namespace && namespace.label) {
+          this.namespaceSelectorSvc.onNamespaceChanged(namespace.label);
+          defer.resolve();
+        }
+        // set default
+        this.namespaceId = this.namespaceSelectorSvc.getNamespaceId();
+        defer.reject();
       }, (error: any) => {
         defer.reject(error);
       });
@@ -243,6 +260,22 @@ export class WorkspaceDetailsOverviewController {
         });
       });
     });
+  }
+
+  /**
+   * Track the changes in ephemeral mode input.
+   */
+  onEphemeralModeChange(): void {
+    if (this.isEphemeralMode) {
+      this.workspaceDetails.config.attributes.persistVolumes = 'true';
+    } else {
+      if (this.attributesCopy.persistVolumes) {
+        this.workspaceDetails.config.attributes.persistVolumes = 'false';
+      } else {
+        delete this.workspaceDetails.config.attributes.persistVolumes;
+      }
+    }
+    this.onChange();
   }
 
   /**

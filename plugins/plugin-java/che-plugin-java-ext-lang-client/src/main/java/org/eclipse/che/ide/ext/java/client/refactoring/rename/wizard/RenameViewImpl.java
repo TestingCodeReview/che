@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,12 +15,7 @@ import static com.google.gwt.dom.client.Style.Cursor.DEFAULT;
 import static com.google.gwt.dom.client.Style.Cursor.POINTER;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
-import com.google.gwt.event.dom.client.KeyUpEvent;
-import com.google.gwt.event.dom.client.KeyUpHandler;
-import com.google.gwt.event.logical.shared.ValueChangeEvent;
-import com.google.gwt.event.logical.shared.ValueChangeHandler;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Timer;
@@ -27,19 +23,19 @@ import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.Label;
-import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.List;
+import org.eclipse.che.ide.Resources;
 import org.eclipse.che.ide.api.theme.Style;
 import org.eclipse.che.ide.ext.java.client.JavaLocalizationConstant;
 import org.eclipse.che.ide.ext.java.client.JavaResources;
 import org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard.similarnames.SimilarNamesConfigurationPresenter;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatusEntry;
 import org.eclipse.che.ide.ui.window.Window;
+import org.eclipse.che.jdt.ls.extension.api.dto.RefactoringStatus;
+import org.eclipse.che.jdt.ls.extension.api.dto.RefactoringStatusEntry;
 
 /** @author Valeriy Svydenko */
 @Singleton
@@ -48,14 +44,22 @@ final class RenameViewImpl extends Window implements RenameView {
 
   private static RenameViewImplUiBinder UI_BINDER = GWT.create(RenameViewImplUiBinder.class);
 
-  private final JavaResources javaResources;
+  private static final int VALIDATE_NAME_DELAY = 300;
+
+  private JavaResources javaResources;
+  private Resources ideResources;
+  private final Timer validateNameTimer =
+      new Timer() {
+        @Override
+        public void run() {
+          delegate.validateName();
+        }
+      };
 
   @UiField(provided = true)
   final JavaLocalizationConstant locale;
 
-  @UiField FlowPanel headerPanelToHide;
   @UiField TextBox newName;
-  @UiField FlowPanel subSettings;
   @UiField CheckBox updateSubpackages;
   @UiField FlowPanel renameSubpackagesPanel;
   @UiField FlowPanel renameKeepOriginalMethodPanel;
@@ -65,9 +69,7 @@ final class RenameViewImpl extends Window implements RenameView {
   @UiField CheckBox updateSimilarlyVariables;
   @UiField CheckBox updateDelegateUpdating;
   @UiField CheckBox updateMarkDeprecated;
-  @UiField FlowPanel occurrencesPanel;
   @UiField FlowPanel fullNamePanel;
-  @UiField SimplePanel icon;
   @UiField TextBox patternField;
   @UiField CheckBox updateFullNames;
   @UiField CheckBox updateReferences;
@@ -82,128 +84,109 @@ final class RenameViewImpl extends Window implements RenameView {
   public RenameViewImpl(
       JavaLocalizationConstant locale,
       JavaResources javaResources,
+      Resources ideResources,
       final SimilarNamesConfigurationPresenter similarNamesConfigurationPresenter) {
     this.locale = locale;
     this.javaResources = javaResources;
+    this.ideResources = ideResources;
 
     setWidget(UI_BINDER.createAndBindUi(this));
 
     createButtons(locale);
 
-    updateFullNames.addValueChangeHandler(
-        new ValueChangeHandler<Boolean>() {
-          @Override
-          public void onValueChange(ValueChangeEvent<Boolean> event) {
-            patternField.setEnabled(event.getValue());
-          }
-        });
+    updateFullNames.addValueChangeHandler(event -> patternField.setEnabled(event.getValue()));
 
     updateDelegateUpdating.addValueChangeHandler(
-        new ValueChangeHandler<Boolean>() {
-          @Override
-          public void onValueChange(ValueChangeEvent<Boolean> event) {
-            updateMarkDeprecated.setEnabled(event.getValue());
-          }
-        });
+        event -> updateMarkDeprecated.setEnabled(event.getValue()));
 
     configureLabel.addClickHandler(
-        new ClickHandler() {
-          @Override
-          public void onClick(ClickEvent event) {
-            if (isUpdateSimilarlyVariables()) {
-              similarNamesConfigurationPresenter.show();
-            }
+        event -> {
+          if (isUpdateSimilarlyVariables()) {
+            similarNamesConfigurationPresenter.show();
           }
         });
 
     newName.addKeyUpHandler(
-        new KeyUpHandler() {
-          @Override
-          public void onKeyUp(KeyUpEvent event) {
-            delegate.validateName();
-          }
+        event -> {
+          // here need some delay to be sure input box initiated with given value
+          // in manually testing hard to reproduce this problem but it reproduced with selenium
+          // tests
+          validateNameTimer.cancel();
+          validateNameTimer.schedule(VALIDATE_NAME_DELAY);
         });
 
     updateSimilarlyVariables.addValueChangeHandler(
-        new ValueChangeHandler<Boolean>() {
-          @Override
-          public void onValueChange(ValueChangeEvent<Boolean> event) {
-            if (event.getValue()) {
-              configureLabel.getElement().getStyle().setCursor(POINTER);
-              configureLabel.getElement().getStyle().setColor(Style.getPrimaryHighlightsColor());
-            } else {
-              configureLabel.getElement().getStyle().setCursor(DEFAULT);
-              configureLabel.getElement().getStyle().setColor(Style.getButtonDisabledFontColor());
-            }
+        event -> {
+          if (event.getValue()) {
+            configureLabel.getElement().getStyle().setCursor(POINTER);
+            configureLabel.getElement().getStyle().setColor(Style.getPrimaryHighlightsColor());
+          } else {
+            configureLabel.getElement().getStyle().setCursor(DEFAULT);
+            configureLabel.getElement().getStyle().setColor(Style.getButtonDisabledFontColor());
           }
         });
   }
 
   private void createButtons(JavaLocalizationConstant locale) {
     preview =
-        createButton(
+        addFooterButton(
             locale.moveDialogButtonPreview(),
             "move-preview-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onPreviewButtonClicked();
-              }
-            });
+            event -> delegate.onPreviewButtonClicked());
 
-    Button cancel =
-        createButton(
-            locale.moveDialogButtonCancel(),
-            "move-cancel-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                hide();
-                delegate.onCancelButtonClicked();
-              }
-            });
+    addFooterButton(
+        locale.moveDialogButtonCancel(),
+        "move-cancel-button",
+        event -> {
+          hide();
+          delegate.onCancelButtonClicked();
+        });
 
     accept =
-        createButton(
+        addFooterButton(
             locale.moveDialogButtonOk(),
             "move-accept-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onAcceptButtonClicked();
-              }
-            });
-
-    addButtonToFooter(accept);
-    addButtonToFooter(cancel);
-    addButtonToFooter(preview);
+            event -> delegate.onAcceptButtonClicked());
+    accept.addStyleName(ideResources.buttonLoaderCss().buttonLoader());
   }
 
   /** {@inheritDoc} */
   @Override
-  public void show() {
+  public void showDialog() {
     newName.getElement().setAttribute("spellcheck", "false");
     newName.addStyleName(javaResources.css().errorBorder());
     updateDelegateUpdating.setValue(false);
     updateMarkDeprecated.setValue(false);
     updateMarkDeprecated.setEnabled(false);
 
-    super.show();
-
-    new Timer() {
-      @Override
-      public void run() {
-        setFocus();
-      }
-    }.schedule(100);
+    super.show(newName);
   }
 
-  /** {@inheritDoc} */
   @Override
-  protected void onClose() {
-    delegate.onCancelButtonClicked();
+  public void onEnterPress(NativeEvent evt) {
+    if (accept.isEnabled()) {
+      accept.click();
+    }
+  }
 
-    super.onClose();
+  @Override
+  protected void onShow() {
+    newName.selectAll();
+  }
+
+  @Override
+  public void setTitleCaption(String title) {
+    setTitle(title);
+  }
+
+  @Override
+  protected void onHide() {
+    delegate.onCancelButtonClicked();
+  }
+
+  @Override
+  public void close() {
+    hide();
   }
 
   /** {@inheritDoc} */
@@ -277,21 +260,29 @@ final class RenameViewImpl extends Window implements RenameView {
   }
 
   @Override
-  public void setFocus() {
-    newName.selectAll();
-    newName.setFocus(true);
-  }
+  public void setFocus() {}
 
   /** {@inheritDoc} */
   @Override
   public void setEnablePreviewButton(boolean isEnable) {
-    accept.setEnabled(isEnable);
+    preview.setEnabled(isEnable);
   }
 
   /** {@inheritDoc} */
   @Override
   public void setEnableAcceptButton(boolean isEnable) {
-    preview.setEnabled(isEnable);
+    accept.setEnabled(isEnable);
+  }
+
+  @Override
+  public void setLoaderVisibility(boolean isVisible) {
+    if (isVisible) {
+      accept.setHTML("<i></i>");
+      accept.setEnabled(false);
+    } else {
+      accept.setText(locale.moveDialogButtonOk());
+      accept.setEnabled(true);
+    }
   }
 
   /** {@inheritDoc} */
@@ -344,7 +335,8 @@ final class RenameViewImpl extends Window implements RenameView {
 
   private void showMessage(RefactoringStatus status) {
     RefactoringStatusEntry statusEntry =
-        getEntryMatchingSeverity(status.getSeverity(), status.getEntries());
+        getEntryMatchingSeverity(
+            status.getRefactoringSeverity().getValue(), status.getRefactoringStatusEntries());
     if (statusEntry != null) {
       errorLabel.setText(statusEntry.getMessage());
     } else {
@@ -365,7 +357,7 @@ final class RenameViewImpl extends Window implements RenameView {
   private RefactoringStatusEntry getEntryMatchingSeverity(
       int severity, List<RefactoringStatusEntry> entries) {
     for (RefactoringStatusEntry entry : entries) {
-      if (entry.getSeverity() >= severity) return entry;
+      if (entry.getRefactoringSeverity().getValue() >= severity) return entry;
     }
     return null;
   }

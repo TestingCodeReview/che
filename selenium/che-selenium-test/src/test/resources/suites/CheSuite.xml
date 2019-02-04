@@ -1,10 +1,11 @@
 <!--
 
-    Copyright (c) 2012-2017 Red Hat, Inc.
-    All rights reserved. This program and the accompanying materials
-    are made available under the terms of the Eclipse Public License v1.0
-    which accompanies this distribution, and is available at
-    http://www.eclipse.org/legal/epl-v10.html
+    Copyright (c) 2012-2018 Red Hat, Inc.
+    This program and the accompanying materials are made
+    available under the terms of the Eclipse Public License 2.0
+    which is available at https://www.eclipse.org/legal/epl-2.0/
+
+    SPDX-License-Identifier: EPL-2.0
 
     Contributors:
       Red Hat, Inc. - initial API and implementation
@@ -17,19 +18,40 @@
        thread-count="4">
 
     <test name="all">
-        <classes>
+      <classes>
           <class name="org.eclipse.che.selenium.assistant.CheckFindActionFeatureInCheTest"/>
           <class name="org.eclipse.che.selenium.assistant.KeyBindingsTest"/>
           <class name="org.eclipse.che.selenium.assistant.OrganizeImportsTest"/>
-          <class name="org.eclipse.che.selenium.languageserver.CheckMainFeatureForCSharpLanguageTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.csharp.CSharpFileEditingTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.csharp.CSharpClassRenamingTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.csharp.CSharpFileAdvancedOperationsTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.php.PhpFileEditingTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.php.PhpAssistantFeaturesTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.python.PythonFileEditingTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.python.PythonAssistantFeaturesTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.TypeScriptEditingTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.ClangFileEditingTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.ApacheCamelFileEditingTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.YamlFileEditingTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.GolangFileEditingTest"/>
           <class name="org.eclipse.che.selenium.dashboard.CreateAndDeleteProjectsTest"/>
           <class name="org.eclipse.che.selenium.dashboard.DeleteRunningWorkspaceTest"/>
           <class name="org.eclipse.che.selenium.dashboard.DeleteStoppingWorkspaceTest"/>
-          <class name="org.eclipse.che.selenium.dashboard.ImportMavenProjectFromGitHubTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.ImportMavenProjectFromGitTest"/>
           <class name="org.eclipse.che.selenium.dashboard.ImportProjectFromZipTest"/>
           <class name="org.eclipse.che.selenium.dashboard.RenameWorkspaceTest"/>
-          <class name="org.eclipse.che.selenium.dashboard.WorkspaceDetailsSingleMachineTest"/>
-          <class name="org.eclipse.che.selenium.dashboard.WorkspaceDetailsComposeTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.workspaces.details.WorkspaceDetailsSingleMachineTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.workspaces.details.WorkspaceDetailsOverviewTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.workspaces.details.WorkspaceDetailsComposeTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.workspaces.details.WorkspaceDetailsProjectsTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.workspaces.details.WorkspaceDetailsMachinesRamTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.workspaces.details.WorkspaceDetailsMachineActionsTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.CreateWorkspaceTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.CreateFactoryTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.FactoriesListTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.workspaces.AddOrImportProjectFormTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.workspaces.NewWorkspacePageTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.organization.UserEmptyOrganizationTest"/>
           <class name="org.eclipse.che.selenium.debugger.ChangeVariableWithEvaluatingTest"/>
           <class name="org.eclipse.che.selenium.debugger.CheckBreakPointStateTest"/>
           <class name="org.eclipse.che.selenium.debugger.CppProjectDebuggingTest"/>
@@ -64,37 +86,43 @@
           <class name="org.eclipse.che.selenium.editor.CheckWorkingWithTabsByUsingContextMenuTest"/>
           <class name="org.eclipse.che.selenium.editor.ContextMenuEditorTest"/>
           <class name="org.eclipse.che.selenium.editor.SplitEditorFeatureTest"/>
+          <class name="org.eclipse.che.selenium.factory.CheckFactoryWithMultiModuleTest"/>
           <class name="org.eclipse.che.selenium.factory.CheckFactoryWithPerUserCreatePolicyTest"/>
           <class name="org.eclipse.che.selenium.factory.CheckFactoryWithPerClickCreatePolicyTest"/>
-          <class name="org.eclipse.che.selenium.factory.DirectUrlFactoryWithKeepDirectory"/>
-          <class name="org.eclipse.che.selenium.factory.DirectUrlFactoryWithRootFolder"/>
-          <class name="org.eclipse.che.selenium.factory.DirectUrlFactoryWithSpecificBranch"/>
-          <class name="org.eclipse.che.selenium.factory.CheckFactoryWithMultiModuleTest"/>
           <class name="org.eclipse.che.selenium.factory.CheckFactoryWithSincePolicyTest"/>
           <class name="org.eclipse.che.selenium.factory.CheckFactoryWithUntilPolicyTest"/>
+          <class name="org.eclipse.che.selenium.factory.CreateFactoryFromUiWithKeepDirTest"/>
           <class name="org.eclipse.che.selenium.factory.CheckOpenFileFeatureTest"/>
           <class name="org.eclipse.che.selenium.factory.CheckRunCommandFeatureTest"/>
           <class name="org.eclipse.che.selenium.factory.CheckWelcomePanelOnCodenvyTest"/>
-          <class name="org.eclipse.che.selenium.factory.CreateNamedFactoryFromDashBoard"/>
-          <class name="org.eclipse.che.selenium.factory.CreateFactoryFromUiWithKeepDirTest"/>
+          <class name="org.eclipse.che.selenium.factory.DirectUrlFactoryWithRootFolderTest"/>
           <class name="org.eclipse.che.selenium.factory.CheckFactoryWithSparseCheckoutTest"/>
           <class name="org.eclipse.che.selenium.filewatcher.EditFilesWithTabsTest"/>
-          <class name="org.eclipse.che.selenium.filewatcher.RefactoringFeatureTest"/>
           <class name="org.eclipse.che.selenium.filewatcher.RemoveFilesWithActiveTabs"/>
-          <class name="org.eclipse.che.selenium.filewatcher.UpdateFilesWithoutIDE"/>
+          <class name="org.eclipse.che.selenium.filewatcher.UpdateFilesWithoutIDETest"/>
+          <class name="org.eclipse.che.selenium.factory.CreateNamedFactoryFromDashboardTest"/>
           <class name="org.eclipse.che.selenium.filewatcher.CheckDeletingProjectByApiTest"/>
           <class name="org.eclipse.che.selenium.filewatcher.CheckFileWatcherExcludeFeatureTest"/>
+          <class name="org.eclipse.che.selenium.git.ImportWizardFormTest"/>
           <class name="org.eclipse.che.selenium.git.AddFilesToIndexTest"/>
           <class name="org.eclipse.che.selenium.git.AmendCommitTest"/>
+          <class name="org.eclipse.che.selenium.factory.DirectUrlFactoryWithSpecificBranchTest"/>
           <class name="org.eclipse.che.selenium.git.BranchTest"/>
+          <class name="org.eclipse.che.selenium.git.CheckoutReferenceTest"/>
+          <class name="org.eclipse.che.selenium.git.CheckoutToRemoteBranchWhichAlreadyHasLinkedLocalBranchTest"/>
           <class name="org.eclipse.che.selenium.git.CommitFilesByMultiSelectTest"/>
           <class name="org.eclipse.che.selenium.git.CommitFilesTest"/>
           <class name="org.eclipse.che.selenium.git.CreateAndDeleteLocalBranchTest"/>
+          <class name="org.eclipse.che.selenium.git.FetchAndMergeRemoteBranchIntoLocalTest"/>
           <class name="org.eclipse.che.selenium.git.GitChangeMarkersTest"/>
           <class name="org.eclipse.che.selenium.git.GitColorsTest"/>
-          <class name="org.eclipse.che.selenium.git.GitCompareTest"/>
           <class name="org.eclipse.che.selenium.git.InitializeAndDeleteLocalRepositoryTest"/>
           <class name="org.eclipse.che.selenium.git.SetGitCommitterTest"/>
+          <class name="org.eclipse.che.selenium.git.GitPullConflictTest"/>
+          <class name="org.eclipse.che.selenium.git.GitPullTest"/>
+          <class name="org.eclipse.che.selenium.git.GitCompareTest"/>
+          <class name="org.eclipse.che.selenium.git.RevertCommitTest"/>
+          <class name="org.eclipse.che.selenium.git.GitResetTest"/>
           <class name="org.eclipse.che.selenium.gwt.CheckSimpleGwtAppTest"/>
           <class name="org.eclipse.che.selenium.intelligencecommand.MacrosCommandsEditorTest"/>
           <class name="org.eclipse.che.selenium.intelligencecommand.AutocompleteCommandsEditorTest"/>
@@ -108,19 +136,22 @@
           <class name="org.eclipse.che.selenium.mavenplugin.GenerateEffectivePomTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.CheckCreatingProjectInEmptyWsTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.CheckMacrosFeatureTest"/>
-          <class name="org.eclipse.che.selenium.miscellaneous.CheckRestoringWorkspaceAfterStoppingWsAgentProcess"/>
+          <class name="org.eclipse.che.selenium.miscellaneous.CheckRestoringWorkspaceAfterStoppingWsAgentProcessTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.ConvertToProjectFromConfigurationTest"/>
-          <class name="org.eclipse.che.selenium.miscellaneous.ConvertToProjectWithPomFileTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.DialogAboutTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.FileStructureBaseOperationTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.FileStructureByKeyboardTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.FileStructureCodeEditorTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.FileStructureNodesTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.FindTextFeatureTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.CreateStackTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.FindUsagesBaseOperationTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.ImplementationBaseOperationsTest"/>
+          <class name="org.eclipse.che.selenium.miscellaneous.MachinesAsynchronousStartTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.NavigateToFileTest"/>
+          <class name="org.eclipse.che.selenium.miscellaneous.OpenInTerminalTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.ResolveDependencyAfterRecreateProjectTest"/>
+          <class name="org.eclipse.che.selenium.miscellaneous.ServerRuntimeInfoTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.TerminalTypingTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.WorkingWithSplitPanelTest"/>
           <class name="org.eclipse.che.selenium.miscellaneous.WorkingWithTerminalTest"/>
@@ -142,6 +173,8 @@
           <class name="org.eclipse.che.selenium.testrunner.JavaTestPluginJunit4CheckRunSuitesAndScopesTest"/>
           <class name="org.eclipse.che.selenium.testrunner.JavaTestPluginTestNgTest"/>
           <class name="org.eclipse.che.selenium.preferences.CheckErrorsWarningsTabTest"/>
+          <class name="org.eclipse.che.selenium.preferences.ContributeTabTest"/>
+          <class name="org.eclipse.che.selenium.theia.TheiaBuildPluginTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.CheckAutoSaveForFileWhichAlreadyExistTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.CheckCollapseAllNodesProjectTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.CheckCopyCutFeaturesForFilesTest"/>
@@ -173,6 +206,7 @@
           <class name="org.eclipse.che.selenium.projectexplorer.DeleteProjectsTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.dependencies.TransitiveDependencyTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.dependencies.UpdateListOfLibraryTest"/>
+          <class name="org.eclipse.che.selenium.projectexplorer.dependencies.OpenExternalLibraryFileAfterRefreshTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.FileNotExistIntoEditorAfterDeleteTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.FileOpenedAfterCreationTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.JustCreatedFileNotExistIntoEditorAfterDeleteTest"/>
@@ -184,6 +218,8 @@
           <class name="org.eclipse.che.selenium.projectexplorer.RenameProjectTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.ShowFileReferenceTest"/>
           <class name="org.eclipse.che.selenium.projectexplorer.CheckDisplayingArtifactIdTest"/>
+          <class name="org.eclipse.che.selenium.projectexplorer.DownloadProjectTest"/>
+          <class name="org.eclipse.che.selenium.projectexplorer.UploadIntoProjectTest"/>
           <class name="org.eclipse.che.selenium.refactor.fields.FailNotPrivateFieldTest"/>
           <class name="org.eclipse.che.selenium.refactor.fields.FailPrivateFieldTest"/>
           <class name="org.eclipse.che.selenium.refactor.fields.RenameNotPrivateFieldTest"/>
@@ -216,15 +252,26 @@
           <class name="org.eclipse.che.selenium.workspaces.ProjectStateAfterRefreshTest"/>
           <class name="org.eclipse.che.selenium.workspaces.ProjectStateAfterRenameWorkspaceTest"/>
           <class name="org.eclipse.che.selenium.workspaces.ProjectStateAfterWorkspaceRestartTest"/>
-          <class name="org.eclipse.che.selenium.workspaces.WorkingWithJavaMySqlStackTest"/>
-          <class name="org.eclipse.che.selenium.workspaces.WorkingWithNodeWsTest"/>
+          <class name="org.eclipse.che.selenium.theia.Che7PreviewStackStartTest"/>
+          <class name="org.eclipse.che.selenium.stack.CreateWorkspaceFromBlankStackTest"/>
+          <class name="org.eclipse.che.selenium.stack.CreateWorkspaceFromJavaStackTest"/>
+          <class name="org.eclipse.che.selenium.stack.CreateWorkspaceFromPythonStackTest"/>
+          <class name="org.eclipse.che.selenium.stack.CreateWorkspaceFromJavaMySqlStackTest"/>
+          <class name="org.eclipse.che.selenium.stack.CreateWorkspaceFromNodeStackTest"/>
+          <class name="org.eclipse.che.selenium.stack.CreateWorkspaceFromJavaTheiaOpenshiftStackTest"/>
+          <class name="org.eclipse.che.selenium.stack.CreateWorkspaceFromJavaTheiaDockerStackTest"/>
           <class name="org.eclipse.che.selenium.workspaces.WorkspaceFromOfficialUbuntuImageStartTest"/>
-          <class name="org.eclipse.che.selenium.consoles.ServerRuntimeInfoTest"/>
+          <class name="org.eclipse.che.selenium.workspaces.CheckStoppingWsByTimeoutTest"/>
+          <class name="org.eclipse.che.selenium.dashboard.AccountTest"/>
+
+          <!-- Next tests can unexpectedly affect on other tests and so should be executed at the end -->
+          <class name="org.eclipse.che.selenium.dashboard.StacksListTest"/>
+          <class name="org.eclipse.che.selenium.languageserver.JsonFileEditingTest"/>
         </classes>
     </test>
 
     <suite-files>
         <!-- that is the path where sub-suite file being looked at -->
-        <suite-file path="src/test/resources/suites/CheOneThreadTestsSuite.xml"/>
+        <suite-file path="target/test-classes/suites/CheOneThreadTestsSuite.xml"/>
     </suite-files>
 </suite>

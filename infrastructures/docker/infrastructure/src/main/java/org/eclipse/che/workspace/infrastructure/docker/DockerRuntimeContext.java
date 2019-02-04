@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,13 +19,13 @@ import java.util.List;
 import javax.inject.Named;
 import org.eclipse.che.api.core.ValidationException;
 import org.eclipse.che.api.core.model.workspace.runtime.RuntimeIdentity;
+import org.eclipse.che.api.workspace.server.URLRewriter;
 import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
 import org.eclipse.che.api.workspace.server.spi.InternalInfrastructureException;
 import org.eclipse.che.api.workspace.server.spi.RuntimeContext;
 import org.eclipse.che.infrastructure.docker.client.json.ContainerListEntry;
 import org.eclipse.che.workspace.infrastructure.docker.container.DockerContainers;
 import org.eclipse.che.workspace.infrastructure.docker.model.DockerEnvironment;
-import org.eclipse.che.workspace.infrastructure.docker.server.mapping.ExternalIpURLRewriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +39,7 @@ public class DockerRuntimeContext extends RuntimeContext<DockerEnvironment> {
 
   private static final Logger LOG = LoggerFactory.getLogger(DockerRuntimeContext.class);
 
-  private final ExternalIpURLRewriter urlRewriter;
+  private final URLRewriter urlRewriter;
   private final String websocketOutputEndpoint;
   private final DockerRuntimeFactory runtimeFactory;
   private final DockerContainers containers;
@@ -54,7 +55,7 @@ public class DockerRuntimeContext extends RuntimeContext<DockerEnvironment> {
       DockerContainers containers,
       DockerSharedPool sharedPool,
       RuntimeConsistencyChecker consistencyChecker,
-      ExternalIpURLRewriter urlRewriter,
+      URLRewriter urlRewriter,
       @Named("che.websocket.endpoint") String cheWebsocketEndpoint)
       throws InfrastructureException, ValidationException {
 
@@ -70,7 +71,7 @@ public class DockerRuntimeContext extends RuntimeContext<DockerEnvironment> {
   @Override
   public URI getOutputChannel() throws InfrastructureException {
     try {
-      return URI.create(urlRewriter.rewriteURL(getIdentity(), null, websocketOutputEndpoint));
+      return URI.create(urlRewriter.rewriteURL(getIdentity(), null, null, websocketOutputEndpoint));
     } catch (IllegalArgumentException ex) {
       throw new InternalInfrastructureException(
           "Failed to get the output channel because: " + ex.getLocalizedMessage());
@@ -83,11 +84,10 @@ public class DockerRuntimeContext extends RuntimeContext<DockerEnvironment> {
     List<ContainerListEntry> runningContainers = containers.find(identity);
     DockerEnvironment environment = getEnvironment();
     if (runningContainers.isEmpty()) {
-      return runtimeFactory.create(this, environment.getWarnings());
+      return runtimeFactory.create(this);
     }
 
-    DockerInternalRuntime runtime =
-        runtimeFactory.create(this, runningContainers, environment.getWarnings());
+    DockerInternalRuntime runtime = runtimeFactory.create(this, runningContainers);
     try {
       consistencyChecker.check(environment, runtime);
       runtime.checkServers();

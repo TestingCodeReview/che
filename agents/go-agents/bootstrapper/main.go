@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2012-2017 Red Hat, Inc.
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
+// Copyright (c) 2012-2018 Red Hat, Inc.
+// This program and the accompanying materials are made
+// available under the terms of the Eclipse Public License 2.0
+// which is available at https://www.eclipse.org/legal/epl-2.0/
+//
+// SPDX-License-Identifier: EPL-2.0
 //
 // Contributors:
 //   Red Hat, Inc. - initial API and implementation
@@ -15,11 +16,14 @@ import (
 	"log"
 	"os"
 
+	"crypto/tls"
+	"crypto/x509"
+	"github.com/eclipse/che-go-jsonrpc"
+	"github.com/eclipse/che-go-jsonrpc/jsonrpcws"
 	"github.com/eclipse/che/agents/go-agents/bootstrapper/booter"
 	"github.com/eclipse/che/agents/go-agents/bootstrapper/cfg"
-	"github.com/eclipse/che/agents/go-agents/core/jsonrpc"
-	"github.com/eclipse/che/agents/go-agents/core/jsonrpc/jsonrpcws"
 	"github.com/eclipse/che/agents/go-agents/core/process"
+	"io/ioutil"
 )
 
 func main() {
@@ -27,6 +31,10 @@ func main() {
 
 	cfg.Parse()
 	cfg.Print()
+
+	if cfg.SelfSignedCertificateFilePath != "" {
+		configureCertPool(cfg.SelfSignedCertificateFilePath)
+	}
 
 	process.SetShellInterpreter("/bin/sh")
 
@@ -58,6 +66,30 @@ func main() {
 
 	if err := booter.Start(); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func configureCertPool(customCertificateFilePath string) {
+	// Get the SystemCertPool, continue with an empty pool on error
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+
+	// Read in the cert file
+	certs, err := ioutil.ReadFile(customCertificateFilePath)
+	if err != nil {
+		log.Fatalf("Failed to read custom certificate %q. Error: %v", customCertificateFilePath, err)
+	}
+
+	// Append our cert to the system pool
+	if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
+		log.Fatalf("Failed to append %q to RootCAs: %v", customCertificateFilePath, err)
+	}
+
+	// Trust the augmented cert pool in our client
+	jsonrpcws.DefaultDialer.TLSClientConfig = &tls.Config{
+		RootCAs: rootCAs,
 	}
 }
 

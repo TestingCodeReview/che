@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,7 +15,10 @@ import {CheKeycloak} from '../../components/api/che-keycloak.factory';
 import {CheService} from '../../components/api/che-service.factory';
 
 export class CheNavBarController {
-  private menuItemUrl = {
+
+  static $inject = ['$mdSidenav', '$scope', '$location', '$route', 'cheAPI', '$window', 'chePermissions', 'cheKeycloak', 'cheService'];
+
+  menuItemUrl = {
     dashboard: '#/',
     workspaces: '#/workspaces',
     administration: '#/administration',
@@ -56,10 +60,10 @@ export class CheNavBarController {
   private cheKeycloak: CheKeycloak;
   private cheService: CheService;
   private isPermissionServiceAvailable: boolean;
+  private isKeycloackPresent: boolean;
 
   /**
    * Default constructor
-   * @ngInject for Dependency injection
    */
   constructor($mdSidenav: ng.material.ISidenavService,
               $scope: ng.IScope,
@@ -79,6 +83,8 @@ export class CheNavBarController {
     this.chePermissions = chePermissions;
     this.cheKeycloak = cheKeycloak;
     this.cheService = cheService;
+
+    this.isKeycloackPresent = this.cheKeycloak.isPresent();
 
     this.profile = cheAPI.getProfile().getProfile();
 

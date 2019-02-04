@@ -1,16 +1,16 @@
 /*
  * Copyright (c) 2016-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc.- initial API and implementation
  */
 
 import {JsonRpcBus} from "./json-rpc-bus";
-import {MessageBus} from "./messagebus";
 
 /**
  * This class is handling the websocket handling by providing a {@link MessageBus} object
@@ -24,11 +24,6 @@ export class Websocket {
     wsClient: any;
 
 
-    /**
-     * Instance of messagebus
-     */
-    messageBus : MessageBus;
-
   /**
      * Default constructor initializing websocket.
      */
@@ -36,27 +31,6 @@ export class Websocket {
         this.wsClient = require('websocket').client;
     }
 
-
-  /**
-   * Gets a MessageBus object for a remote workspace, by providing the remote URL to this websocket
-   * @param websocketURL the remote host base WS url
-   * @param workspaceId the workspaceID used as suffix for the URL
-   */
-  getMessageBus(websocketURL) : Promise<MessageBus> {
-    if (this.messageBus) {
-      return Promise.resolve(this.messageBus);
-    }
-    var webSocketClient: any = new this.wsClient();
-    var remoteWebsocketUrl: string = websocketURL;
-    let promise : Promise<MessageBus> = new Promise<MessageBus>((resolve, reject) => {
-      this.messageBus = new MessageBus(webSocketClient, remoteWebsocketUrl, this, resolve, reject);
-    });
-
-    return promise.then(() => {
-      return this.messageBus;
-    });
-
-  }
     /**
      * Gets a MessageBus object for a remote workspace, by providing the remote URL to this websocket
      * @param websocketURL the remote host base WS url

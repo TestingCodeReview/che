@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,6 +20,7 @@ import com.google.inject.Singleton;
 import java.util.List;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.utils.WaitUtils;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -31,11 +33,13 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 @Singleton
 public class OrganizationPage {
 
+  private final WebDriverWait redrawUiElementsTimeout;
+  private final SeleniumWebDriver seleniumWebDriver;
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
+
   private interface Locators {
 
     String ORGANIZATION_TITLE_ID = "__organizationDetailsController_organizationName__";
-    String ORGANIZATION_TITLE_XPATH =
-        "//div[contains(@class, 'che-toolbar-title')]//span[text() = '%s']";
     String ORGANIZATION_NAME = "//input[@name = 'name']";
     String BACK_ICON = "//a[contains(@class, 'che-toolbar-breadcrumb')]/md-icon";
     String SAVE_BUTTON = "//div[contains(@class, 'save-button-placeholder')]//button";
@@ -44,31 +48,25 @@ public class OrganizationPage {
     String RUNNING_WORKSPACE_CAP = "//input[@name = 'runtimeCap']";
     String WORKSPACE_RAM_CAP = "//input[@name = 'workspaceRamCap']";
     String DELETE_ORG_BUTTON = "//button[contains(@class, 'che-button')]//span[text() = 'Delete']";
-    // todo: //span[text()='Delete'] to get Delete button only
     String DELETE_ORG_WIDGET_BUTTON =
         "//div[contains(@class,'che-confirm-dialog-notification')]//span";
     String SUB_ORGANIZATIONS_TAB = "//md-tab-item//span[contains(text(), 'Sub-Organizations')]";
-
     String ADD_SUB_ORGANIZATION_BUTTON =
         "//che-button-primary[@che-button-title =  'Add Sub-Organization']/a";
     String MEMBERS_TAB = "//md-tab-item//span[contains(text(), 'Members')]";
     String MEMBERS_LIST = "//list-organization-members";
-    String ADD_MEMBER_BUTTON = "//button[@ng-click = 'onAdd()']";
-    String DELETE_MEMBER_BUTTON = "//button[@ng-click = 'onDelete()']";
+    String ADD_MEMBER_BUTTON = "//che-button-primary[@ng-click = 'onAdd()']";
+    String DELETE_MEMBER_BUTTON_ID = "delete-item-button";
     String MEMBERS_HEADER_XPATH =
         "//md-content[contains(@class, 'organization-member-list')]//div[contains(@class, 'che-list-header-column')]//span";
     String MEMBERS_LIST_ITEM_XPATH =
         "//md-content[contains(@class, 'organization-member-list')]//span[text() = '%s']";
-    //        String MEMBER_CHECKBOX =
-    // "//div[contains(@class,'che-list-item-checkbox-main')]/md-checkbox[contains(@aria-label,'member')]";
     String MEMBER_CHECKBOX = "//md-checkbox[contains(@aria-label,'member')]";
-    // todo: //span[text()='Delete'] to get Delete button only
     String DELETE_MEMBER_WIDGET_BUTTON = "//che-popup//button";
     String MEMBERS_SEARCH_FIELD = "//div[@class = 'che-list-search']//input";
+    String WORKSPACES_TAB_XPATH = "//md-tab-item//span[contains(text(), 'Workspaces')]";
+    String ADD_WORKSPACE_BTN_XPATH = "//*[@che-button-title='Add Workspace']";
   }
-
-  private final WebDriverWait redrawUiElementsTimeout;
-  private final SeleniumWebDriver seleniumWebDriver;
 
   @FindBy(id = Locators.ORGANIZATION_TITLE_ID)
   WebElement organizationTitle;
@@ -115,7 +113,7 @@ public class OrganizationPage {
   @FindBy(xpath = Locators.ADD_MEMBER_BUTTON)
   WebElement addMemberButton;
 
-  @FindBy(xpath = Locators.DELETE_MEMBER_BUTTON)
+  @FindBy(id = Locators.DELETE_MEMBER_BUTTON_ID)
   WebElement deleteMemberButton;
 
   @FindBy(xpath = Locators.DELETE_MEMBER_WIDGET_BUTTON)
@@ -124,11 +122,16 @@ public class OrganizationPage {
   @FindBy(xpath = Locators.MEMBERS_SEARCH_FIELD)
   WebElement membersSearchField;
 
+  @FindBy(xpath = Locators.WORKSPACES_TAB_XPATH)
+  WebElement workspacesTab;
+
   @Inject
-  public OrganizationPage(SeleniumWebDriver seleniumWebDriver) {
+  public OrganizationPage(
+      SeleniumWebDriver seleniumWebDriver, SeleniumWebDriverHelper seleniumWebDriverHelper) {
     this.seleniumWebDriver = seleniumWebDriver;
     this.redrawUiElementsTimeout =
         new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC);
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
@@ -148,6 +151,10 @@ public class OrganizationPage {
 
   public void clickMembersTab() {
     redrawUiElementsTimeout.until(ExpectedConditions.visibilityOf(membersTab)).click();
+  }
+
+  public void clickOnWorkspacesTab() {
+    seleniumWebDriverHelper.waitAndClick(workspacesTab);
   }
 
   public void waitMembersList() {
@@ -345,5 +352,9 @@ public class OrganizationPage {
   private boolean isReadonly(WebElement element) {
     String readonly = element.getAttribute("readonly");
     return readonly == null ? false : readonly.equalsIgnoreCase("true");
+  }
+
+  public void clickOnAddWorkspaceBtn() {
+    seleniumWebDriverHelper.waitAndClick(By.xpath(Locators.ADD_WORKSPACE_BTN_XPATH));
   }
 }

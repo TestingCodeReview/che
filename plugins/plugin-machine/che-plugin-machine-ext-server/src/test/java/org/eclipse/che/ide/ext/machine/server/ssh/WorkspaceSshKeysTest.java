@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -43,12 +44,6 @@ public class WorkspaceSshKeysTest {
 
   /** The workspace ID that will be used in the test. */
   private static final String WORKSPACE_ID = "workspace123";
-
-  /** Name of the workspace returned through workspace.getConfig().getName() */
-  private static final String WORKSPACE_NAME = "myworkspace";
-
-  /** User namespace for the current @{link EnvironmentContext} */
-  private static final String NAMESPACE = "userNS";
 
   /** Dummy Owner identifier used This will be used for registering ssh keys. */
   private static final String OWNER_NAME = "userName";
@@ -103,8 +98,6 @@ public class WorkspaceSshKeysTest {
         (EventSubscriber<WorkspaceRemovedEvent>) subscriberCaptor.getAllValues().get(1);
 
     when(workspace.getId()).thenReturn(WORKSPACE_ID);
-    when(workspace.getConfig()).thenReturn(workspaceConfig);
-    when(workspaceConfig.getName()).thenReturn(WORKSPACE_NAME);
     when(workspace.getNamespace()).thenReturn(OWNER_NAME);
 
     when(userManager.getByName(eq(OWNER_NAME))).thenReturn(user);
@@ -117,7 +110,6 @@ public class WorkspaceSshKeysTest {
    */
   @Test
   public void shouldGenerateSshKeyPairWhenWorkspaceIsCreated() throws Exception {
-
     // given
     workspaceCreatedEventEventSubscriber.onEvent(new WorkspaceCreatedEvent(this.workspace));
 

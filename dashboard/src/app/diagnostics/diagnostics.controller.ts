@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,7 +13,6 @@
 import {DiagnosticsWebsocketWsMaster} from './test/diagnostics-websocket-wsmaster.factory';
 import {DiagnosticCallback} from './diagnostic-callback';
 import {DiagnosticsWorkspaceStartCheck} from './test/diagnostics-workspace-start-check.factory';
-import {CheWebsocket} from '../../components/api/che-websocket.factory';
 import {DiagnosticsRunningWorkspaceCheck} from './test/diagnostics-workspace-check-workspace.factory';
 import {DiagnosticPart} from './diagnostic-part';
 import {DiagnosticPartState} from './diagnostic-part-state';
@@ -25,6 +25,8 @@ import {CheBranding} from '../../components/branding/che-branding.factory';
  * @author Florent Benoit
  */
 export class DiagnosticsController {
+
+  static $inject = ['$log', '$q', 'lodash', '$timeout', 'diagnosticsWebsocketWsMaster', 'cheBranding', 'diagnosticsRunningWorkspaceCheck', 'diagnosticsWorkspaceStartCheck'];
 
   /**
    * Promise service handling.
@@ -50,11 +52,6 @@ export class DiagnosticsController {
    * Instance of checker for workspace
    */
   private diagnosticsWorkspaceStartCheck: DiagnosticsWorkspaceStartCheck;
-
-  /**
-   * Websocket library.
-   */
-  private cheWebsocket: CheWebsocket;
 
   /**
    * Angular timeout service.
@@ -118,12 +115,10 @@ export class DiagnosticsController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($log: ng.ILogService, $q: ng.IQService, lodash: any,
               $timeout: ng.ITimeoutService,
               diagnosticsWebsocketWsMaster: DiagnosticsWebsocketWsMaster,
-              cheWebsocket: CheWebsocket,
               cheBranding: CheBranding,
               diagnosticsRunningWorkspaceCheck: DiagnosticsRunningWorkspaceCheck,
               diagnosticsWorkspaceStartCheck: DiagnosticsWorkspaceStartCheck) {
@@ -135,7 +130,6 @@ export class DiagnosticsController {
     this.diagnosticsWorkspaceStartCheck = diagnosticsWorkspaceStartCheck;
     this.diagnosticsRunningWorkspaceCheck = diagnosticsRunningWorkspaceCheck;
     this.parts = new Array<DiagnosticPart>();
-    this.cheWebsocket = cheWebsocket;
     this.sharedMap = new Map<string, any>();
     this.cheBranding = cheBranding;
     this.isLogDisplayed = false;
@@ -221,7 +215,7 @@ export class DiagnosticsController {
    * @returns {DiagnosticCallback} the newly callback
    */
   public newItem(text: string, diagnosticPart: DiagnosticPart): DiagnosticCallback {
-    let callback: DiagnosticCallback = new DiagnosticCallback(this.$q, this.cheWebsocket, this.$timeout, text, this.sharedMap, this, diagnosticPart);
+    let callback: DiagnosticCallback = new DiagnosticCallback(this.$q, this.$timeout, text, this.sharedMap, this, diagnosticPart);
     diagnosticPart.addCallback(callback);
     return callback;
   }

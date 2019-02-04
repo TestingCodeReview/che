@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,6 +29,7 @@ import org.eclipse.che.plugin.languageserver.ide.editor.LanguageServerEditorConf
 import org.eclipse.che.plugin.languageserver.ide.location.OpenLocationPresenter;
 import org.eclipse.che.plugin.languageserver.ide.location.OpenLocationPresenterFactory;
 import org.eclipse.che.plugin.languageserver.ide.service.TextDocumentServiceClient;
+import org.eclipse.che.plugin.languageserver.ide.util.DtoBuildHelper;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.ReferenceContext;
@@ -41,6 +43,7 @@ public class FindReferencesAction extends AbstractPerspectiveAction {
   private final EditorAgent editorAgent;
   private final TextDocumentServiceClient client;
   private final DtoFactory dtoFactory;
+  private final DtoBuildHelper dtoHelper;
   private final OpenLocationPresenter presenter;
 
   @Inject
@@ -48,11 +51,13 @@ public class FindReferencesAction extends AbstractPerspectiveAction {
       EditorAgent editorAgent,
       OpenLocationPresenterFactory presenterFactory,
       TextDocumentServiceClient client,
-      DtoFactory dtoFactory) {
+      DtoFactory dtoFactory,
+      DtoBuildHelper dtoHelper) {
     super(singletonList(PROJECT_PERSPECTIVE_ID), "Find References", "Find References");
     this.editorAgent = editorAgent;
     this.client = client;
     this.dtoFactory = dtoFactory;
+    this.dtoHelper = dtoHelper;
     presenter = presenterFactory.create("Find References");
   }
 
@@ -84,20 +89,19 @@ public class FindReferencesAction extends AbstractPerspectiveAction {
       return;
     }
     TextEditor textEditor = ((TextEditor) activeEditor);
-    String path = activeEditor.getEditorInput().getFile().getLocation().toString();
     ReferenceParams paramsDTO = dtoFactory.createDto(ReferenceParams.class);
 
     Position Position = dtoFactory.createDto(Position.class);
     Position.setLine(textEditor.getCursorPosition().getLine());
     Position.setCharacter(textEditor.getCursorPosition().getCharacter());
 
-    TextDocumentIdentifier identifierDTO = dtoFactory.createDto(TextDocumentIdentifier.class);
-    identifierDTO.setUri(path);
+    TextDocumentIdentifier identifierDTO =
+        dtoHelper.createTDI(activeEditor.getEditorInput().getFile());
 
     ReferenceContext contextDTO = dtoFactory.createDto(ReferenceContext.class);
     contextDTO.setIncludeDeclaration(true);
 
-    paramsDTO.setUri(path);
+    paramsDTO.setUri(identifierDTO.getUri());
     paramsDTO.setPosition(Position);
     paramsDTO.setTextDocument(identifierDTO);
     paramsDTO.setContext(contextDTO);

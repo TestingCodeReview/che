@@ -43,8 +43,13 @@
           "dev-machine" : {
             "installers" : [
               "org.eclipse.che.terminal",
-              "org.eclipse.che.ws-agent"
+              "org.eclipse.che.ws-agent",
+              "org.eclipse.che.exec",
+              "org.eclipse.che.ls.java"
             ],
+            "attributes": {
+              "memoryLimitBytes": "2147483648"
+            },
             "servers" : {
               "tomcat8" : {
                 "port" : "8080",

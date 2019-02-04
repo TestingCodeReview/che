@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,6 +15,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.eclipse.che.api.languageserver.shared.util.RangeComparator;
 import org.eclipse.che.ide.api.action.ActionEvent;
 import org.eclipse.che.ide.api.action.BaseAction;
@@ -34,7 +36,7 @@ import org.eclipse.lsp4j.TextEdit;
 @Singleton
 public class ApplyTextEditAction extends BaseAction {
   private static final Comparator<TextEdit> COMPARATOR =
-      RangeComparator.transform(new RangeComparator().reversed(), TextEdit::getRange);
+      RangeComparator.transform(new RangeComparator(), TextEdit::getRange);
 
   private EditorAgent editorAgent;
   private DtoFactory dtoFactory;
@@ -56,21 +58,22 @@ public class ApplyTextEditAction extends BaseAction {
     // We expect the arguments to be of the correct type: static misconfiguration is
     // a programming error.
     List<Object> arguments = ((QuickassistActionEvent) evt).getArguments();
-    arguments
-        .stream()
-        .map(arg -> dtoFactory.createDtoFromJson(arg.toString(), TextEdit.class))
-        .sorted(COMPARATOR)
-        .forEach(
-            e -> {
-              Range r = e.getRange();
-              Position start = r.getStart();
-              Position end = r.getEnd();
-              document.replace(
-                  start.getLine(),
-                  start.getCharacter(),
-                  end.getLine(),
-                  end.getCharacter(),
-                  e.getNewText());
-            });
+    List<TextEdit> edits =
+        arguments
+            .stream()
+            .map(arg -> dtoFactory.createDtoFromJson(arg.toString(), TextEdit.class))
+            .sorted(COMPARATOR)
+            .collect(Collectors.toList());
+
+    // jdt.ls sends text edits in reverse order of application
+    // see https://github.com/eclipse/eclipse.jdt.ls/issues/398
+    for (int i = edits.size() - 1; i >= 0; i--) {
+      TextEdit e = edits.get(i);
+      Range r = e.getRange();
+      Position start = r.getStart();
+      Position end = r.getEnd();
+      document.replace(
+          start.getLine(), start.getCharacter(), end.getLine(), end.getCharacter(), e.getNewText());
+    }
   }
 }

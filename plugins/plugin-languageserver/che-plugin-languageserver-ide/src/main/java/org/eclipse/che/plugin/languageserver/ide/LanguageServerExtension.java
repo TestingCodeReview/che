@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -39,6 +40,7 @@ import org.eclipse.che.plugin.languageserver.ide.navigation.symbol.GoToSymbolAct
 import org.eclipse.che.plugin.languageserver.ide.navigation.workspace.FindSymbolAction;
 import org.eclipse.che.plugin.languageserver.ide.registry.LanguageServerRegistry;
 import org.eclipse.che.plugin.languageserver.ide.rename.LSRenameAction;
+import org.eclipse.che.plugin.languageserver.ide.service.ExecuteClientCommandReceiver;
 import org.eclipse.che.plugin.languageserver.ide.service.PublishDiagnosticsReceiver;
 import org.eclipse.che.plugin.languageserver.ide.service.ShowMessageJsonRpcReceiver;
 import org.eclipse.che.plugin.languageserver.ide.service.TextDocumentServiceClient;
@@ -55,23 +57,35 @@ public class LanguageServerExtension {
 
   @Inject
   public LanguageServerExtension(
-      LanguageServerFileTypeRegister languageServerFileTypeRegister,
+      LanguageRegexesInitializer languageRegexesInitializer,
+      LanguageDescriptionInitializer languageDescriptionInitializer,
+      DefaultHoverProviderInitializer defaultHoverProviderInitializer,
+      DefaultOccurrencesProviderInitializer defaultOccurrencesProviderInitializer,
       EventBus eventBus,
       AppContext appContext,
       ShowMessageJsonRpcReceiver showMessageJsonRpcReceiver,
-      PublishDiagnosticsReceiver publishDiagnosticsReceiver) {
+      PublishDiagnosticsReceiver publishDiagnosticsReceiver,
+      ExecuteClientCommandReceiver executeClientCommandReceiver) {
     eventBus.addHandler(
         WsAgentServerRunningEvent.TYPE,
         e -> {
-          languageServerFileTypeRegister.start();
+          languageRegexesInitializer.initialize();
+          languageDescriptionInitializer.initialize();
+          defaultOccurrencesProviderInitializer.initialize();
+          defaultHoverProviderInitializer.initialize();
           showMessageJsonRpcReceiver.subscribe();
           publishDiagnosticsReceiver.subscribe();
+          executeClientCommandReceiver.subscribe();
         });
 
     if (appContext.getWorkspace().getStatus() == RUNNING) {
-      languageServerFileTypeRegister.start();
+      languageRegexesInitializer.initialize();
+      languageDescriptionInitializer.initialize();
+      defaultOccurrencesProviderInitializer.initialize();
+      defaultHoverProviderInitializer.initialize();
       showMessageJsonRpcReceiver.subscribe();
       publishDiagnosticsReceiver.subscribe();
+      executeClientCommandReceiver.subscribe();
     }
   }
 
@@ -144,6 +158,12 @@ public class LanguageServerExtension {
     keyBindingManager
         .getGlobal()
         .addKey(new KeyBuilder().shift().charCode(KeyCodeMap.F6).build(), "LS.rename");
+
+    DefaultActionGroup editorContextMenuGroup =
+        (DefaultActionGroup) actionManager.getAction("editorContextMenu");
+    editorContextMenuGroup.addSeparator();
+    editorContextMenuGroup.add(findDefinitionAction);
+    editorContextMenuGroup.add(refactoringGroup);
   }
 
   @Inject
@@ -156,7 +176,7 @@ public class LanguageServerExtension {
         FileEvent.TYPE,
         event -> {
           Path location = event.getFile().getLocation();
-          if (lsRegistry.getLanguageDescription(event.getFile()) == null) {
+          if (lsRegistry.getLanguageFilter(event.getFile()) == null) {
             return;
           }
           final TextDocumentIdentifier documentId =
@@ -209,7 +229,7 @@ public class LanguageServerExtension {
               documentItem.setVersion(LanguageServerEditorConfiguration.INITIAL_DOCUMENT_VERSION);
               documentItem.setText(text);
               documentItem.setLanguageId(
-                  lsRegistry.getLanguageDescription(event.getFile()).getLanguageId());
+                  lsRegistry.getLanguageFilter(event.getFile()).getLanguageId());
 
               DidOpenTextDocumentParams openEvent =
                   dtoFactory.createDto(DidOpenTextDocumentParams.class);

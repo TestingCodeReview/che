@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -57,7 +58,6 @@ public abstract class AbstractJpaPermissionsDao<T extends AbstractPermissions>
   }
 
   @Override
-  @Transactional
   public boolean exists(String userId, String instanceId, String action) throws ServerException {
     requireNonNull(userId, "User identifier required");
     requireNonNull(action, "Action name required");
@@ -96,7 +96,8 @@ public abstract class AbstractJpaPermissionsDao<T extends AbstractPermissions>
    * Parameters {@code userId} and {@code instanceId} are the same to {@link #get(String, String)}
    * method parameters.
    */
-  protected abstract T getEntity(String userId, String instanceId) throws NotFoundException;
+  protected abstract T getEntity(String userId, String instanceId)
+      throws NotFoundException, ServerException;
 
   @Transactional
   protected Optional<T> doCreate(T permissions) throws ServerException {

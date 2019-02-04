@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -27,12 +28,12 @@ import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.ForbiddenException;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
+import org.eclipse.che.api.core.model.workspace.config.ProjectConfig;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.core.notification.EventSubscriber;
 import org.eclipse.che.api.git.shared.event.GitRepositoryDeletedEvent;
 import org.eclipse.che.api.project.server.ProjectManager;
 import org.eclipse.che.api.project.server.impl.NewProjectConfigImpl;
-import org.eclipse.che.api.project.server.impl.RegisteredProject;
 import org.slf4j.Logger;
 
 /** @author Vitalii Parfonov */
@@ -65,7 +66,7 @@ public class ContributionProjectTypeCleaner implements EventSubscriber<GitReposi
     try {
       ProjectManager projectManager = projectManagerProvider.get();
       projectManager.removeType(projectPath, CONTRIBUTION_PROJECT_TYPE_ID);
-      RegisteredProject project = projectManager.get(projectPath).get();
+      ProjectConfig project = projectManager.get(projectPath).get();
       Map<String, List<String>> attributes = project.getAttributes();
       attributes.remove(CONTRIBUTE_LOCAL_BRANCH_NAME);
       attributes.remove(CONTRIBUTE_TO_BRANCH_VARIABLE_NAME);

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -23,8 +24,9 @@ import static org.testng.Assert.assertTrue;
 
 import com.google.inject.Inject;
 import java.util.ArrayList;
-import org.eclipse.che.selenium.core.annotation.Multiuser;
+import org.eclipse.che.selenium.core.TestGroup;
 import org.eclipse.che.selenium.core.client.TestOrganizationServiceClient;
+import org.eclipse.che.selenium.core.client.TestOrganizationServiceClientFactory;
 import org.eclipse.che.selenium.core.organization.InjectTestOrganization;
 import org.eclipse.che.selenium.core.organization.TestOrganization;
 import org.eclipse.che.selenium.core.user.TestUser;
@@ -40,9 +42,10 @@ import org.testng.annotations.Test;
  *
  * @author Ann Shumilova
  */
-@Multiuser
+@Test(groups = {TestGroup.MULTIUSER, TestGroup.DOCKER, TestGroup.OPENSHIFT, TestGroup.K8S})
 public class MemberOrganizationTest {
   private int initialOrgNumber;
+  private TestOrganizationServiceClient testOrganizationServiceClient;
 
   @InjectTestOrganization(prefix = "parentOrg")
   private TestOrganization parentOrg;
@@ -50,8 +53,7 @@ public class MemberOrganizationTest {
   @InjectTestOrganization(parentPrefix = "parentOrg")
   private TestOrganization childOrg;
 
-  @Inject private TestOrganizationServiceClient testOrganizationServiceClient;
-
+  @Inject private TestOrganizationServiceClientFactory testOrganizationServiceClientFactory;
   @Inject private OrganizationListPage organizationListPage;
   @Inject private OrganizationPage organizationPage;
   @Inject private NavigationBar navigationBar;
@@ -60,6 +62,8 @@ public class MemberOrganizationTest {
 
   @BeforeClass
   public void setUp() throws Exception {
+    testOrganizationServiceClient = testOrganizationServiceClientFactory.create(testUser);
+
     parentOrg.addMember(testUser.getId());
     childOrg.addMember(testUser.getId());
     initialOrgNumber = testOrganizationServiceClient.getAll().size();
@@ -67,7 +71,6 @@ public class MemberOrganizationTest {
     dashboard.open(testUser.getName(), testUser.getPassword());
   }
 
-  @Test
   public void testOrganizationListComponents() {
     navigationBar.waitNavigationBar();
     navigationBar.clickOnMenu(ORGANIZATIONS);
@@ -95,7 +98,6 @@ public class MemberOrganizationTest {
     assertTrue(organizationListPage.getValues(NAME).contains(childOrg.getQualifiedName()));
   }
 
-  @Test
   public void testOrganizationViews() {
     navigationBar.waitNavigationBar();
     navigationBar.clickOnMenu(ORGANIZATIONS);

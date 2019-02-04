@@ -1,9 +1,11 @@
 #!/bin/bash
+#
 # Copyright (c) 2012-2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
 #
 # Contributors:
 #   Tyler Jewell - Initial Implementation
@@ -38,8 +40,8 @@ post_cmd_offline() {
 cmd_offline() {
   # Read in optional stack images
   readarray -t STACK_IMAGE_LIST < /version/$CHE_VERSION/images-stacks
-  BOOTSTRAP_IMAGE_LIST=$(cat ${SCRIPTS_BASE_CONTAINER_SOURCE_DIR}/images/images-bootstrap)
-  UTILITY_IMAGE_LIST=$(cat ${SCRIPTS_BASE_CONTAINER_SOURCE_DIR}/images/images-utilities)
+  BOOTSTRAP_IMAGE_LIST=$(cat /version/$CHE_VERSION/images-bootstrap)
+  UTILITY_IMAGE_LIST=$(cat /version/$CHE_VERSION/images-utilities)
 
   # List all images to be saved
   if [[ $# -gt 0 ]] && [[ $1 = "--list" ]]; then

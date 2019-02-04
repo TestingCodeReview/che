@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -23,6 +24,9 @@ import {ImportGithubProjectService} from './create-workspace/project-source-sele
  * @author Oleksii Kurinnyi
  */
 export class WorkspaceConfigService {
+
+  static $inject = ['$log', '$q', 'cheWorkspace', 'namespaceSelectorSvc', 'createWorkspaceSvc', 'stackSelectorSvc', 'templateSelectorSvc', 'importGithubProjectService'];
+
   /**
    * Log service.
    */
@@ -57,9 +61,9 @@ export class WorkspaceConfigService {
   private importGithubProjectService: ImportGithubProjectService;
 
   /** Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($log: ng.ILogService, $q: ng.IQService, cheWorkspace: CheWorkspace, namespaceSelectorSvc: NamespaceSelectorSvc, createWorkspaceSvc: CreateWorkspaceSvc, stackSelectorSvc: StackSelectorSvc, templateSelectorSvc: TemplateSelectorSvc, importGithubProjectService: ImportGithubProjectService) {
+  constructor($log: ng.ILogService, $q: ng.IQService, cheWorkspace: CheWorkspace, namespaceSelectorSvc: NamespaceSelectorSvc, createWorkspaceSvc: CreateWorkspaceSvc,
+     stackSelectorSvc: StackSelectorSvc, templateSelectorSvc: TemplateSelectorSvc, importGithubProjectService: ImportGithubProjectService) {
     this.$log = $log;
     this.$q = $q;
     this.cheWorkspace = cheWorkspace;

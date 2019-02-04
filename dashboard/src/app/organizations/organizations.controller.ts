@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,6 +20,9 @@ const MAX_ITEMS = 12;
  * @author Oleksii Orel
  */
 export class OrganizationsController {
+
+  static $inject = ['cheOrganization', 'cheNotification', 'cheTeamEventsManager', '$scope', '$q', 'chePermissions', '$rootScope'];
+
   /**
    * Promises service.
    */
@@ -50,7 +54,6 @@ export class OrganizationsController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor(cheOrganization: che.api.ICheOrganization, cheNotification: any,
               cheTeamEventsManager: che.api.ICheTeamEventsManager, $scope: ng.IScope,

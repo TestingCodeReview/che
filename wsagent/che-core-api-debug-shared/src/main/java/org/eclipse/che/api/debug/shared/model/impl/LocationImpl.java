@@ -1,17 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.debug.shared.model.impl;
 
-import static com.google.common.base.Objects.equal;
-
+import com.google.common.base.Objects;
 import org.eclipse.che.api.debug.shared.model.Location;
 import org.eclipse.che.api.debug.shared.model.Method;
 
@@ -20,7 +20,7 @@ public class LocationImpl implements Location {
   private final String target;
   private final int lineNumber;
   private final boolean externalResource;
-  private final int externalResourceId;
+  private final String externalResourceId;
   private final String resourceProjectPath;
   private final Method method;
   private final long threadId;
@@ -29,7 +29,7 @@ public class LocationImpl implements Location {
       String target,
       int lineNumber,
       boolean externalResource,
-      int externalResourceId,
+      String externalResourceId,
       String resourceProjectPath,
       Method method,
       long threadId) {
@@ -46,17 +46,21 @@ public class LocationImpl implements Location {
       String target,
       int lineNumber,
       boolean externalResource,
-      int externalResourceId,
+      String externalResourceId,
       String resourceProjectPath) {
     this(target, lineNumber, externalResource, externalResourceId, resourceProjectPath, null, -1);
   }
 
   public LocationImpl(String target, int lineNumber, String resourceProjectPath) {
-    this(target, lineNumber, false, 0, resourceProjectPath, null, -1);
+    this(target, lineNumber, false, null, resourceProjectPath, null, -1);
   }
 
   public LocationImpl(String target, int lineNumber) {
-    this(target, lineNumber, false, 0, null, null, -1);
+    this(target, lineNumber, false, null, null, null, -1);
+  }
+
+  public LocationImpl(String target) {
+    this(target, 0, false, null, null, null, -1);
   }
 
   @Override
@@ -75,7 +79,7 @@ public class LocationImpl implements Location {
   }
 
   @Override
-  public int getExternalResourceId() {
+  public String getExternalResourceId() {
     return externalResourceId;
   }
 
@@ -101,16 +105,16 @@ public class LocationImpl implements Location {
     LocationImpl location = (LocationImpl) o;
     return lineNumber == location.lineNumber
         && externalResource == location.externalResource
-        && externalResourceId == location.externalResourceId
         && threadId == location.threadId
-        && equal(target, location.target)
-        && equal(resourceProjectPath, location.resourceProjectPath)
-        && equal(method, location.method);
+        && Objects.equal(target, location.target)
+        && Objects.equal(externalResourceId, location.externalResourceId)
+        && Objects.equal(resourceProjectPath, location.resourceProjectPath)
+        && Objects.equal(method, location.method);
   }
 
   @Override
   public int hashCode() {
-    return com.google.common.base.Objects.hashCode(
+    return Objects.hashCode(
         target,
         lineNumber,
         externalResource,
@@ -130,8 +134,9 @@ public class LocationImpl implements Location {
         + lineNumber
         + ", externalResource="
         + externalResource
-        + ", externalResourceId="
+        + ", externalResourceId='"
         + externalResourceId
+        + '\''
         + ", resourceProjectPath='"
         + resourceProjectPath
         + '\''

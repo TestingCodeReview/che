@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,10 @@ import {OrganizationsPermissionService} from '../organizations-permission.servic
  * @author Oleksii Orel
  */
 export class ListOrganizationsController {
+
+  static $inject = ['$q', '$scope', 'chePermissions', 'cheResourcesDistribution', 'cheOrganization', 'cheNotification', 'confirmDialogService', '$route',
+'organizationsPermissionService', 'cheListHelperFactory', 'resourcesService'];
+
   /**
    * Organization API interaction.
    */
@@ -106,9 +111,10 @@ export class ListOrganizationsController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($q: ng.IQService, $scope: ng.IScope, chePermissions: che.api.IChePermissions, cheResourcesDistribution: che.api.ICheResourcesDistribution, cheOrganization: che.api.ICheOrganization, cheNotification: any, confirmDialogService: any, $route: ng.route.IRouteService, organizationsPermissionService: OrganizationsPermissionService, cheListHelperFactory: che.widget.ICheListHelperFactory, resourcesService: che.service.IResourcesService) {
+  constructor($q: ng.IQService, $scope: ng.IScope, chePermissions: che.api.IChePermissions, cheResourcesDistribution: che.api.ICheResourcesDistribution,
+     cheOrganization: che.api.ICheOrganization, cheNotification: any, confirmDialogService: any, $route: ng.route.IRouteService,
+     organizationsPermissionService: OrganizationsPermissionService, cheListHelperFactory: che.widget.ICheListHelperFactory, resourcesService: che.service.IResourcesService) {
     this.$q = $q;
     this.cheNotification = cheNotification;
     this.chePermissions = chePermissions;
@@ -180,7 +186,21 @@ export class ListOrganizationsController {
       this.organizationAvailableResources = new Map();
       const promises = [];
       this.isLoading = true;
-      this.organizations.forEach((organization: che.IOrganization) => {
+
+      let organizations = [];
+      if (this.userServices.hasInstallationManagerService === false) {
+        // show all organizations for a regular user
+        organizations = angular.copy(this.organizations);
+      } else {
+        // show only root organizations for a system admin
+        organizations = this.organizations.filter((organization: che.IOrganization) => {
+          if (this.parentId  || !organization.parent) {
+            return true;
+          }
+        });
+      }
+
+      organizations.forEach((organization: che.IOrganization) => {
         const promiseMembers = this.chePermissions.fetchOrganizationPermissions(organization.id).then(() => {
           this.organizationMembers.set(organization.id, this.chePermissions.getOrganizationPermissions(organization.id).length);
         });
@@ -197,10 +217,10 @@ export class ListOrganizationsController {
       });
       this.$q.all(promises).finally(() => {
         this.isLoading = false;
-        this.cheListHelper.setList(this.organizations, 'id');
+        this.cheListHelper.setList(organizations, 'id');
       });
     } else {
-      this.cheListHelper.setList(this.organizations, 'id');
+      this.cheListHelper.setList([], 'id');
     }
   }
 

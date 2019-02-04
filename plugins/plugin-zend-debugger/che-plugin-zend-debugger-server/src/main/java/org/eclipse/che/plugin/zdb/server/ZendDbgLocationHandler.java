@@ -1,11 +1,13 @@
-/**
- * ***************************************************************************** Copyright (c) 2016
- * Rogue Wave Software, Inc. All rights reserved. This program and the accompanying materials are
- * made available under the terms of the Eclipse Public License v1.0 which accompanies this
- * distribution, and is available at http://www.eclipse.org/legal/epl-v10.html
+/*
+ * Copyright (c) 2016 Rogue Wave Software, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
  *
- * <p>Contributors: Rogue Wave Software, Inc. - initial API and implementation
- * *****************************************************************************
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *   Rogue Wave Software, Inc. - initial API and implementation
  */
 package org.eclipse.che.plugin.zdb.server;
 
@@ -40,11 +42,11 @@ public class ZendDbgLocationHandler {
 
   public static final Location createVFS(
       String target, String resourceProjectPath, int lineNumber) {
-    return new LocationImpl(target, lineNumber, false, 0, resourceProjectPath, null, -1);
+    return new LocationImpl(target, lineNumber, false, null, resourceProjectPath, null, -1);
   }
 
   public static final Location createDBG(String resourcePath, int lineNumber) {
-    return new LocationImpl(resourcePath, lineNumber, false, 0, resourcePath, null, -1);
+    return new LocationImpl(resourcePath, lineNumber, false, null, resourcePath, null, -1);
   }
 
   /**
@@ -74,7 +76,7 @@ public class ZendDbgLocationHandler {
         target,
         lineNumber,
         false,
-        0,
+        null,
         resourceProjectPath,
         dbgLocation.getMethod(),
         dbgLocation.getThreadId());
@@ -90,7 +92,7 @@ public class ZendDbgLocationHandler {
         "/projects" + vfsLocation.getTarget(),
         vfsLocation.getLineNumber(),
         false,
-        0,
+        null,
         vfsLocation.getResourceProjectPath(),
         null,
         -1);

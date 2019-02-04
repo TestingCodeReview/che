@@ -1,20 +1,22 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.git.client.push;
 
+import static org.eclipse.che.ide.util.dom.DomUtils.isWidgetOrChildFocused;
+
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.event.dom.client.ChangeEvent;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
@@ -71,40 +73,19 @@ public class PushToRemoteViewImpl extends Window implements PushToRemoteView {
     this.setWidget(widget);
 
     btnCancel =
-        createButton(
-            locale.buttonCancel(),
-            "git-remotes-push-cancel",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onCancelClicked();
-              }
-            });
-    addButtonToFooter(btnCancel);
+        addFooterButton(
+            locale.buttonCancel(), "git-remotes-push-cancel", event -> delegate.onCancelClicked());
 
     btnPush =
-        createButton(
-            locale.buttonPush(),
-            "git-remotes-push-push",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onPushClicked();
-              }
-            });
-    addButtonToFooter(btnPush);
+        addFooterButton(
+            locale.buttonPush(), "git-remotes-push-push", event -> delegate.onPushClicked(), true);
   }
 
   @Override
-  protected void onEnterClicked() {
-    if (isWidgetFocused(btnCancel)) {
+  public void onEnterPress(NativeEvent evt) {
+    if (isWidgetOrChildFocused(btnCancel)) {
       delegate.onCancelClicked();
-      return;
-    }
-
-    if (isWidgetFocused(btnPush)) {
+    } else if (isWidgetOrChildFocused(btnPush)) {
       delegate.onPushClicked();
     }
   }
@@ -178,14 +159,7 @@ public class PushToRemoteViewImpl extends Window implements PushToRemoteView {
   @Override
   public void setEnablePushButton(final boolean enabled) {
     btnPush.setEnabled(enabled);
-    Scheduler.get()
-        .scheduleDeferred(
-            new Scheduler.ScheduledCommand() {
-              @Override
-              public void execute() {
-                btnPush.setFocus(enabled);
-              }
-            });
+    Scheduler.get().scheduleDeferred(() -> btnPush.setFocus(enabled));
   }
 
   @Override

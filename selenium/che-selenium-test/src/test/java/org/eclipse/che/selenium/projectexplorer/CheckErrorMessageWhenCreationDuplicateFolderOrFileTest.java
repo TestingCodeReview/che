@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,7 @@ import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Events;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
@@ -43,6 +45,7 @@ public class CheckErrorMessageWhenCreationDuplicateFolderOrFileTest {
   @Inject private Loader loader;
   @Inject private Menu menu;
   @Inject private Events events;
+  @Inject private Consoles consoles;
   @Inject private WarningDialog warningDialog;
   @Inject private NotificationsPopupPanel notificationsPopupPanel;
   @Inject private AskForValueDialog askForValueDialog;
@@ -57,13 +60,15 @@ public class CheckErrorMessageWhenCreationDuplicateFolderOrFileTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(testWorkspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
   public void checkDuplicatedFile() throws Exception {
     projectExplorer.waitItem(PROJECT_NAME);
     projectExplorer.openItemByPath(PROJECT_NAME);
-    projectExplorer.waitItemInVisibleArea(DUPLICATED_FILE_NAME);
+    projectExplorer.waitVisibilityByName(DUPLICATED_FILE_NAME);
     loader.waitOnClosed();
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
@@ -72,8 +77,8 @@ public class CheckErrorMessageWhenCreationDuplicateFolderOrFileTest {
     askForValueDialog.waitFormToOpen();
     askForValueDialog.typeAndWaitText(DUPLICATED_FILE_NAME);
     askForValueDialog.clickOkBtn();
+    notificationsPopupPanel.waitExpectedMessageOnProgressPanelAndClose(NOTIFICATION_MESSAGE);
     askForValueDialog.waitFormToClose();
-    notificationsPopupPanel.waitExpectedMessageOnProgressPanelAndClosed(NOTIFICATION_MESSAGE);
     events.clickEventLogBtn();
     events.waitExpectedMessage(NOTIFICATION_MESSAGE);
   }

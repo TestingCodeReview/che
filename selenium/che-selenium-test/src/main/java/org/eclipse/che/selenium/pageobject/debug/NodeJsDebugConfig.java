@@ -1,26 +1,23 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.pageobject.debug;
 
-import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ATTACHING_ELEM_TO_DOM_SEC;
-import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
-
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
 /**
  * @author Dmytro Nochevnov
@@ -29,9 +26,13 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 @Singleton
 public class NodeJsDebugConfig extends AbstractDebugConfig {
 
+  private SeleniumWebDriverHelper seleniumWebDriverHelper;
+
   @Inject
-  public NodeJsDebugConfig(SeleniumWebDriver seleniumWebDriver) {
-    super(seleniumWebDriver);
+  public NodeJsDebugConfig(
+      SeleniumWebDriver seleniumWebDriver, SeleniumWebDriverHelper seleniumWebDriverHelper) {
+    super(seleniumWebDriver, seleniumWebDriverHelper);
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
@@ -61,16 +62,25 @@ public class NodeJsDebugConfig extends AbstractDebugConfig {
    * @param pathToNodeJsFile the defined path
    */
   public void setPathToScriptForNodeJs(String pathToNodeJsFile) {
-    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(ExpectedConditions.visibilityOf(scriptNodeJsField))
-        .clear();
+    seleniumWebDriverHelper.waitVisibility(scriptNodeJsField).clear();
     scriptNodeJsField.sendKeys(pathToNodeJsFile);
   }
 
   @Override
-  void expandDebugCategory() {
-    new WebDriverWait(seleniumWebDriver, ATTACHING_ELEM_TO_DOM_SEC)
-        .until(ExpectedConditions.visibilityOf(debugCategoryExpandIcon))
-        .click();
+  public void expandDebugCategory() {
+    seleniumWebDriverHelper.waitAndClick(debugCategoryExpandIcon);
+  }
+
+  public void saveConfiguration() {
+    clickOnSaveBtn();
+  }
+
+  public void saveConfigurationAndclose() {
+    saveConfiguration();
+    close();
+  }
+
+  public void clickOnDebugButtonAndWaitClosing() {
+    clickOnDebugAndWaitClosing();
   }
 }

@@ -1,28 +1,33 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.refactor.types;
 
+import static org.eclipse.che.commons.lang.NameGenerator.generate;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Assistant.ASSISTANT;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Assistant.Refactoring.REFACTORING;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Assistant.Refactoring.RENAME;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ELEMENT_TIMEOUT_SEC;
+
 import com.google.inject.Inject;
 import java.io.IOException;
 import java.lang.reflect.Method;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
-import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.utils.WaitUtils;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
@@ -32,7 +37,7 @@ import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Refactor;
-import org.openqa.selenium.Keys;
+import org.openqa.selenium.WebDriverException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -43,10 +48,9 @@ import org.testng.annotations.Test;
 /** @author Musienko Maxim */
 public class RenameTypeTest {
   private static final Logger LOG = LoggerFactory.getLogger(RenameTypeTest.class);
-  private static final String nameOfProject =
-      NameGenerator.generate(RenameTypeTest.class.getName(), 2);
-  private static final String pathToPackageInChePrefix =
-      nameOfProject + "/src" + "/main" + "/java" + "/renametype";
+  private static final String PROJECT_NAME = generate("project", 4);
+  private static final String PATH_TO_PACKAGE_IN_CHE_PREFIX =
+      PROJECT_NAME + "/src/main/java/renametype";
 
   private String pathToCurrentPackage;
   private String contentFromInA;
@@ -69,22 +73,21 @@ public class RenameTypeTest {
     testProjectServiceClient.importProject(
         workspace.getId(),
         Paths.get(resource.toURI()),
-        nameOfProject,
+        PROJECT_NAME,
         ProjectTemplates.MAVEN_SIMPLE);
+
     ide.open(workspace);
-    projectExplorer.waitVisibleItem(nameOfProject);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
+    projectExplorer.waitProjectExplorer();
+    projectExplorer.waitItem(PROJECT_NAME);
     consoles.closeProcessesArea();
     projectExplorer.quickExpandWithJavaScript();
     loader.waitOnClosed();
   }
 
   @BeforeMethod
-  public void setCurrentFieldForTest(Method method) throws IOException {
-    try {
-      setFieldsForTest(method.getName());
-    } catch (Exception e) {
-      LOG.error(e.getLocalizedMessage(), e);
-    }
+  public void setCurrentFieldForTest(Method method) throws IOException, URISyntaxException {
+    setFieldsForTest(method.getName());
   }
 
   @AfterMethod
@@ -95,7 +98,7 @@ public class RenameTypeTest {
         refactorPanel.clickCancelButtonRefactorForm();
       }
       editor.closeAllTabs();
-    } catch (Exception e) {
+    } catch (WebDriverException e) {
       LOG.error(e.getLocalizedMessage(), e);
     }
   }
@@ -105,53 +108,53 @@ public class RenameTypeTest {
     testCase();
   }
 
-  @Test(priority = 1)
+  @Test
   public void test1() {
     testCase();
   }
 
-  @Test(priority = 2)
+  @Test
   public void test2() {
     testCase();
   }
 
-  @Test(priority = 3)
+  @Test
   public void test3() {
     testCase();
   }
 
-  @Test(priority = 4)
+  @Test
   public void test4() {
     testCase();
   }
 
-  @Test(priority = 5)
+  @Test
   public void test5() {
     testCase();
   }
 
-  @Test(priority = 6)
+  @Test
   public void test6() {
     testCase();
   }
 
-  @Test(priority = 7)
+  @Test
   public void test7() {
     testCase();
   }
 
-  @Test(priority = 8)
+  @Test
   public void test8() {
     testCase();
   }
 
-  @Test(priority = 9)
+  @Test
   public void test9() {
     testCase();
   }
 
-  private void setFieldsForTest(String nameCurrentTest) throws Exception {
-    pathToCurrentPackage = pathToPackageInChePrefix + "/" + nameCurrentTest;
+  private void setFieldsForTest(String nameCurrentTest) throws URISyntaxException, IOException {
+    pathToCurrentPackage = PATH_TO_PACKAGE_IN_CHE_PREFIX + "/" + nameCurrentTest;
 
     URL resourcesInA =
         getClass()
@@ -166,7 +169,7 @@ public class RenameTypeTest {
     contentFromOutB = getTextFromFile(resourcesOutA);
   }
 
-  private String getTextFromFile(URL url) throws Exception {
+  private String getTextFromFile(URL url) throws URISyntaxException, IOException {
     String result = "";
     List<String> listWithAllLines =
         Files.readAllLines(Paths.get(url.toURI()), Charset.forName("UTF-8"));
@@ -180,29 +183,17 @@ public class RenameTypeTest {
   private void testCase() {
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
-    projectExplorer.selectItem(pathToCurrentPackage + "/A.java");
-    menu.runCommand(
-        TestMenuCommandsConstants.Assistant.ASSISTANT,
-        TestMenuCommandsConstants.Assistant.Refactoring.REFACTORING,
-        TestMenuCommandsConstants.Assistant.Refactoring.RENAME);
+    projectExplorer.waitAndSelectItem(pathToCurrentPackage + "/A.java");
+    menu.runCommand(ASSISTANT, REFACTORING, RENAME);
 
-    refactorPanel.typeNewName("B.java");
+    refactorPanel.typeAndWaitNewName("B.java");
+    refactorPanel.clickOkButtonRefactorForm();
 
-    try {
-      refactorPanel.clickOkButtonRefactorForm();
-    } catch (org.openqa.selenium.TimeoutException ex) {
-      // For response from server side if a net works too slowly
-      WaitUtils.sleepQuietly(1);
-      refactorPanel.typeNewName("B.java");
-      refactorPanel.sendKeysIntoField(Keys.ARROW_LEFT.toString());
-      refactorPanel.sendKeysIntoField(Keys.ARROW_LEFT.toString());
-      refactorPanel.clickOkButtonRefactorForm();
-    }
     askDialog.waitFormToOpen();
     askDialog.clickOkBtn();
     askDialog.waitFormToClose();
     refactorPanel.waitRefactorPreviewFormIsClosed();
-    projectExplorer.waitItem(pathToCurrentPackage + "/B.java", 6);
+    projectExplorer.waitItem(pathToCurrentPackage + "/B.java", ELEMENT_TIMEOUT_SEC);
     editor.waitTextIntoEditor(contentFromOutB);
   }
 }

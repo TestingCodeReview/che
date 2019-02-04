@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -85,11 +86,11 @@ public class DockerConnectorConfiguration {
   private static final Logger LOG = LoggerFactory.getLogger(DockerConnectorConfiguration.class);
 
   @Inject(optional = true)
-  @Named("docker.client.daemon_url")
+  @Named("che.infra.docker.daemon_url")
   private URI dockerDaemonUri = dockerDaemonUri();
 
   @Inject(optional = true)
-  @Named("docker.client.certificates_folder")
+  @Named("che.infra.docker.certificates_folder")
   private String dockerCertificatesDirectoryPath = dockerMachineCertsDirectoryPath();
 
   /** Helper used to resolve ip address of the docker host ip from a docker container. */
@@ -304,7 +305,7 @@ public class DockerConnectorConfiguration {
       } else {
         LOG.error(
             String.format(
-                "The directory provided by property %s doesn't exists. Returning default value",
+                "The directory provided by property %s doesn't exist. Returning default value",
                 certPath));
       }
     }

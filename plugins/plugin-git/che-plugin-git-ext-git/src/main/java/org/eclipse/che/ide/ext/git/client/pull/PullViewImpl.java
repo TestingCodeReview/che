@@ -1,20 +1,22 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.git.client.pull;
 
+import static org.eclipse.che.ide.util.dom.DomUtils.isWidgetOrChildFocused;
+
 import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.event.dom.client.ChangeEvent;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
@@ -75,40 +77,19 @@ public class PullViewImpl extends Window implements PullView {
     this.setWidget(widget);
 
     btnCancel =
-        createButton(
-            locale.buttonCancel(),
-            "git-remotes-pull-cancel",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onCancelClicked();
-              }
-            });
-    addButtonToFooter(btnCancel);
+        addFooterButton(
+            locale.buttonCancel(), "git-remotes-pull-cancel", event -> delegate.onCancelClicked());
 
     btnPull =
-        createButton(
-            locale.buttonPull(),
-            "git-remotes-pull-pull",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onPullClicked();
-              }
-            });
-    addButtonToFooter(btnPull);
+        addFooterButton(
+            locale.buttonPull(), "git-remotes-pull-pull", event -> delegate.onPullClicked(), true);
   }
 
   @Override
-  protected void onEnterClicked() {
-    if (isWidgetFocused(btnCancel)) {
+  public void onEnterPress(NativeEvent evt) {
+    if (isWidgetOrChildFocused(btnCancel)) {
       delegate.onCancelClicked();
-      return;
-    }
-
-    if (isWidgetFocused(btnPull)) {
+    } else if (isWidgetOrChildFocused(btnPull)) {
       delegate.onPullClicked();
     }
   }
@@ -181,14 +162,7 @@ public class PullViewImpl extends Window implements PullView {
   @Override
   public void setEnablePullButton(final boolean enabled) {
     btnPull.setEnabled(enabled);
-    Scheduler.get()
-        .scheduleDeferred(
-            new Scheduler.ScheduledCommand() {
-              @Override
-              public void execute() {
-                btnPull.setFocus(enabled);
-              }
-            });
+    Scheduler.get().scheduleDeferred(() -> btnPull.setFocus(enabled));
   }
 
   /** {@inheritDoc} */

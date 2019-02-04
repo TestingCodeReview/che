@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (c) 2012-2017 Red Hat, Inc.
-    All rights reserved. This program and the accompanying materials
-    are made available under the terms of the Eclipse Public License v1.0
-    which accompanies this distribution, and is available at
-    http://www.eclipse.org/legal/epl-v10.html
+    Copyright (c) 2012-2018 Red Hat, Inc.
+    This program and the accompanying materials are made
+    available under the terms of the Eclipse Public License 2.0
+    which is available at https://www.eclipse.org/legal/epl-2.0/
+
+    SPDX-License-Identifier: EPL-2.0
 
     Contributors:
       Red Hat, Inc. - initial API and implementation
@@ -16,7 +17,7 @@
     <parent>
         <artifactId>che-plugin-languageserver-parent</artifactId>
         <groupId>org.eclipse.che.plugin</groupId>
-        <version>6.0.0-M4-SNAPSHOT</version>
+        <version>6.18.0-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
     <artifactId>che-plugin-languageserver-ide</artifactId>
@@ -79,6 +80,10 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
+            <artifactId>che-core-api-project-shared</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-commons-gwt</artifactId>
         </dependency>
         <dependency>
@@ -96,6 +101,10 @@
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-orion-editor</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.che.ls.jdt</groupId>
+            <artifactId>jdt.ls.extension.api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.eclipse.lsp4j</groupId>
@@ -193,6 +202,7 @@
                     <excludes>
                         <exclude>**/org/eclipse/che/plugin/languageserver/ide/editor/codeassist/LatestCompletionResult.java</exclude>
                         <exclude>**/Either.java</exclude>
+                        <exclude>**/Either3.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>
@@ -216,10 +226,22 @@
                     </dependency>
                 </dependencies>
                 <configuration>
+                    <classes>
+                        <classe>org.eclipse.che.jdt.ls.extension.api.dto.LinearRange</classe>
+                    </classes>
+                    <excludes>
+                        <exclude>org.eclipse.lsp4j.WatchKind</exclude>
+                        <exclude>org.eclipse.lsp4j.MarkupKind</exclude>
+                        <exclude>org.eclipse.lsp4j.CodeActionKind</exclude>
+                        <exclude>org.eclipse.lsp4j.FailureHandlingKind</exclude>
+                        <exclude>org.eclipse.lsp4j.FoldingRangeKind</exclude>
+                        <exclude>org.eclipse.lsp4j.ResourceOperationKind</exclude>
+                    </excludes>
                     <dtoPackages>
                         <package>org.eclipse.lsp4j</package>
                         <package>org.eclipse.che.api.languageserver.shared.event</package>
                         <package>org.eclipse.che.api.languageserver.shared.model</package>
+                        <package>org.eclipse.che.api.languageserver.shared.dto</package>
                     </dtoPackages>
                     <outputDirectory>${dto-generator-out-directory}</outputDirectory>
                     <genClassName>org.eclipse.che.api.languageserver.shared.dto.DtoClientImpls</genClassName>

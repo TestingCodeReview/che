@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,7 @@ import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOf;
 import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElementLocated;
 
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.openqa.selenium.By;
@@ -26,6 +28,7 @@ import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+@Singleton
 public class WorkspaceMachines {
   private final SeleniumWebDriver seleniumWebDriver;
   private final Loader loader;
@@ -45,7 +48,7 @@ public class WorkspaceMachines {
     String EDIT_MACHINE = "//div[@edit-machine='%s']";
     String DELETE_MACHINE = "//div[@delete-machine='%s']";
     String NEW_MACHINE_NAME = "//div[@che-form='editMachineForm']//input";
-    String EDIT_MACHINE_NAME_BUTTON = "//che-button-primary[@che-button-title='Edit']/button";
+    String SAVE_MACHINE_BUTTON = "save-machine-button";
     String EDIT_MACHINE_DIALOG_NAME = "//md-dialog/che-popup[@title='Edit the machine']";
     String REMOVE_MACHINE_DIALOG_NAME = "//md-dialog/che-popup[@title='Remove machine']";
     String ADD_MACHINE_DIALOG_NAME = "//md-dialog/che-popup[@title='Add a new machine']";
@@ -157,7 +160,7 @@ public class WorkspaceMachines {
    */
   public void waitWarningMessage(String mess) {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(visibilityOfElementLocated(By.xpath(String.format(Locators.WARNING_MSG, mess))));
+        .until(visibilityOfElementLocated(By.xpath(format(Locators.WARNING_MSG, mess))));
   }
 
   /**
@@ -169,13 +172,13 @@ public class WorkspaceMachines {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
         .until(
             visibilityOfElementLocated(
-                By.xpath(String.format(Locators.CONFIG_MACHINE_SWITCH, nameMachine))))
+                By.xpath(format(Locators.CONFIG_MACHINE_SWITCH, nameMachine))))
         .click();
   }
 
-  public void clickOnEditNameDialogButton() {
+  public void clickOnSaveNameDialogButton() {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
-        .until(visibilityOfElementLocated(By.xpath(Locators.EDIT_MACHINE_NAME_BUTTON)))
+        .until(visibilityOfElementLocated(By.id(Locators.SAVE_MACHINE_BUTTON)))
         .click();
   }
 }

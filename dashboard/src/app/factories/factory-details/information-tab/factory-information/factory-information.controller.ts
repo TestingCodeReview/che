@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,12 +13,15 @@
 import {CheAPI} from '../../../../../components/api/che-api.factory';
 import {CheNotification} from '../../../../../components/notification/che-notification.factory';
 import {ConfirmDialogService} from '../../../../../components/service/confirm-dialog/confirm-dialog.service';
+import {CheBranding} from '../../../../../components/branding/che-branding.factory';
 
 /**
  * Controller for a factory information.
  * @author Oleksii Orel
  */
 export class FactoryInformationController {
+
+  static $inject = ['$scope', 'cheAPI', 'cheNotification', '$location', '$log', '$timeout', 'lodash', '$filter', '$q', 'cheBranding', 'confirmDialogService'];
 
   private confirmDialogService: ConfirmDialogService;
   private cheAPI: CheAPI;
@@ -37,20 +41,29 @@ export class FactoryInformationController {
   private factory: che.IFactory;
   private copyOriginFactory: che.IFactory;
   private factoryContent: string;
-  private workspaceImportedRecipe: any;
+  // private workspaceImportedRecipe: any;
   private environmentName: string;
   private workspaceName: string;
   private stackId: string;
   private workspaceConfig: any;
   private origName: string;
   private isEditorContentChanged: boolean = false;
+  private factoryDocs: string;
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($scope: ng.IScope, cheAPI: CheAPI, cheNotification: CheNotification, $location: ng.ILocationService, $log: ng.ILogService,
-              $timeout: ng.ITimeoutService, lodash: any, $filter: ng.IFilterService, $q: ng.IQService, confirmDialogService: ConfirmDialogService) {
+  constructor($scope: ng.IScope,
+              cheAPI: CheAPI,
+              cheNotification: CheNotification,
+              $location: ng.ILocationService,
+              $log: ng.ILogService,
+              $timeout: ng.ITimeoutService,
+              lodash: any,
+              $filter: ng.IFilterService,
+              $q: ng.IQService,
+              cheBranding: CheBranding,
+              confirmDialogService: ConfirmDialogService) {
     this.cheAPI = cheAPI;
     this.cheNotification = cheNotification;
     this.$location = $location;
@@ -60,6 +73,7 @@ export class FactoryInformationController {
     this.lodash = lodash;
     this.$filter = $filter;
     this.confirmDialogService = confirmDialogService;
+    this.factoryDocs = cheBranding.getDocs().factory;
 
     this.timeoutPromise = null;
     $scope.$on('$destroy', () => {
@@ -297,7 +311,7 @@ export class FactoryInformationController {
    * @returns {any}
    */
   getRecipe(): string {
-    if (this.copyOriginFactory && this.copyOriginFactory.workspace) {
+    if (this.copyOriginFactory && this.copyOriginFactory.workspace && this.copyOriginFactory.workspace.defaultEnv) {
       let environement = this.copyOriginFactory.workspace.environments[this.copyOriginFactory.workspace.defaultEnv];
       return environement.recipe.location || environement.recipe.content;
     }

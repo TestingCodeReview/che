@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.testrunner;
 
+import static org.eclipse.che.selenium.core.TestGroup.FLAKY;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Run.RUN_MENU;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Run.TEST;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.TEST_DROP_DAWN_ITEM;
@@ -41,6 +43,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Dmytro Nochevnov */
+@Test(groups = FLAKY)
 public class JavaTestPluginJunit4Test {
 
   private static final String JUNIT4_PROJECT = "junit4-tests";
@@ -55,7 +58,7 @@ public class JavaTestPluginJunit4Test {
           + " at org.junit.Assert.assertTrue(Assert.java:41)\n"
           + " at org.junit.Assert.assertFalse(Assert.java:64)\n"
           + " at org.junit.Assert.assertFalse(Assert.java:74)\n"
-          + " at org.eclipse.che.examples.AppOneTest.shouldFailOfAppOne(AppOneTest.java:33)";
+          + " at org.eclipse.che.examples.AppOneTest.shouldFailOfAppOne(AppOneTest.java:34)";
 
   public static final String APP_TEST_ANOTHER_FAIL_OUTPUT_TEMPLATE =
       "java.lang.AssertionError\n"
@@ -63,16 +66,14 @@ public class JavaTestPluginJunit4Test {
           + " at org.junit.Assert.assertTrue(Assert.java:41)\n"
           + " at org.junit.Assert.assertFalse(Assert.java:64)\n"
           + " at org.junit.Assert.assertFalse(Assert.java:74)\n"
-          + " at org.eclipse.che.examples.AppAnotherTest.shouldFailOfAppAnother(AppAnotherTest.java:34)";
+          + " at org.eclipse.che.examples.AppAnotherTest.shouldFailOfAppAnother(AppAnotherTest.java:35)";
 
   @Inject private JavaTestRunnerPluginConsole pluginConsole;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Loader loader;
   @Inject private NotificationsPopupPanel notifications;
   @Inject private Menu menu;
-
   @Inject private TestWorkspace ws;
-
   @Inject private Ide ide;
   @Inject private Consoles consoles;
   @Inject private CodenvyEditor editor;
@@ -94,11 +95,19 @@ public class JavaTestPluginJunit4Test {
         ProjectTemplates.CONSOLE_JAVA_SIMPLE);
 
     ide.open(ws);
-    loader.waitOnClosed();
+    ide.waitOpenedWorkspaceIsReadyToUse();
+
     projectExplorer.waitItem(JUNIT4_PROJECT);
-    projectExplorer.quickExpandWithJavaScript();
-    runCompileCommandByPallete(compileCommand);
+    consoles.waitJDTLSProjectResolveFinishedMessage(JUNIT4_PROJECT);
     notifications.waitProgressPopupPanelClose();
+    projectExplorer.quickExpandWithJavaScript();
+
+    try {
+      runCompileCommandByPallete(compileCommand);
+    } catch (TimeoutException ex) {
+      // remove try-catch block after issue has been resolved
+      fail("Known random failure https://github.com/eclipse/che/issues/12220");
+    }
   }
 
   private void runCompileCommandByPallete(CompileCommand compileCommand) {
@@ -116,18 +125,11 @@ public class JavaTestPluginJunit4Test {
     menu.runCommand(RUN_MENU, TEST, TEST_DROP_DAWN_ITEM);
 
     // then
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Test runner executed successfully.");
+    notifications.waitExpectedMessageOnProgressPanelAndClose("Test runner executed successfully.");
 
     pluginConsole.waitFqnOfTesClassInResultTree("org.eclipse.che.examples.AppOneTest");
     pluginConsole.waitMethodMarkedAsPassed("shouldSuccessOfAppOne");
-
-    try {
-      pluginConsole.waitMethodMarkedAsFailed("shouldFailOfAppOne");
-    } catch (TimeoutException ex) {
-      // remove try-catch block after issue has been resolved
-      fail("Known issue https://github.com/eclipse/che/issues/7338", ex);
-    }
-
+    pluginConsole.waitMethodMarkedAsFailed("shouldFailOfAppOne");
     pluginConsole.waitMethodMarkedAsIgnored("shouldBeIgnoredOfAppOne");
     assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(PASSED).size() == 1);
     assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(FAILED).size() == 1);
@@ -144,11 +146,11 @@ public class JavaTestPluginJunit4Test {
     projectExplorer.openItemByPath(PATH_TO_JUNIT4_ANOTHER_TEST);
     editor.waitActive();
 
-    editor.goToCursorPositionVisible(27, 5);
+    editor.goToCursorPositionVisible(28, 5);
 
     // when
     menu.runCommand(RUN_MENU, TEST, TEST_DROP_DAWN_ITEM);
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Test runner executed successfully.");
+    notifications.waitExpectedMessageOnProgressPanelAndClose("Test runner executed successfully.");
 
     // then
     pluginConsole.waitFqnOfTesClassInResultTree("org.eclipse.che.examples.AppAnotherTest");
@@ -156,9 +158,9 @@ public class JavaTestPluginJunit4Test {
     assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(PASSED).size() == 1);
     // then
 
-    editor.goToCursorPositionVisible(32, 5);
+    editor.goToCursorPositionVisible(33, 5);
     menu.runCommand(RUN_MENU, TEST, TEST_DROP_DAWN_ITEM);
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Test runner executed successfully.");
+    notifications.waitExpectedMessageOnProgressPanelAndClose("Test runner executed successfully.");
     pluginConsole.waitMethodMarkedAsFailed("shouldFailOfAppAnother");
     assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(FAILED).size() == 1);
     String testErrorMessage = pluginConsole.getTestErrorMessage();
@@ -166,9 +168,9 @@ public class JavaTestPluginJunit4Test {
         testErrorMessage.startsWith(APP_TEST_ANOTHER_FAIL_OUTPUT_TEMPLATE),
         "Actual message was: " + testErrorMessage);
 
-    editor.goToCursorPositionVisible(38, 5);
+    editor.goToCursorPositionVisible(39, 5);
     menu.runCommand(RUN_MENU, TEST, TEST_DROP_DAWN_ITEM);
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Test runner executed successfully.");
+    notifications.waitExpectedMessageOnProgressPanelAndClose("Test runner executed successfully.");
     pluginConsole.waitMethodMarkedAsIgnored("shouldBeIgnoredOfAppAnother");
     assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(IGNORED).size() == 1);
   }

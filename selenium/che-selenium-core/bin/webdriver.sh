@@ -1,10 +1,11 @@
 #!/bin/bash
 #
-# Copyright (c) 2012-2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
+# Copyright (c) 2012-2018 Red Hat, Inc.
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
 #
 # Contributors:
 #   Red Hat, Inc. - initial API and implementation
@@ -77,23 +78,21 @@ initVariables() {
     PRODUCT_PROTOCOL="http"
     PRODUCT_HOST=$(detectDockerInterfaceIp)
     PRODUCT_PORT=8080
+    INCLUDE_TESTS_UNDER_REPAIR=false
+    INCLUDE_FLAKY_TESTS=false
 
     unset DEBUG_OPTIONS
     unset MAVEN_OPTIONS
     unset TMP_SUITE_PATH
     unset ORIGIN_TESTS_SCOPE
     unset TMP_DIR
-    unset NEW_USER_ID
+    unset EXCLUDE_PARAM
 }
 
 cleanUpEnvironment() {
     if [[ ${MODE} == "grid" ]]; then
         stopWebDriver
         stopSeleniumDockerContainers
-    fi
-
-    if [[ -n ${NEW_USER_ID} ]]; then
-       removeTestUser
     fi
 }
 
@@ -117,7 +116,7 @@ checkParameters() {
 
         elif [[ "$var" =~ --test=.* ]]; then
             local fileName=$(basename $(echo "$var" | sed -e "s/--test=//g"))
-            find ${CUR_DIR} | grep "${fileName}.[class|java]" > /dev/null
+            find "target/test-classes" | grep "${fileName}.[class|java]" > /dev/null
             [[ $? != 0 ]] && {
                 echo "[TEST] Test "${fileName}" not found";
                 echo "[TEST] Proper way to use --test parameter:";
@@ -129,7 +128,7 @@ checkParameters() {
 
         elif [[ "$var" =~ --suite=.* ]]; then
             local suite=$(basename $(echo "$var" | sed -e "s/--suite=//g"))
-            find ${CUR_DIR}/src/test/resources/suites | grep ${suite} > /dev/null
+            find "target/test-classes/suites" | grep ${suite} > /dev/null
             [[ $? != 0 ]] && {
                 echo "[TEST] Suite "${suite}" not found";
                 echo "[TEST] Proper way to use --suite parameter:";
@@ -151,6 +150,10 @@ checkParameters() {
         elif [[ "$var" =~ ^-[[:alpha:]]$ ]]; then :
         elif [[ "$var" == --skip-sources-validation ]]; then :
         elif [[ "$var" == --multiuser ]]; then :
+        elif [[ "$var" =~ --exclude=.* ]]; then :
+        elif [[ "$var" =~ --include-tests-under-repair ]]; then :
+        elif [[ "$var" =~ --include-flaky-tests ]]; then :
+
         else
             printHelp
             echo "[TEST] Unrecognized or misused parameter "${var}
@@ -207,6 +210,15 @@ applyCustomOptions() {
         elif [[ "$var" == --multiuser ]]; then
             CHE_MULTIUSER=true
 
+        elif [[ "$var" =~ --exclude=.* ]]; then
+            EXCLUDE_PARAM=$(echo "$var" | sed -e "s/--exclude=//g")
+
+        elif [[ "$var" == --include-tests-under-repair ]]; then
+            INCLUDE_TESTS_UNDER_REPAIR=true
+
+        elif [[ "$var" == --include-flaky-tests ]]; then
+            INCLUDE_FLAKY_TESTS=true
+
         fi
     done
 }
@@ -231,7 +243,7 @@ defineTestsScope() {
             THREADS=1
 
         elif [[ "$var" =~ --suite=.* ]]; then
-            TESTS_SCOPE="-DrunSuite=src/test/resources/suites/"$(echo "$var" | sed -e "s/--suite=//g")
+            TESTS_SCOPE="-DrunSuite=target/test-classes/suites/"$(echo "$var" | sed -e "s/--suite=//g")
 
         elif [[ "$var" == --failed-tests ]]; then
             generateTestNgFailedReport $(fetchFailedTests)
@@ -325,9 +337,8 @@ initRunMode() {
 stopSeleniumDockerContainers() {
     local containers=$(docker ps -qa --filter="name=selenium_*" | wc -l)
     if [[ ${containers} != "0" ]]; then
-        echo "[TEST] Stopping selenium docker containers..."
-        docker stop $(docker ps -qa --filter="name=selenium_*")
-        docker rm $(docker ps -qa --filter="name=selenium_*")
+        echo "[TEST] Stopping and removing selenium docker containers..."
+        docker rm -f $(docker ps -qa --filter="name=selenium_*") > /dev/null
     fi
 }
 
@@ -397,9 +408,12 @@ Modes (defines environment to run tests):
                                         Default value is in range [2,5] and depends on available RAM.
 
 Define tests scope:
-    --test=<TEST_CLASS>                 Single test to run
-    --suite=<SUITE>                     Test suite to run, found:
-"$(for x in $(ls -1 src/test/resources/suites); do echo "                                            * "$x; done)"
+    --test=<TEST_CLASS>                 Single test/package to run.
+                                        For example: '--test=DialogAboutTest', '--test=org.eclipse.che.selenium.git.**'.
+    --suite=<SUITE>                     Test suite to run, found ('CheSuite.xml' is default one):
+"$(for x in $(ls -1 target/test-classes/suites); do echo "                                            * "$x; done)"
+    --exclude=<TEST_GROUPS_TO_EXCLUDE>  Comma-separated list of test groups to exclude from execution.
+                                        For example, use '--exclude=github' to exclude GitHub-related tests.
 
 Handle failing tests:
     --failed-tests                      Rerun failed tests that left after the previous try
@@ -414,6 +428,8 @@ Other options:
     --skip-sources-validation           Fast build. Skips source validation and enforce plugins
     --workspace-pool-size=[<SIZE>|auto] Size of test workspace pool.
                                         Default value is 0, that means that test workspaces are created on demand.
+    --include-tests-under-repair        Include tests which permanently fail and so belong to group 'UNDER REPAIR'
+    --include-flaky-tests               Include tests which randomly fail and so belong to group 'FLAKY'
 
 HOW TO of usage:
     Test Eclipse Che single user assembly:
@@ -430,6 +446,9 @@ HOW TO of usage:
 
     Run suite:
         ${CALLER} <...> --suite=<PATH_TO_SUITE>
+
+    Include tests which belong to groups 'UNDER REPAIR' and 'FLAKY'
+        ./selenium-tests.sh --include-tests-under-repair --include-flaky-tests
 
     Rerun failed tests:
         ${CALLER} <...> --failed-tests
@@ -448,19 +467,21 @@ HOW TO of usage:
 printRunOptions() {
     echo "[TEST]"
     echo "[TEST] =========== RUN OPTIONS ==========================="
-    echo "[TEST] Mode                : "${MODE}
-    echo "[TEST] Rerun attempts      : "${RERUN_ATTEMPTS}
+    echo "[TEST] Mode                : ${MODE}"
+    echo "[TEST] Rerun attempts      : ${RERUN_ATTEMPTS}"
     echo "[TEST] ==================================================="
-    echo "[TEST] Product Protocol    : "${PRODUCT_PROTOCOL}
-    echo "[TEST] Product Host        : "${PRODUCT_HOST}
-    echo "[TEST] Product Port        : "${PRODUCT_PORT}
-    echo "[TEST] Tests               : "${TESTS_SCOPE}
-    echo "[TEST] Threads             : "${THREADS}
-    echo "[TEST] Workspace pool size : "${WORKSPACE_POOL_SIZE}
-    echo "[TEST] Web browser         : "${BROWSER}
-    echo "[TEST] Web driver ver      : "${WEBDRIVER_VERSION}
-    echo "[TEST] Web driver port     : "${WEBDRIVER_PORT}
-    echo "[TEST] Additional opts     : "${GRID_OPTIONS}" "${DEBUG_OPTIONS}" "${MAVEN_OPTIONS}
+    echo "[TEST] Product Protocol    : ${PRODUCT_PROTOCOL}"
+    echo "[TEST] Product Host        : ${PRODUCT_HOST}"
+    echo "[TEST] Product Port        : ${PRODUCT_PORT}"
+    echo "[TEST] Product Config      : $(getProductConfig)"
+    echo "[TEST] Tests scope         : ${TESTS_SCOPE}"
+    echo "[TEST] Tests to exclude    : $(getExcludedGroups)"
+    echo "[TEST] Threads             : ${THREADS}"
+    echo "[TEST] Workspace pool size : ${WORKSPACE_POOL_SIZE}"
+    echo "[TEST] Web browser         : ${BROWSER}"
+    echo "[TEST] Web driver ver      : ${WEBDRIVER_VERSION}"
+    echo "[TEST] Web driver port     : ${WEBDRIVER_PORT}"
+    echo "[TEST] Additional opts     : ${GRID_OPTIONS} ${DEBUG_OPTIONS} ${MAVEN_OPTIONS}"
     echo "[TEST] ==================================================="
 }
 
@@ -523,14 +544,12 @@ fetchActualResults() {
     unset ACTUAL_RESULTS
     unset ACTUAL_RESULTS_URL
 
-    # define the URL of CI job to compare result with result on it
-    if [[ ${CHE_MULTIUSER} == true ]]; then
-      local nameOfCIJob=che-multiuser-integration-tests
-    else
-      local nameOfCIJob=che-integration-tests
-    fi
+    # define the URL of CI job to compare local result with result on CI
+    local multiuserToken=$([[ "$CHE_MULTIUSER" == true ]] && echo "-multiuser")
+    local infrastructureToken=$([[ "$CHE_INFRASTRUCTURE" == "openshift" ]] && echo "-ocp" || echo "-$CHE_INFRASTRUCTURE")
+    local nameOfCIJob="che-integration-tests${multiuserToken}-master${infrastructureToken}"
 
-    [[ -z ${BASE_ACTUAL_RESULTS_URL+x} ]] && { BASE_ACTUAL_RESULTS_URL="https://ci.codenvycorp.com/view/qa/job/$nameOfCIJob/"; }
+    [[ -z ${BASE_ACTUAL_RESULTS_URL+x} ]] && { BASE_ACTUAL_RESULTS_URL="https://ci.codenvycorp.com/view/qa/job/${nameOfCIJob}/"; }
 
     local build=$(echo $@ | sed 's/.*--compare-with-ci\W\+\([0-9]\+\).*/\1/')
     if [[ ! ${build} =~ ^[0-9]+$ ]]; then
@@ -654,7 +673,7 @@ printProposals() {
         echo -e "[TEST] \t${BLUE}${CUR_DIR}/${CALLER} ${cmd} --threads=${THREADS} -Mgrid --failed-tests${NO_COLOUR}"
 
         echo "[TEST]"
-        if [[  ${total} -lt 50 ]]; then
+        if [[ ${total} -lt 50 ]]; then
             echo "[TEST] Or run them one by one:"
             for r in $(echo ${regressions[@]} | tr ' ' '\n' | sed  's/\(.*\)[.][^.]*/\1/' | sort | uniq)
             do
@@ -699,9 +718,38 @@ runTests() {
                 -Dbrowser=${BROWSER} \
                 -Dche.threads=${THREADS} \
                 -Dche.workspace_pool_size=${WORKSPACE_POOL_SIZE} \
+                -DexcludedGroups="$(getExcludedGroups)" \
                 ${DEBUG_OPTIONS} \
                 ${GRID_OPTIONS} \
                 ${MAVEN_OPTIONS}
+}
+
+# Return list of product features
+getProductConfig() {
+  local testGroups=${CHE_INFRASTRUCTURE}
+
+  if [[ ${CHE_MULTIUSER} == true ]]; then
+    testGroups=${testGroups},multiuser
+  else
+    testGroups=${testGroups},singleuser
+  fi
+
+  echo ${testGroups}
+}
+
+# Prepare list of test groups to exclude.
+getExcludedGroups() {
+    local excludeParamArray=(${EXCLUDE_PARAM//,/ })
+
+    if [[ ${INCLUDE_TESTS_UNDER_REPAIR} == false ]]; then
+      excludeParamArray+=( 'under_repair' )
+    fi
+
+    if [[ ${INCLUDE_FLAKY_TESTS} == false ]]; then
+      excludeParamArray+=( 'flaky' )
+    fi
+
+    echo $(IFS=$','; echo "${excludeParamArray[*]}")
 }
 
 # Reruns failed tests
@@ -756,8 +804,8 @@ generateTestNgFailedReport() {
 
 # generates and updates failsafe report
 generateFailSafeReport () {
-    mvn -q surefire-report:failsafe-report-only ${MAVEN_OPTIONS}
-    mvn -q site -DgenerateReports=false ${MAVEN_OPTIONS}
+    mvn -q surefire-report:failsafe-report-only
+    mvn -q site -DgenerateReports=false
 
     echo "[TEST]"
     echo -e "[TEST] ${YELLOW}REPORT:${NO_COLOUR}"
@@ -775,30 +823,77 @@ generateFailSafeReport () {
 
     local regressions=$(findRegressions)
 
-    # add REGRESSION mark
+    # add REGRESSION marks
     for r in ${regressions[*]}
     do
         local test=$(basename $(echo ${r} | tr '.' '/') | sed 's/\(.*\)_.*/\1/')
 
-        local divTag="<a href=\"#"${r}"\">"${test}"<\/a>"
-        local divRegTag="<h2>REGRESSION<\/h2>"${divTag}
-        sed -i 's/'"${divTag}"'/'"${divRegTag}"'/' ${FAILSAFE_REPORT}
+        local aTag="<a href=\"#"${r}"\">"${test}"<\/a>"
+        local divRegTag="<h2>REGRESSION<\/h2>"${aTag}
+        sed -i "s/${aTag}/${divRegTag}/" ${FAILSAFE_REPORT}
     done
 
+    # pack logs of workspaces which failed on start when injecting into test object and add link into the 'Summary' section of failsafe report
+    local dirWithFailedWorkspacesLogs="target/site/workspace-logs/injecting_workspaces_which_did_not_start"
+    if [[ -d ${dirWithFailedWorkspacesLogs} ]]; then
+        cd ${dirWithFailedWorkspacesLogs}
+        zip -qr "../injecting_workspaces_which_did_not_start_logs.zip" .
+        cd - > /dev/null
+        rm -rf ${dirWithFailedWorkspacesLogs}
+        summaryTag="Summary<\/h2><a name=\"Summary\"><\/a>"
+        linkToFailedWorkspacesLogsTag="<p>\[<a href=\"workspace-logs\/injecting_workspaces_which_did_not_start_logs.zip\" target=\"_blank\">Injecting workspaces which didn't start logs<\/a>\]<\/p>"
+        sed -i "s/${summaryTag}/${summaryTag}${linkToFailedWorkspacesLogsTag}/" ${FAILSAFE_REPORT}
+    fi
+
+    # add link the che server logs archive into the 'Summary' section of failsafe report
+    local summaryTag="Summary<\/h2><a name=\"Summary\"><\/a>"
+    local linkToCheServerLogsTag="<p>\[<a href=\"che_server_logs.zip\" target=\"_blank\">Eclipse Che Server logs<\/a>\]<\/p>"
+    sed -i "s/${summaryTag}/${summaryTag}${linkToCheServerLogsTag}/" ${FAILSAFE_REPORT}
+
     # attach screenshots
-    for f in target/screenshots/*
-    do
-        local test=$(basename ${f} | sed 's/\(.*\)_.*/\1/')
-        local divTag="<div id=\""${test}"error\" style=\"display:none;\">"
-        local imgTag="<img src=\"..\/screenshots\/"$(basename ${f})"\">"
-        sed -i "s/${divTag}/${divTag}${imgTag}/" ${FAILSAFE_REPORT}
-    done
+    if [[ -d "target/site/screenshots" ]]; then
+        for file in $(ls target/site/screenshots/* | sort -r)
+        do
+            local test=$(basename ${file} | sed 's/\(.*\)_.*/\1/')
+            local testDetailTag="<div id=\"${test}error\" style=\"display:none;\">"
+            local screenshotTag="<p><img src=\"screenshots\/"$(basename ${file})"\"><p>"
+            sed -i "s/${testDetailTag}/${testDetailTag}${screenshotTag}/" ${FAILSAFE_REPORT}
+        done
+    fi
+
+    attachLinkToTestReport workspace-logs "Workspace logs"
+    attachLinkToTestReport webdriver-logs "Browser logs"
+    attachLinkToTestReport htmldumps "Web page source"
 
     echo "[TEST]"
     echo "[TEST] Failsafe report"
     echo -e "[TEST] \t${BLUE}file://${CUR_DIR}/${FAILSAFE_REPORT}${NO_COLOUR}"
     echo "[TEST]"
     echo "[TEST]"
+}
+
+# first argument - relative path to directory inside target/site
+# second argument - title of the link
+attachLinkToTestReport() {
+    # attach links to resource related to failed test
+    local relativePathToResource=$1
+    local titleOfLink=$2
+    local dirWithResources="target/site/$relativePathToResource"
+
+    # return if directory doesn't exist
+    [[ ! -d ${dirWithResources} ]] && return
+
+    # return if directory is empty
+    [[ -z "$(ls -A ${dirWithResources})" ]] && return
+
+    for file in $(ls ${dirWithResources}/* | sort -r)
+    do
+        local test=$(basename ${file} | sed 's/\(.*\)_.*/\1/')
+        local testDetailTag="<div id=\"${test}error\" style=\"display:none;\">"
+        local filename=$(basename ${file})
+        local linkTag="<p><li><a href=\"$relativePathToResource\/$filename\" target=\"_blank\"><b>$titleOfLink<\/b>: $filename<\/a><\/li><\/p>"
+        sed -i "s/${testDetailTag}/${testDetailTag}${linkTag}/" ${FAILSAFE_REPORT}
+    done
 }
 
 storeTestReport() {
@@ -810,7 +905,7 @@ storeTestReport() {
     if [[ -f ${TMP_SUITE_PATH} ]]; then
         cp ${TMP_SUITE_PATH} target/suite;
     fi
-    zip -qr ${report} target/screenshots target/htmldumps target/site target/failsafe-reports target/log target/bin target/suite
+    zip -qr ${report} target/screenshots target/htmldumps target/workspace-logs target/webdriver-logs target/site target/failsafe-reports target/log target/bin target/suite
 
     echo -e "[TEST] Tests results and reports are saved to ${BLUE}${report}${NO_COLOUR}"
     echo "[TEST]"
@@ -828,79 +923,14 @@ prepareToFirstRun() {
     checkIfProductIsRun
     cleanUpEnvironment
     initRunMode
-
-    if [[ ${CHE_MULTIUSER} == false ]]; then
-      prepareTestUserForSingleuserChe
-    else
-      prepareTestUserForMultiuserChe
-    fi
 }
 
-prepareTestUserForSingleuserChe() {
-    export CHE_ADMIN_EMAIL=
-    export CHE_ADMIN_PASSWORD=
-
-    export CHE_TESTUSER_EMAIL=che@eclipse.org
-    export CHE_TESTUSER_PASSWORD=secret
-}
-
-prepareTestUserForMultiuserChe() {
-    export CHE_ADMIN_NAME=${CHE_ADMIN_NAME:-admin}
-    export CHE_ADMIN_EMAIL=${CHE_ADMIN_EMAIL:-admin@admin.com}
-    export CHE_ADMIN_PASSWORD=${CHE_ADMIN_PASSWORD:-admin}
-
-    if [[ -n ${CHE_TESTUSER_EMAIL+x} ]] && [[ -n ${CHE_TESTUSER_PASSWORD+x} ]]; then
-        return
-    fi
-
-    # create test user by executing kcadm.sh commands inside keycloak docker container if there are no its credentials among environment variables
-    if [[ "${PRODUCT_HOST}" == "$(detectDockerInterfaceIp)" ]] || [[ "${CHE_INFRASTRUCTURE}" == "openshift" ]]; then
-
-        echo "[TEST] Creating test user..."
-        local time=$(date +%s)
-        export CHE_TESTUSER_NAME=${CHE_TESTUSER_NAME:-user${time}}
-        export CHE_TESTUSER_EMAIL=${CHE_TESTUSER_EMAIL:-${CHE_TESTUSER_NAME}@1.com}
-        export CHE_TESTUSER_PASSWORD=${CHE_TESTUSER_PASSWORD:-${time}}
-
-        if [[ "${CHE_INFRASTRUCTURE}" == "openshift" ]]; then
-            local kc_container_id=$(docker ps | grep keycloak_keycloak-1 | cut -d ' ' -f1)
-        else
-            local kc_container_id=$(docker ps | grep che_keycloak_1 | cut -d ' ' -f1)
-        fi
-
-        local cli_auth="--no-config --server http://localhost:8080/auth --user ${CHE_ADMIN_NAME} --password ${CHE_ADMIN_PASSWORD} --realm master"
-        local response=$(docker exec -i $kc_container_id sh -c "keycloak/bin/kcadm.sh create users -r che -s username=${CHE_TESTUSER_NAME} -s enabled=true $cli_auth 2>&1")
-        if [[ "$response" =~ "Created new user with id" ]]; then
-           NEW_USER_ID=$(echo "$response" | grep "Created new user with id" | sed -e "s#Created new user with id ##" | sed -e "s#'##g")
-           # set test user's permanent password
-           docker exec -i $kc_container_id sh -c "keycloak/bin/kcadm.sh set-password -r che --username ${CHE_TESTUSER_NAME} --new-password ${CHE_TESTUSER_PASSWORD} $cli_auth"
-           # set email of test user to ${cheTestUserEmail}
-           docker exec -i $kc_container_id sh -c "keycloak/bin/kcadm.sh update users/${NEW_USER_ID} -r che --set email=${CHE_TESTUSER_EMAIL} $cli_auth"
-           # add realm role "user" test user
-           docker exec -i $kc_container_id sh -c "keycloak/bin/kcadm.sh add-roles -r che --uusername ${CHE_TESTUSER_NAME} --rolename user $cli_auth"
-           # add role "read-token" of client "broker" to test user
-           docker exec -i $kc_container_id sh -c "keycloak/bin/kcadm.sh add-roles -r che --uusername ${CHE_TESTUSER_NAME} --cclientid broker --rolename read-token $cli_auth"
-        else
-           # set test user credentials to be equal to admin ones in case of problem with creation of user
-           echo -e "${RED}[WARN] There is a problem with creation of test user in Keycloak server: '${response}'.${NO_COLOUR}"
-           echo -e "Admin user will be used as a test user."
-           CHE_TESTUSER_NAME=${CHE_ADMIN_NAME}
-           CHE_TESTUSER_EMAIL=${CHE_ADMIN_EMAIL}
-           CHE_TESTUSER_PASSWORD=${CHE_ADMIN_PASSWORD}
-        fi
-    fi
-}
-
-removeTestUser() {
-    echo "[TEST] Removing test user with name '${CHE_TESTUSER_NAME}'..."
+getKeycloakContainerId() {
     if [[ "${CHE_INFRASTRUCTURE}" == "openshift" ]]; then
-        local kc_container_id=$(docker ps | grep keycloak_keycloak-1 | cut -d ' ' -f1)
+        echo $(docker ps | grep 'keycloak_keycloak-' | cut -d ' ' -f1)
     else
-        local kc_container_id=$(docker ps | grep che_keycloak_1 | cut -d ' ' -f1)
+        echo $(docker ps | grep che_keycloak | cut -d ' ' -f1)
     fi
-
-    local cli_auth="--no-config --server http://localhost:8080/auth --user ${CHE_ADMIN_NAME} --password ${CHE_ADMIN_PASSWORD} --realm master"
-    local response=$(docker exec -i $kc_container_id sh -c "keycloak/bin/kcadm.sh delete users/${NEW_USER_ID} -r che -s username=${CHE_TESTUSER_NAME} $cli_auth 2>&1")
 }
 
 testProduct() {

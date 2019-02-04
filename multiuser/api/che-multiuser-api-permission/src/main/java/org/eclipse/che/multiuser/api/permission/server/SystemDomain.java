@@ -1,18 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.multiuser.api.permission.server;
 
+import static java.util.stream.Collectors.toList;
+
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -33,13 +35,15 @@ public class SystemDomain extends AbstractPermissionsDomain<SystemPermissionsImp
   public static final String SYSTEM_DOMAIN_ACTIONS = "system.domain.actions";
   public static final String DOMAIN_ID = "system";
   public static final String MANAGE_SYSTEM_ACTION = "manageSystem";
+  public static final String MONITOR_SYSTEM_ACTION = "monitorSystem";
 
   @Inject
   public SystemDomain(@Named(SYSTEM_DOMAIN_ACTIONS) Set<String> allowedActions) {
     super(
         DOMAIN_ID,
-        Stream.concat(allowedActions.stream(), Stream.of(MANAGE_SYSTEM_ACTION))
-            .collect(Collectors.toList()),
+        Stream.concat(
+                allowedActions.stream(), Stream.of(MANAGE_SYSTEM_ACTION, MONITOR_SYSTEM_ACTION))
+            .collect(toList()),
         false);
   }
 

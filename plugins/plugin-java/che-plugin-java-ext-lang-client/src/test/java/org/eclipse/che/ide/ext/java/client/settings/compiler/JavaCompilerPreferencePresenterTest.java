@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -52,7 +53,6 @@ import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.preferences.PreferencePagePresenter.DirtyStateListener;
 import org.eclipse.che.ide.api.preferences.PreferencesManager;
-import org.eclipse.che.ide.api.workspace.event.WorkspaceRunningEvent;
 import org.eclipse.che.ide.ext.java.client.JavaLocalizationConstant;
 import org.eclipse.che.ide.ext.java.client.inject.factories.PropertyWidgetFactory;
 import org.eclipse.che.ide.ext.java.client.settings.property.PropertyWidget;
@@ -87,7 +87,6 @@ public class JavaCompilerPreferencePresenterTest {
   @Mock private Promise<Map<String, String>> mapPromise;
   @Mock private AcceptsOneWidget container;
   @Mock private PropertyWidget widget;
-  @Mock private WorkspaceRunningEvent workspaceRunningEvent;
 
   @Captor private ArgumentCaptor<Map<String, String>> mapCaptor;
   @Captor private ArgumentCaptor<Operation<Map<String, String>>> operationCaptor;
@@ -124,7 +123,6 @@ public class JavaCompilerPreferencePresenterTest {
     when(widget.getSelectedValue()).thenReturn(VALUE_2);
     when(preferencesManager.getValue(anyString())).thenReturn(VALUE_1);
 
-    presenter.onWorkspaceRunning(workspaceRunningEvent);
     presenter.go(container);
 
     verify(mapPromise).then(operationCaptor.capture());
@@ -147,7 +145,6 @@ public class JavaCompilerPreferencePresenterTest {
     when(widget.getSelectedValue()).thenReturn(VALUE_2);
     when(preferencesManager.getValue(anyString())).thenReturn(VALUE_1);
 
-    presenter.onWorkspaceRunning(workspaceRunningEvent);
     presenter.go(container);
 
     verify(mapPromise).then(operationCaptor.capture());
@@ -218,7 +215,6 @@ public class JavaCompilerPreferencePresenterTest {
 
   @Test
   public void propertiesShouldBeDisplayed() throws Exception {
-    presenter.onWorkspaceRunning(workspaceRunningEvent);
     presenter.go(container);
 
     verify(mapPromise).then(operationCaptor.capture());
@@ -238,7 +234,6 @@ public class JavaCompilerPreferencePresenterTest {
 
     when(notificationManagerProvider.get()).thenReturn(notificationManager);
 
-    presenter.onWorkspaceRunning(workspaceRunningEvent);
     presenter.go(container);
 
     verify(mapPromise).catchError(errorOperationCaptor.capture());

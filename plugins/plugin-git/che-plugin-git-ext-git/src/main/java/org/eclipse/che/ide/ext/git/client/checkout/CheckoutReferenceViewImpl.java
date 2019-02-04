@@ -1,23 +1,24 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.git.client.checkout;
 
+import static org.eclipse.che.ide.util.dom.DomUtils.isWidgetOrChildFocused;
+
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
-import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
@@ -49,43 +50,23 @@ public class CheckoutReferenceViewImpl extends Window implements CheckoutReferen
     this.setWidget(widget);
 
     btnCancel =
-        createButton(
+        addFooterButton(
             locale.buttonCancel(),
             "git-checkoutReference-cancel",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onCancelClicked();
-              }
-            });
-    addButtonToFooter(btnCancel);
+            event -> delegate.onCancelClicked());
 
     btnCheckout =
-        createButton(
+        addFooterButton(
             locale.buttonCheckout(),
             "git-checkoutReference-checkout",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onCheckoutClicked(reference.getValue());
-              }
-            });
-    addButtonToFooter(btnCheckout);
+            event -> delegate.onCheckoutClicked(reference.getValue()),
+            true);
   }
 
   @Override
   public void showDialog() {
     reference.setText("");
-    this.show();
-
-    new Timer() {
-      @Override
-      public void run() {
-        reference.setFocus(true);
-      }
-    }.schedule(300);
+    show(reference);
   }
 
   @Override
@@ -114,11 +95,11 @@ public class CheckoutReferenceViewImpl extends Window implements CheckoutReferen
   }
 
   @Override
-  protected void onEnterClicked() {
-    if (isWidgetFocused(btnCancel)) {
+  public void onEnterPress(NativeEvent evt) {
+    if (isWidgetOrChildFocused(btnCancel)) {
       delegate.onCancelClicked();
-      return;
+    } else {
+      delegate.onEnterClicked();
     }
-    delegate.onEnterClicked();
   }
 }

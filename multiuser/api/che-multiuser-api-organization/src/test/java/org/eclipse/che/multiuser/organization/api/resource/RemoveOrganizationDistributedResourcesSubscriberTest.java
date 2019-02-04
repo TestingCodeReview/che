@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.multiuser.organization.api.resource;
 
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -61,7 +63,7 @@ public class RemoveOrganizationDistributedResourcesSubscriberTest {
   @Test
   public void shouldNotResetResourcesDistributionBeforeRootOrganizationRemoving() throws Exception {
     // given
-    when(organization.getId()).thenReturn("org123");
+    lenient().when(organization.getId()).thenReturn("org123");
     when(organization.getParent()).thenReturn(null);
 
     // when

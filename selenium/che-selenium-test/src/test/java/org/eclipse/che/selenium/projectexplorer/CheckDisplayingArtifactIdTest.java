@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.projectexplorer;
+
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuFirstLevelItems.NEW;
 
 import com.google.inject.Inject;
 import java.nio.file.Paths;
@@ -19,6 +22,7 @@ import org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuCons
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.Preferences;
@@ -37,6 +41,7 @@ public class CheckDisplayingArtifactIdTest {
   @Inject private AskForValueDialog askForValueDialog;
   @Inject private TestProjectServiceClient projectServiceClient;
   @Inject private Menu menu;
+  @Inject private Consoles consoles;
   @Inject private Preferences preferences;
 
   @BeforeClass
@@ -47,6 +52,8 @@ public class CheckDisplayingArtifactIdTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(testWorkspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -60,14 +67,14 @@ public class CheckDisplayingArtifactIdTest {
     preferences.selectDroppedMenuByName("Maven");
     preferences.clickOnShowArtifactCheckBox();
     preferences.clickOnOkBtn();
-    preferences.clickOnCloseBtn();
+    preferences.close();
     preferences.waitPreferencesFormIsClosed();
-    projectExplorer.waitItemInVisibleArea(PROJECT_NAME + " " + ARTIFACT_ID);
+    projectExplorer.waitVisibilityByName(PROJECT_NAME + " " + ARTIFACT_ID);
     projectExplorer.quickExpandWithJavaScript();
     projectExplorer.waitItem(PROJECT_NAME + "/src/main/java");
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/java");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main/java");
     projectExplorer.openContextMenuByPathSelectedItem(PROJECT_NAME + "/src/main/java");
-    projectExplorer.clickOnItemInContextMenu(TestProjectExplorerContextMenuConstants.NEW);
+    projectExplorer.clickOnItemInContextMenu(NEW);
     projectExplorer.clickOnNewContextMenuItem(
         TestProjectExplorerContextMenuConstants.SubMenuNew.JAVA_CLASS);
     askForValueDialog.waitNewJavaClassOpen();
@@ -81,8 +88,8 @@ public class CheckDisplayingArtifactIdTest {
     preferences.selectDroppedMenuByName("Maven");
     preferences.clickOnShowArtifactCheckBox();
     preferences.clickOnOkBtn();
-    preferences.clickOnCloseBtn();
+    preferences.close();
 
-    projectExplorer.waitItemInVisibleArea(PROJECT_NAME);
+    projectExplorer.waitVisibilityByName(PROJECT_NAME);
   }
 }

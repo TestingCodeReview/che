@@ -1,19 +1,16 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.upload.folder;
 
-import com.google.gwt.event.dom.client.ChangeEvent;
-import com.google.gwt.event.dom.client.ChangeHandler;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Button;
@@ -64,43 +61,23 @@ public class UploadFolderFromZipViewImpl extends Window implements UploadFolderF
     bind();
 
     btnCancel =
-        createButton(
-            locale.cancel(),
-            "file-uploadFolder-cancel",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onCancelClicked();
-              }
-            });
-    addButtonToFooter(btnCancel);
-
+        addFooterButton(
+            locale.cancel(), "file-uploadFolder-cancel", event -> delegate.onCancelClicked());
     btnUpload =
-        createButton(
+        addFooterButton(
             locale.uploadButton(),
             "file-uploadFolder-upload",
-            new ClickHandler() {
+            event -> delegate.onUploadClicked(),
+            true);
 
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onUploadClicked();
-              }
-            });
-    btnUpload.addStyleName(resources.Css().buttonLoader());
-    addButtonToFooter(btnUpload);
+    btnUpload.addStyleName(resources.buttonLoaderCss().buttonLoader());
+
     this.agentURLModifier = agentURLModifier;
   }
 
   /** Bind handlers. */
   private void bind() {
-    submitForm.addSubmitCompleteHandler(
-        new FormPanel.SubmitCompleteHandler() {
-          @Override
-          public void onSubmitComplete(FormPanel.SubmitCompleteEvent event) {
-            delegate.onSubmitComplete(event.getResults());
-          }
-        });
+    submitForm.addSubmitCompleteHandler(event -> delegate.onSubmitComplete(event.getResults()));
   }
 
   /** {@inheritDoc} */
@@ -114,10 +91,14 @@ public class UploadFolderFromZipViewImpl extends Window implements UploadFolderF
   @Override
   public void closeDialog() {
     hide();
-    onClose();
     btnUpload.setEnabled(false);
     overwrite.setValue(false);
     skipFirstLevel.setValue(false);
+  }
+
+  @Override
+  protected void onHide() {
+    uploadPanel.remove(file);
   }
 
   @Override
@@ -159,8 +140,6 @@ public class UploadFolderFromZipViewImpl extends Window implements UploadFolderF
   /** {@inheritDoc} */
   @Override
   public void submit() {
-    overwrite.setFormValue(overwrite.getValue().toString());
-    skipFirstLevel.setFormValue(skipFirstLevel.getValue().toString());
     submitForm.submit();
     btnUpload.setEnabled(false);
   }
@@ -185,11 +164,9 @@ public class UploadFolderFromZipViewImpl extends Window implements UploadFolderF
     return overwrite.getValue();
   }
 
-  /** {@inheritDoc} */
   @Override
-  protected void onClose() {
-    uploadPanel.remove(file);
-    super.onClose();
+  public boolean isSkipRootFolderSelected() {
+    return skipFirstLevel.getValue();
   }
 
   private void addFileUploadForm() {
@@ -198,13 +175,7 @@ public class UploadFolderFromZipViewImpl extends Window implements UploadFolderF
     file.setWidth("100%");
     file.setName("file");
     file.ensureDebugId("file-uploadFile-ChooseFile");
-    file.addChangeHandler(
-        new ChangeHandler() {
-          @Override
-          public void onChange(ChangeEvent event) {
-            delegate.onFileNameChanged();
-          }
-        });
+    file.addChangeHandler(event -> delegate.onFileNameChanged());
     uploadPanel.insert(file, 0);
   }
 }

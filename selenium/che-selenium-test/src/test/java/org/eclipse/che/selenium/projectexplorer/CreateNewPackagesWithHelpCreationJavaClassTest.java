@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,12 +14,15 @@ package org.eclipse.che.selenium.projectexplorer;
 import com.google.inject.Inject;
 import java.net.URL;
 import java.nio.file.Paths;
+import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
+import org.eclipse.che.selenium.core.provider.TestApiEndpointUrlProvider;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
@@ -30,7 +34,6 @@ import org.testng.annotations.Test;
  * @author Andrey Chizhikov
  */
 public class CreateNewPackagesWithHelpCreationJavaClassTest {
-
   private static final String PROJECT_NAME =
       CreateNewPackagesWithHelpCreationJavaClassTest.class.getSimpleName();
   private static final String NEW_PACKAGE_NAME1 = "tu";
@@ -42,9 +45,12 @@ public class CreateNewPackagesWithHelpCreationJavaClassTest {
   @Inject private Ide ide;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private CodenvyEditor editor;
+  @Inject private Consoles consoles;
   @Inject private Menu menu;
   @Inject private AskForValueDialog askForValueDialog;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private HttpJsonRequestFactory httpJsonRequestFactory;
+  @Inject private TestApiEndpointUrlProvider testApiEndpointUrlProvider;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -55,13 +61,15 @@ public class CreateNewPackagesWithHelpCreationJavaClassTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(testWorkspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
   public void createNewPackageFromContextMenuTest() throws Exception {
     projectExplorer.waitItem(PROJECT_NAME);
-    projectExplorer.quickExpandWithJavaScript();
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/java");
+    projectExplorer.expandPathInProjectExplorer(PROJECT_NAME + "/src/main/java");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main/java");
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -75,7 +83,7 @@ public class CreateNewPackagesWithHelpCreationJavaClassTest {
 
     projectExplorer.waitItem(PROJECT_NAME + "/src/main/java/tu/TestClass1.java");
 
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/java");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main/java");
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -87,6 +95,6 @@ public class CreateNewPackagesWithHelpCreationJavaClassTest {
     editor.waitActive();
     editor.waitTabIsPresent("TestClass2");
     projectExplorer.waitItem(PROJECT_NAME + "/src/main/java/test/ua");
-    projectExplorer.waitItemInVisibleArea("TestClass2.java");
+    projectExplorer.waitVisibilityByName("TestClass2.java");
   }
 }

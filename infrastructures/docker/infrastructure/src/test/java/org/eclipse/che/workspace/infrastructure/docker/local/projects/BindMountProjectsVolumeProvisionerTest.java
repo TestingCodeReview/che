@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,6 +13,7 @@ package org.eclipse.che.workspace.infrastructure.docker.local.projects;
 
 import static java.util.Collections.singletonMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
@@ -41,7 +43,7 @@ import org.testng.annotations.Test;
 public class BindMountProjectsVolumeProvisionerTest {
   private static final String WORKSPACE_ID = "wsId";
   private static final RuntimeIdentity RUNTIME_IDENTITY =
-      new RuntimeIdentityImpl(WORKSPACE_ID, "env", "owner");
+      new RuntimeIdentityImpl(WORKSPACE_ID, "env", "id");
   private static final String MACHINE_1_NAME = "machine1";
   private static final String MACHINE_2_NAME = "machine2";
   private static final String MACHINE_3_NAME = "machine3";
@@ -69,7 +71,8 @@ public class BindMountProjectsVolumeProvisionerTest {
     dockerEnvironment.getContainers().put(MACHINE_2_NAME, new DockerContainerConfig());
     dockerEnvironment.getContainers().put(MACHINE_3_NAME, new DockerContainerConfig());
     // doesn't influence volumes
-    when(machine1.getServers())
+    lenient()
+        .when(machine1.getServers())
         .thenReturn(
             Collections.singletonMap(
                 Constants.SERVER_WS_AGENT_HTTP_REFERENCE,
@@ -116,10 +119,9 @@ public class BindMountProjectsVolumeProvisionerTest {
   }
 
   @Test(
-    expectedExceptions = InternalInfrastructureException.class,
-    expectedExceptionsMessageRegExp =
-        "Error occurred on resolving path to files of workspace " + WORKSPACE_ID
-  )
+      expectedExceptions = InternalInfrastructureException.class,
+      expectedExceptionsMessageRegExp =
+          "Error occurred on resolving path to files of workspace " + WORKSPACE_ID)
   public void shouldThrowExceptionWhenWsFolderPathProviderThrowsException() throws Exception {
     // given
     when(workspaceFolderPathProvider.getPath(anyString())).thenThrow(new IOException("test"));

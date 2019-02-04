@@ -1,17 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.testrunner;
 
+import static org.eclipse.che.selenium.core.TestGroup.FLAKY;
 import static org.eclipse.che.selenium.pageobject.plugins.JavaTestRunnerPluginConsole.JunitMethodsState.FAILED;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.inject.Inject;
 import java.nio.file.Paths;
@@ -31,10 +34,12 @@ import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.intelligent.CommandsPalette;
 import org.eclipse.che.selenium.pageobject.plugins.JavaTestRunnerPluginConsole;
+import org.openqa.selenium.TimeoutException;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Musienko Maxim */
+@Test(groups = FLAKY)
 public class JavaTestPluginJunit4CheckRunSuitesAndScopesTest {
   private static final String JUNIT4_PROJECT = "junit4-tests-with-separeted-suites";
 
@@ -73,7 +78,14 @@ public class JavaTestPluginJunit4CheckRunSuitesAndScopesTest {
     ide.open(ws);
     loader.waitOnClosed();
     projectExplorer.waitItem(JUNIT4_PROJECT);
-    runCompileCommandByPallete(compileCommand);
+
+    try {
+      runCompileCommandByPallete(compileCommand);
+    } catch (TimeoutException ex) {
+      // remove try-catch block after issue has been resolved
+      fail("Known random failure https://github.com/eclipse/che/issues/12220");
+    }
+
     notifications.waitProgressPopupPanelClose();
     consoles.dragConsolesInDefinePosition(VALUE_OF_SHIFTING_CONSOLES_ALONG_X_AXIS);
   }
@@ -104,7 +116,7 @@ public class JavaTestPluginJunit4CheckRunSuitesAndScopesTest {
             + " at org.junit.Assert.assertTrue(Assert.java:41)";
 
     projectExplorer.quickRevealToItemWithJavaScript(PATH_TO_JUNIT4_TEST_CLASSES);
-    projectExplorer.selectItem(JUNIT4_PROJECT);
+    projectExplorer.waitAndSelectItem(JUNIT4_PROJECT);
     // when
     menu.runCommand(
         TestMenuCommandsConstants.Run.RUN_MENU,
@@ -112,7 +124,7 @@ public class JavaTestPluginJunit4CheckRunSuitesAndScopesTest {
         TestMenuCommandsConstants.JUNIT_TEST_DROP_DAWN_ITEM);
 
     // then
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Test runner executed successfully.");
+    notifications.waitExpectedMessageOnProgressPanelAndClose("Test runner executed successfully.");
     pluginConsole.waitFqnOfTesClassInResultTree("org.eclipse.che.tests.AppAnotherTest");
     assertTrue(pluginConsole.getTextFromResultTree().equals(expectedResultAfterFirstLaunch));
     pluginConsole.waitFqnOfTesClassInResultTree("org.eclipse.che.tests.AppOneTest");

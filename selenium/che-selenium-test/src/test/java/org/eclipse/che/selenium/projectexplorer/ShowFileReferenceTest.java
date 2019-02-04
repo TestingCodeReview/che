@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.projectexplorer;
+
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuFirstLevelItems.SHOW_REFERENCES;
 
 import com.google.inject.Inject;
 import java.io.IOException;
@@ -16,9 +19,9 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.util.Random;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
-import org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.ShowReference;
@@ -39,6 +42,7 @@ public class ShowFileReferenceTest {
   @Inject private Ide ide;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private ShowReference showReference;
+  @Inject private Consoles consoles;
   @Inject private TestProjectServiceClient testProjectServiceClient;
 
   @BeforeClass
@@ -50,13 +54,14 @@ public class ShowFileReferenceTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(testWorkspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
 
     projectExplorer.waitItem(PROJECT_NAME);
     projectExplorer.expandPathInProjectExplorerAndOpenFile(PATH_FOR_EXPAND, "AppController.java");
     projectExplorer.openContextMenuByPathSelectedItem(FILE_PATH);
 
-    projectExplorer.clickOnItemInContextMenu(
-        TestProjectExplorerContextMenuConstants.SHOW_REFERENCES);
+    projectExplorer.clickOnItemInContextMenu(SHOW_REFERENCES);
   }
 
   @Test

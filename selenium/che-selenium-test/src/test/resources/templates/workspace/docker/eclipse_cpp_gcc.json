@@ -6,10 +6,12 @@
           "servers": {},
           "installers": [
             "org.eclipse.che.terminal",
-            "org.eclipse.che.ws-agent"
+            "org.eclipse.che.ws-agent",
+            "org.eclipse.che.exec",
+            "org.eclipse.che.ls.clangd"
           ],
           "attributes": {
-            "memoryLimitBytes": "2147483648"
+            "memoryLimitBytes": "desired_memory_value"
           }
         }
       },

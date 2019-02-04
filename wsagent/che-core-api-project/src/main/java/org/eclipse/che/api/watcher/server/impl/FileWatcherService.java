@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -127,7 +128,7 @@ public class FileWatcherService {
     ThreadFactory factory =
         builder
             .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
-            .setNameFormat(FileWatcherService.class.getSimpleName())
+            .setNameFormat(FileWatcherService.class.getSimpleName() + "-%d")
             .setDaemon(true)
             .build();
     executor = newSingleThreadExecutor(factory);
@@ -253,6 +254,7 @@ public class FileWatcherService {
     suspended.compareAndSet(true, false);
     running.compareAndSet(false, true);
 
+    outer:
     while (running.get()) {
       try {
         WatchKey watchKey = service.take();
@@ -269,32 +271,35 @@ public class FileWatcherService {
         }
 
         List<WatchEvent<?>> watchEvents = watchKey.pollEvents();
+        while (!watchEvents.isEmpty()) {
+          if (suspended.get()) {
+            resetAndRemove(watchKey, dir);
 
-        if (suspended.get()) {
-          resetAndRemove(watchKey, dir);
-
-          LOG.debug("File watchers are running in suspended mode - skipping.");
-          continue;
-        }
-
-        for (WatchEvent<?> event : watchEvents) {
-          Kind<?> kind = event.kind();
-
-          if (kind == OVERFLOW) {
-            LOG.warn("Detected file system events overflowing");
-            continue;
+            LOG.debug("File watchers are running in suspended mode - skipping.");
+            continue outer;
           }
 
-          WatchEvent<Path> ev = cast(event);
-          Path item = ev.context();
-          Path path = dir.resolve(item).toAbsolutePath();
+          for (WatchEvent<?> event : watchEvents) {
+            Kind<?> kind = event.kind();
 
-          if (excludePatternsRegistry.isExcluded(path)) {
-            LOG.debug("Path is within exclude list, skipping...");
-            continue;
+            if (kind == OVERFLOW) {
+              LOG.warn("Detected file system events overflowing");
+              continue outer;
+            }
+
+            WatchEvent<Path> ev = cast(event);
+            Path item = ev.context();
+            Path path = dir.resolve(item).toAbsolutePath();
+
+            if (excludePatternsRegistry.isExcluded(path)) {
+              LOG.debug("Path is within exclude list, skipping...");
+              continue;
+            }
+
+            handler.handle(path, kind);
           }
 
-          handler.handle(path, kind);
+          watchEvents = watchKey.pollEvents();
         }
 
         resetAndRemove(watchKey, dir);

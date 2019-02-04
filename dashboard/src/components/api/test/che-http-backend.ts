@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,6 +17,8 @@ import {CheAPIBuilder} from '../builder/che-api-builder.factory';
  * @author Florent Benoit
  */
 export class CheHttpBackend {
+  static $inject = ['$httpBackend', 'cheAPIBuilder'];
+
   private $httpBackend: ng.IHttpBackendService;
   private projectsPerWorkspace: Map<string, any>;
   private workspaces: Map<string, any>;
@@ -42,6 +45,9 @@ export class CheHttpBackend {
   private organizationsMap: Map<string, che.IOrganization>;
   private permissionsMap: Map<string, Array<che.IPermissions>>;
   private resourcesMap: Map<string, Map<string, any>>;
+
+  private installersMap: Map<string, che.IAgent> = new Map();
+  private installersList: Array<che.IAgent> = [];
 
   /**
    * Constructor to use
@@ -91,6 +97,7 @@ export class CheHttpBackend {
     this.$httpBackend.when('GET', '/api/').respond(200, {rootResources: []});
 
     this.$httpBackend.when('GET', '/api/keycloak/settings').respond(404);
+    this.$httpBackend.when('GET', '/workspace-loader/').respond(404);
 
     // add the remote call
     let workspaceReturn = [];
@@ -654,4 +661,27 @@ export class CheHttpBackend {
       organizationResourcesMap.set(scope, [resource]);
     }
   }
+
+  /**
+   * Setup backend for installers.
+   */
+  installersBackendSetup(): void {
+    for (const [installerId, installer] of this.installersMap) {
+      this.$httpBackend.when('GET', `/api/installer/${installerId}`).respond(installer);
+    }
+    this.$httpBackend.when('GET', '/api/installer').respond(this.installersList);
+  }
+
+  /**
+   * Add installers.
+   * @param {che.IAgent} installer an installer to add
+   */
+  addInstaller(installer: che.IAgent): void {
+    const latest = this.installersMap.get(installer.id);
+    if (!latest || installer.version > latest.version) {
+      this.installersMap.set(installer.id, installer);
+    }
+    this.installersList.push(installer);
+  }
+
 }

@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2012-2017 Red Hat, Inc.
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
+// Copyright (c) 2012-2018 Red Hat, Inc.
+// This program and the accompanying materials are made
+// available under the terms of the Eclipse Public License 2.0
+// which is available at https://www.eclipse.org/legal/epl-2.0/
+//
+// SPDX-License-Identifier: EPL-2.0
 //
 // Contributors:
 //   Red Hat, Inc. - initial API and implementation
@@ -17,15 +18,17 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/eclipse/che/agents/go-agents/core/auth"
-	"github.com/eclipse/che/agents/go-agents/core/jsonrpc"
-	"github.com/eclipse/che/agents/go-agents/core/jsonrpc/jsonrpcws"
+	"github.com/eclipse/che-go-jsonrpc"
+	"github.com/eclipse/che-go-jsonrpc/jsonrpcws"
 	"github.com/eclipse/che/agents/go-agents/core/process"
 	"github.com/eclipse/che/agents/go-agents/core/rest"
+	"github.com/eclipse/che/agents/go-agents/core/rest/restutil"
 	"github.com/eclipse/che/agents/go-agents/exec-agent/exec"
-	"strconv"
 )
 
 var (
@@ -81,6 +84,17 @@ func main() {
 				},
 			},
 		},
+		{
+			Name: "Exec-Agent liveness route",
+			Items: []rest.Route{
+				{
+					Method:     "GET",
+					Path:       "/liveness",
+					Name:       "Check Exec-Agent liveness",
+					HandleFunc: restutil.OKRespondingFunc,
+				},
+			},
+		},
 	}
 
 	appOpRoutes := []jsonrpc.RoutesGroup{
@@ -93,8 +107,8 @@ func main() {
 	jsonrpc.RegRoutesGroups(appOpRoutes)
 	jsonrpc.PrintRoutes(appOpRoutes)
 
-	var handler = getHandler(r)
-	http.Handle("/", handler)
+	// do not protect liveness check endpoint
+	var handler = wrapWithAuth(r, "/liveness")
 
 	server := &http.Server{
 		Handler:      handler,
@@ -105,14 +119,15 @@ func main() {
 	log.Fatal(server.ListenAndServe())
 }
 
-func getHandler(h http.Handler) http.Handler {
-	// required authentication for all the requests, if it is configured
-	if config.authEnabled {
-		cache := auth.NewCache(time.Minute*time.Duration(config.tokensExpirationTimeoutInMinutes), time.Minute*5)
-		return auth.NewCachingHandler(h, config.apiEndpoint, droppingRPCChannelsUnauthorizedHandler, cache)
+func wrapWithAuth(h http.Handler, ignoreMapping string) http.Handler {
+	// required authentication for all the requests that match mappings, if auth is configured
+	if !config.authEnabled {
+		return h
 	}
 
-	return h
+	ignorePattern := regexp.MustCompile(ignoreMapping)
+	cache := auth.NewCache(time.Minute*time.Duration(config.tokensExpirationTimeoutInMinutes), time.Minute*5)
+	return auth.NewCachingHandler(h, config.apiEndpoint, droppingRPCChannelsUnauthorizedHandler, cache, ignorePattern)
 }
 
 func droppingRPCChannelsUnauthorizedHandler(w http.ResponseWriter, req *http.Request, err error) {

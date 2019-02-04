@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,6 +12,7 @@
 package org.eclipse.che.ide.actions;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Sets.newConcurrentHashSet;
 import static java.util.Collections.singletonList;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.EMERGE_MODE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
@@ -23,6 +25,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import javax.validation.constraints.NotNull;
 import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.OperationException;
@@ -63,6 +66,8 @@ public class RenameItemAction extends AbstractPerspectiveAction {
   private final AppContext appContext;
   private final WorkspaceAgent workspaceAgent;
 
+  private final Set<BiConsumer<Resource, Resource>> customActions = newConcurrentHashSet();
+
   @Inject
   public RenameItemAction(
       Resources resources,
@@ -85,6 +90,16 @@ public class RenameItemAction extends AbstractPerspectiveAction {
     this.dialogFactory = dialogFactory;
     this.appContext = appContext;
     this.workspaceAgent = workspaceAgent;
+  }
+
+  /**
+   * Add an action that will be performed right after a successful rename of the resource
+   *
+   * @param action action represented by a binary consume where the first parameter is a old
+   *     resource and a the second - newly renamed resource
+   */
+  public void addCustomAction(BiConsumer<Resource, Resource> action) {
+    customActions.add(action);
   }
 
   /** {@inheritDoc} */
@@ -127,6 +142,10 @@ public class RenameItemAction extends AbstractPerspectiveAction {
 
               resource
                   .move(destination)
+                  .then(
+                      newResource -> {
+                        customActions.forEach(it -> it.accept(resource, newResource));
+                      })
                   .catchError(
                       new Operation<PromiseError>() {
                         @Override

@@ -1,14 +1,14 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
-
 package org.eclipse.che.plugin.languageserver.ide.rename;
 
 import com.google.gwt.dom.client.Style.Unit;
@@ -16,6 +16,7 @@ import com.google.gwt.user.client.ui.Button;
 import javax.inject.Inject;
 import org.eclipse.che.ide.ui.UILocalizationConstant;
 import org.eclipse.che.ide.ui.dialogs.input.InputDialogFooter;
+import org.eclipse.che.ide.ui.window.WindowClientBundle;
 import org.eclipse.che.plugin.languageserver.ide.LanguageServerLocalization;
 
 /** Rename dialog footer with 'Preview' button */
@@ -25,12 +26,14 @@ public class RenameDialogFooter extends InputDialogFooter {
 
   @Inject
   public RenameDialogFooter(
-      UILocalizationConstant messages, LanguageServerLocalization localization) {
-    super(messages);
+      UILocalizationConstant messages,
+      LanguageServerLocalization localization,
+      WindowClientBundle resources) {
+    super(messages, resources);
     previewButton = new Button();
     previewButton.setText(localization.renameDialogPreviewLabel());
     previewButton.getElement().getStyle().setMarginRight(1, Unit.EM);
-    previewButton.addStyleName(resources.windowCss().button());
+    previewButton.addStyleName(resources.getStyle().windowFrameFooterButton());
     rootPanel.clear();
     rootPanel.add(cancelButton);
     rootPanel.add(previewButton);

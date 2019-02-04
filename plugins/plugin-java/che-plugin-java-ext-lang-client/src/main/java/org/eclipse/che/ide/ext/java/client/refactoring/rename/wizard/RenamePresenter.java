@@ -1,118 +1,109 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard;
 
-import static com.google.common.base.Preconditions.checkState;
+import static org.eclipse.che.api.promises.client.js.JsPromiseError.create;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.FLOAT_MODE;
-import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
-import static org.eclipse.che.ide.api.resources.Resource.FILE;
-import static org.eclipse.che.ide.ext.java.shared.dto.refactoring.CreateRenameRefactoring.RenameType.COMPILATION_UNIT;
-import static org.eclipse.che.ide.ext.java.shared.dto.refactoring.CreateRenameRefactoring.RenameType.JAVA_ELEMENT;
-import static org.eclipse.che.ide.ext.java.shared.dto.refactoring.CreateRenameRefactoring.RenameType.PACKAGE;
-import static org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus.ERROR;
-import static org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus.FATAL;
-import static org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus.INFO;
-import static org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus.OK;
-import static org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus.WARNING;
+import static org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard.Operation.Status.CANCELLED;
+import static org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard.Operation.Status.FAIL;
+import static org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard.Operation.Status.INITIAL;
+import static org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard.Operation.Status.IN_PROGRESS;
+import static org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard.Operation.Status.SUCCESS;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.List;
-import org.eclipse.che.api.promises.client.Function;
-import org.eclipse.che.api.promises.client.FunctionException;
-import org.eclipse.che.api.promises.client.Operation;
-import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
-import org.eclipse.che.api.promises.client.PromiseError;
-import org.eclipse.che.ide.api.app.AppContext;
+import org.eclipse.che.api.promises.client.js.Promises;
 import org.eclipse.che.ide.api.editor.EditorAgent;
 import org.eclipse.che.ide.api.editor.EditorPartPresenter;
+import org.eclipse.che.ide.api.editor.text.TextPosition;
 import org.eclipse.che.ide.api.editor.texteditor.TextEditor;
-import org.eclipse.che.ide.api.filewatcher.ClientServerEventService;
 import org.eclipse.che.ide.api.notification.NotificationManager;
-import org.eclipse.che.ide.api.resources.Container;
-import org.eclipse.che.ide.api.resources.Project;
+import org.eclipse.che.ide.api.notification.StatusNotification;
 import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.resources.VirtualFile;
 import org.eclipse.che.ide.dto.DtoFactory;
 import org.eclipse.che.ide.ext.java.client.JavaLocalizationConstant;
 import org.eclipse.che.ide.ext.java.client.refactoring.RefactorInfo;
-import org.eclipse.che.ide.ext.java.client.refactoring.RefactoringUpdater;
+import org.eclipse.che.ide.ext.java.client.refactoring.RefactoringActionDelegate;
+import org.eclipse.che.ide.ext.java.client.refactoring.move.RefactoredItemType;
 import org.eclipse.che.ide.ext.java.client.refactoring.preview.PreviewPresenter;
 import org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard.RenameView.ActionDelegate;
 import org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard.similarnames.SimilarNamesConfigurationPresenter;
-import org.eclipse.che.ide.ext.java.client.refactoring.service.RefactoringServiceClient;
-import org.eclipse.che.ide.ext.java.client.util.JavaUtil;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.ChangeCreationResult;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.ChangeInfo;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.CreateRenameRefactoring;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringSession;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatusEntry;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RenameRefactoringSession;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RenameSettings;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.ValidateNewName;
+import org.eclipse.che.ide.ext.java.client.service.JavaLanguageExtensionServiceClient;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
 import org.eclipse.che.ide.ui.dialogs.confirm.ConfirmCallback;
+import org.eclipse.che.jdt.ls.extension.api.RefactoringSeverity;
+import org.eclipse.che.jdt.ls.extension.api.RenameKind;
+import org.eclipse.che.jdt.ls.extension.api.dto.CheWorkspaceEdit;
+import org.eclipse.che.jdt.ls.extension.api.dto.RefactoringResult;
+import org.eclipse.che.jdt.ls.extension.api.dto.RefactoringStatusEntry;
+import org.eclipse.che.jdt.ls.extension.api.dto.RenameSelectionParams;
+import org.eclipse.che.jdt.ls.extension.api.dto.RenameSettings;
+import org.eclipse.che.jdt.ls.extension.api.dto.RenamingElementInfo;
+import org.eclipse.che.plugin.languageserver.ide.editor.quickassist.ApplyWorkspaceEditAction;
+import org.eclipse.che.plugin.languageserver.ide.util.DtoBuildHelper;
+import org.eclipse.lsp4j.RenameParams;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
 
 /**
- * The class that manages Move panel widget.
+ * The class that manages Rename panel widget.
  *
  * @author Valeriy Svydenko
  */
 @Singleton
-public class RenamePresenter implements ActionDelegate {
+public class RenamePresenter implements ActionDelegate, RefactoringActionDelegate {
   private final RenameView view;
+  private final JavaLanguageExtensionServiceClient extensionServiceClient;
   private final SimilarNamesConfigurationPresenter similarNamesConfigurationPresenter;
+  private final ApplyWorkspaceEditAction applyWorkspaceEditAction;
   private final JavaLocalizationConstant locale;
-  private final RefactoringUpdater refactoringUpdater;
+  private final DtoBuildHelper dtoBuildHelper;
+  private final DialogFactory dialogFactory;
   private final EditorAgent editorAgent;
   private final NotificationManager notificationManager;
-  private final AppContext appContext;
   private final PreviewPresenter previewPresenter;
   private final DtoFactory dtoFactory;
-  private final RefactoringServiceClient refactorService;
-  private final DialogFactory dialogFactory;
-  private final ClientServerEventService clientServerEventService;
 
-  private RenameRefactoringSession renameRefactoringSession;
   private RefactorInfo refactorInfo;
+
+  private Operation currentOperation;
 
   @Inject
   public RenamePresenter(
       RenameView view,
+      JavaLanguageExtensionServiceClient extensionServiceClient,
       SimilarNamesConfigurationPresenter similarNamesConfigurationPresenter,
+      ApplyWorkspaceEditAction applyWorkspaceEditAction,
       JavaLocalizationConstant locale,
+      DtoBuildHelper dtoBuildHelper,
+      DialogFactory dialogFactory,
       EditorAgent editorAgent,
-      RefactoringUpdater refactoringUpdater,
-      AppContext appContext,
       NotificationManager notificationManager,
       PreviewPresenter previewPresenter,
-      RefactoringServiceClient refactorService,
-      ClientServerEventService clientServerEventService,
-      DtoFactory dtoFactory,
-      DialogFactory dialogFactory) {
+      DtoFactory dtoFactory) {
     this.view = view;
+    this.extensionServiceClient = extensionServiceClient;
     this.similarNamesConfigurationPresenter = similarNamesConfigurationPresenter;
+    this.applyWorkspaceEditAction = applyWorkspaceEditAction;
     this.locale = locale;
-    this.refactoringUpdater = refactoringUpdater;
+    this.dtoBuildHelper = dtoBuildHelper;
+    this.dialogFactory = dialogFactory;
     this.editorAgent = editorAgent;
     this.notificationManager = notificationManager;
-    this.clientServerEventService = clientServerEventService;
     this.view.setDelegate(this);
-    this.appContext = appContext;
     this.previewPresenter = previewPresenter;
-    this.refactorService = refactorService;
     this.dtoFactory = dtoFactory;
-    this.dialogFactory = dialogFactory;
   }
 
   /**
@@ -122,79 +113,102 @@ public class RenamePresenter implements ActionDelegate {
    */
   public void show(RefactorInfo refactorInfo) {
     this.refactorInfo = refactorInfo;
-    final CreateRenameRefactoring createRenameRefactoring =
-        createRenameRefactoringDto(refactorInfo);
+    TextEditor editor = (TextEditor) editorAgent.getActiveEditor();
 
-    Promise<RenameRefactoringSession> createRenamePromise =
-        refactorService.createRenameRefactoring(createRenameRefactoring);
-    createRenamePromise
-        .then(
-            new Operation<RenameRefactoringSession>() {
-              @Override
-              public void apply(RenameRefactoringSession session) throws OperationException {
-                show(session);
-              }
-            })
+    RenameSelectionParams params = dtoFactory.createDto(RenameSelectionParams.class);
+
+    if (RefactoredItemType.JAVA_ELEMENT.equals(refactorInfo.getRefactoredItemType())) {
+      TextPosition cursorPosition = editor.getCursorPosition();
+      org.eclipse.lsp4j.Position position = dtoFactory.createDto(org.eclipse.lsp4j.Position.class);
+      position.setCharacter(cursorPosition.getCharacter());
+      position.setLine(cursorPosition.getLine());
+      params.setPosition(position);
+      String location =
+          editorAgent.getActiveEditor().getEditorInput().getFile().getLocation().toString();
+      params.setResourceUri(location);
+      params.setRenameKind(RenameKind.JAVA_ELEMENT);
+    } else {
+      // get selected resource
+      Resource resource = refactorInfo.getResources()[0];
+      params.setResourceUri(resource.getLocation().toString());
+      if (RefactoredItemType.COMPILATION_UNIT.equals(refactorInfo.getRefactoredItemType())) {
+        params.setRenameKind(RenameKind.COMPILATION_UNIT);
+      } else {
+        params.setRenameKind(RenameKind.PACKAGE);
+      }
+    }
+
+    extensionServiceClient
+        .getRenameType(params)
+        .then(this::showWizard)
         .catchError(
-            new Operation<PromiseError>() {
-              @Override
-              public void apply(PromiseError arg) throws OperationException {
-                notificationManager.notify(
-                    locale.failedToRename(), arg.getMessage(), FAIL, FLOAT_MODE);
-              }
+            error -> {
+              notificationManager.notify(
+                  locale.failedToRename(),
+                  error.getMessage(),
+                  StatusNotification.Status.FAIL,
+                  FLOAT_MODE);
             });
   }
 
-  /**
-   * Show Rename window with the special information.
-   *
-   * @param renameRefactoringSession data of current refactoring session
-   */
-  public void show(RenameRefactoringSession renameRefactoringSession) {
-    this.renameRefactoringSession = renameRefactoringSession;
-    prepareWizard();
+  private void showWizard(RenamingElementInfo elementInfo) {
+    prepareWizard(elementInfo.getElementName());
 
-    switch (renameRefactoringSession.getWizardType()) {
+    switch (elementInfo.getRenameKind()) {
       case COMPILATION_UNIT:
-        view.setTitle(locale.renameCompilationUnitTitle());
+        view.setTitleCaption(locale.renameCompilationUnitTitle());
         view.setVisiblePatternsPanel(true);
         view.setVisibleFullQualifiedNamePanel(true);
         view.setVisibleSimilarlyVariablesPanel(true);
         break;
       case PACKAGE:
-        view.setTitle(locale.renamePackageTitle());
+        view.setTitleCaption(locale.renamePackageTitle());
         view.setVisiblePatternsPanel(true);
         view.setVisibleFullQualifiedNamePanel(true);
         view.setVisibleRenameSubpackagesPanel(true);
         break;
       case TYPE:
-        view.setTitle(locale.renameTypeTitle());
+        view.setTitleCaption(locale.renameTypeTitle());
         view.setVisiblePatternsPanel(true);
         view.setVisibleFullQualifiedNamePanel(true);
         view.setVisibleSimilarlyVariablesPanel(true);
         break;
       case FIELD:
-        view.setTitle(locale.renameFieldTitle());
+        view.setTitleCaption(locale.renameFieldTitle());
         view.setVisiblePatternsPanel(true);
         break;
       case ENUM_CONSTANT:
-        view.setTitle(locale.renameEnumTitle());
+        view.setTitleCaption(locale.renameEnumTitle());
         view.setVisiblePatternsPanel(true);
         break;
       case TYPE_PARAMETER:
-        view.setTitle(locale.renameTypeVariableTitle());
+        view.setTitleCaption(locale.renameTypeVariableTitle());
         break;
       case METHOD:
-        view.setTitle(locale.renameMethodTitle());
+        view.setTitleCaption(locale.renameMethodTitle());
         view.setVisibleKeepOriginalPanel(true);
         break;
       case LOCAL_VARIABLE:
-        view.setTitle(locale.renameLocalVariableTitle());
+        view.setTitleCaption(locale.renameLocalVariableTitle());
         break;
       default:
     }
 
-    view.show();
+    view.showDialog();
+  }
+
+  private void prepareWizard(String oldName) {
+    currentOperation = new EmptyOperation();
+    view.setLoaderVisibility(false);
+    view.clearErrorLabel();
+    view.setOldName(oldName);
+    view.setVisiblePatternsPanel(false);
+    view.setVisibleFullQualifiedNamePanel(false);
+    view.setVisibleKeepOriginalPanel(false);
+    view.setVisibleRenameSubpackagesPanel(false);
+    view.setVisibleSimilarlyVariablesPanel(false);
+    view.setEnableAcceptButton(false);
+    view.setEnablePreviewButton(false);
   }
 
   /** {@inheritDoc} */
@@ -206,12 +220,40 @@ public class RenamePresenter implements ActionDelegate {
   /** {@inheritDoc} */
   @Override
   public void onAcceptButtonClicked() {
-    applyChanges();
+    Operation<RefactoringResult> getChangesOperation = new GetRefactoringChangesOperation();
+    currentOperation = getChangesOperation;
+
+    getChangesOperation
+        .perform(
+            () ->
+                notificationManager.notify(
+                    locale.renameIsCancelledTitle(),
+                    locale.renameIsCancelledMessage(),
+                    StatusNotification.Status.SUCCESS,
+                    FLOAT_MODE))
+        .then(
+            refactoringResult -> {
+              RefactoringSeverity severity =
+                  refactoringResult.getRefactoringStatus().getRefactoringSeverity();
+              switch (severity) {
+                case WARNING:
+                case ERROR:
+                  showWarningDialog(refactoringResult);
+                  break;
+                case FATAL:
+                  view.showErrorMessage(refactoringResult.getRefactoringStatus());
+                  break;
+                default:
+                  applyRefactoring(refactoringResult.getCheWorkspaceEdit());
+              }
+            });
   }
 
   /** {@inheritDoc} */
   @Override
   public void onCancelButtonClicked() {
+    currentOperation.cancel();
+
     setEditorFocus();
   }
 
@@ -225,138 +267,94 @@ public class RenamePresenter implements ActionDelegate {
   /** {@inheritDoc} */
   @Override
   public void validateName() {
-    ValidateNewName validateNewName = dtoFactory.createDto(ValidateNewName.class);
-    validateNewName.setSessionId(renameRefactoringSession.getSessionId());
-    validateNewName.setNewName(view.getNewName());
+    RenameSelectionParams params = dtoFactory.createDto(RenameSelectionParams.class);
 
-    refactorService
-        .validateNewName(validateNewName)
+    if (RefactoredItemType.JAVA_ELEMENT.equals(refactorInfo.getRefactoredItemType())) {
+      TextEditor editor = (TextEditor) editorAgent.getActiveEditor();
+      TextPosition cursorPosition = editor.getCursorPosition();
+      org.eclipse.lsp4j.Position position = dtoFactory.createDto(org.eclipse.lsp4j.Position.class);
+      position.setCharacter(cursorPosition.getCharacter());
+      position.setLine(cursorPosition.getLine());
+      params.setPosition(position);
+      params.setRenameKind(RenameKind.JAVA_ELEMENT);
+      String location =
+          editorAgent.getActiveEditor().getEditorInput().getFile().getLocation().toString();
+      params.setResourceUri(location);
+    } else if (RefactoredItemType.COMPILATION_UNIT.equals(refactorInfo.getRefactoredItemType())) {
+      params.setRenameKind(RenameKind.COMPILATION_UNIT);
+      params.setResourceUri(refactorInfo.getResources()[0].getLocation().toString());
+    } else if (RefactoredItemType.PACKAGE.equals(refactorInfo.getRefactoredItemType())) {
+      params.setRenameKind(RenameKind.PACKAGE);
+      params.setResourceUri(refactorInfo.getResources()[0].getLocation().toString());
+    }
+
+    params.setNewName(view.getNewName());
+
+    extensionServiceClient
+        .validateRenamedName(params)
         .then(
-            new Operation<RefactoringStatus>() {
-              @Override
-              public void apply(RefactoringStatus arg) throws OperationException {
-                switch (arg.getSeverity()) {
-                  case OK:
-                    view.setEnableAcceptButton(true);
-                    view.setEnablePreviewButton(true);
-                    view.clearErrorLabel();
-                    break;
-                  case INFO:
-                    view.setEnableAcceptButton(true);
-                    view.setEnablePreviewButton(true);
-                    view.showStatusMessage(arg);
-                    break;
-                  default:
-                    view.setEnableAcceptButton(false);
-                    view.setEnablePreviewButton(false);
-                    view.showErrorMessage(arg);
-                    break;
-                }
+            status -> {
+              if (status == null) {
+                return;
+              }
+              switch (status.getRefactoringSeverity()) {
+                case OK:
+                  view.setEnableAcceptButton(true);
+                  view.setEnablePreviewButton(true);
+                  view.clearErrorLabel();
+                  break;
+                case INFO:
+                  view.setEnableAcceptButton(true);
+                  view.setEnablePreviewButton(true);
+                  view.showStatusMessage(status);
+                  break;
+                default:
+                  view.setEnableAcceptButton(false);
+                  view.setEnablePreviewButton(false);
+                  view.showErrorMessage(status);
+                  break;
               }
             })
         .catchError(
-            new Operation<PromiseError>() {
-              @Override
-              public void apply(PromiseError arg) throws OperationException {
-                notificationManager.notify(
-                    locale.failedToRename(), arg.getMessage(), FAIL, FLOAT_MODE);
-              }
+            error -> {
+              notificationManager.notify(
+                  locale.failedToRename(),
+                  error.getMessage(),
+                  StatusNotification.Status.FAIL,
+                  FLOAT_MODE);
             });
-  }
-
-  private void prepareWizard() {
-    view.clearErrorLabel();
-    view.setOldName(renameRefactoringSession.getOldName());
-    view.setVisiblePatternsPanel(false);
-    view.setVisibleFullQualifiedNamePanel(false);
-    view.setVisibleKeepOriginalPanel(false);
-    view.setVisibleRenameSubpackagesPanel(false);
-    view.setVisibleSimilarlyVariablesPanel(false);
-    view.setEnableAcceptButton(false);
-    view.setEnablePreviewButton(false);
   }
 
   private void showPreview() {
-    RefactoringSession session = dtoFactory.createDto(RefactoringSession.class);
-    session.setSessionId(renameRefactoringSession.getSessionId());
+    GetRefactoringChangesOperation getRefactoringChangesOperation =
+        new GetRefactoringChangesOperation();
+    currentOperation = getRefactoringChangesOperation;
 
-    prepareRenameChanges(session)
+    getRefactoringChangesOperation
+        .perform()
         .then(
-            new Operation<ChangeCreationResult>() {
-              @Override
-              public void apply(ChangeCreationResult arg) throws OperationException {
-                if (arg.isCanShowPreviewPage() || arg.getStatus().getSeverity() <= 3) {
-                  previewPresenter.show(renameRefactoringSession.getSessionId(), refactorInfo);
-                  previewPresenter.setTitle(locale.renameItemTitle());
-                  view.hide();
-                } else {
-                  view.showErrorMessage(arg.getStatus());
-                }
+            refactoringResult -> {
+              CheWorkspaceEdit edit = refactoringResult.getCheWorkspaceEdit();
+              if (edit == null) {
+                return;
               }
-            })
-        .catchError(
-            new Operation<PromiseError>() {
-              @Override
-              public void apply(PromiseError arg) throws OperationException {
-                notificationManager.notify(
-                    locale.failedToRename(), arg.getMessage(), FAIL, FLOAT_MODE);
-              }
+              previewPresenter.show(edit, this);
+              previewPresenter.setTitle(locale.renameItemTitle());
             });
   }
 
-  private void applyChanges() {
-    final RefactoringSession session = dtoFactory.createDto(RefactoringSession.class);
-    session.setSessionId(renameRefactoringSession.getSessionId());
-
-    prepareRenameChanges(session)
-        .then(
-            new Operation<ChangeCreationResult>() {
-              @Override
-              public void apply(ChangeCreationResult arg) throws OperationException {
-                int severityCode = arg.getStatus().getSeverity();
-
-                switch (severityCode) {
-                  case WARNING:
-                  case ERROR:
-                    showWarningDialog(session, arg);
-                    break;
-                  case FATAL:
-                    if (!arg.isCanShowPreviewPage()) {
-                      view.showErrorMessage(arg.getStatus());
-                    }
-                    break;
-                  default:
-                    clientServerEventService
-                        .sendFileTrackingSuspendEvent()
-                        .then(
-                            success -> {
-                              applyRefactoring(session);
-                            });
-                }
-              }
-            })
-        .catchError(
-            new Operation<PromiseError>() {
-              @Override
-              public void apply(PromiseError arg) throws OperationException {
-                notificationManager.notify(
-                    locale.failedToRename(), arg.getMessage(), FAIL, FLOAT_MODE);
-              }
-            });
+  private void applyRefactoring(CheWorkspaceEdit workspaceEdit) {
+    view.close();
+    applyWorkspaceEditAction.applyWorkspaceEdit(workspaceEdit);
+    setEditorFocus();
   }
 
-  private void showWarningDialog(
-      final RefactoringSession session, ChangeCreationResult changeCreationResult) {
-    List<RefactoringStatusEntry> entries = changeCreationResult.getStatus().getEntries();
+  private void showWarningDialog(RefactoringResult refactoringResult) {
+    List<RefactoringStatusEntry> entries =
+        refactoringResult.getRefactoringStatus().getRefactoringStatusEntries();
 
     ConfirmCallback confirmCallback =
-        () ->
-            clientServerEventService
-                .sendFileTrackingSuspendEvent()
-                .then(
-                    success -> {
-                      applyRefactoring(session);
-                    });
+        () -> applyRefactoring(refactoringResult.getCheWorkspaceEdit());
 
     dialogFactory
         .createConfirmDialog(
@@ -369,127 +367,135 @@ public class RenamePresenter implements ActionDelegate {
         .show();
   }
 
-  private void applyRefactoring(RefactoringSession session) {
-    refactorService
-        .applyRefactoring(session)
-        .then(
-            refactoringResult -> {
-              List<ChangeInfo> changes = refactoringResult.getChanges();
-              if (refactoringResult.getSeverity() == OK) {
-                view.hide();
-                updateAfterRefactoring(changes)
-                    .then(
-                        refactoringUpdater
-                            .handleMovingFiles(changes)
-                            .then(clientServerEventService.sendFileTrackingResumeEvent()));
-              } else {
-                view.showErrorMessage(refactoringResult);
-                refactoringUpdater
-                    .handleMovingFiles(changes)
-                    .then(clientServerEventService.sendFileTrackingResumeEvent());
-              }
-            });
+  @Override
+  public void closeWizard() {
+    view.close();
+    setEditorFocus();
   }
 
-  private Promise<Void> updateAfterRefactoring(List<ChangeInfo> changes) {
-    return refactoringUpdater
-        .updateAfterRefactoring(changes)
-        .then(
-            arg -> {
-              final Resource[] resources =
-                  refactorInfo != null ? refactorInfo.getResources() : null;
-              Project project = null;
+  private class GetRefactoringChangesOperation implements Operation<RefactoringResult> {
 
-              final Resource resource =
-                  (resources != null && resources.length == 1)
-                      ? resources[0]
-                      : appContext.getResource();
-              if (resource != null) {
-                project = resource.getProject();
-              }
+    private Status status = INITIAL;
+    private CancelOperationHandler cancelOperationHandler;
 
-              if (project != null) {
-                refactorService.reindexProject(project.getLocation().toString());
-              }
+    public Promise<RefactoringResult> perform(CancelOperationHandler cancelOperationHandler) {
+      this.cancelOperationHandler = cancelOperationHandler;
 
-              setEditorFocus();
-            });
-  }
+      view.setLoaderVisibility(true);
 
-  private Promise<ChangeCreationResult> prepareRenameChanges(final RefactoringSession session) {
-    RenameSettings renameSettings = createRenameSettingsDto(session);
+      RenameSettings renameSettings = createRenameSettings();
+      RenameParams renameParams = createRenameParams(renameSettings);
+      renameSettings.setRenameParams(renameParams);
 
-    return refactorService
-        .setRenameSettings(renameSettings)
-        .thenPromise(
-            new Function<Void, Promise<ChangeCreationResult>>() {
-              @Override
-              public Promise<ChangeCreationResult> apply(Void arg) throws FunctionException {
-                return refactorService.createChange(session);
-              }
-            });
-  }
+      status = IN_PROGRESS;
 
-  private RenameSettings createRenameSettingsDto(RefactoringSession session) {
-    RenameSettings renameSettings = dtoFactory.createDto(RenameSettings.class);
-    renameSettings.setSessionId(session.getSessionId());
-    renameSettings.setDelegateUpdating(view.isUpdateDelegateUpdating());
-    if (view.isUpdateDelegateUpdating()) {
-      renameSettings.setDeprecateDelegates(view.isUpdateMarkDeprecated());
-    }
-    renameSettings.setUpdateSubpackages(view.isUpdateSubpackages());
-    renameSettings.setUpdateReferences(view.isUpdateReferences());
-    renameSettings.setUpdateQualifiedNames(view.isUpdateQualifiedNames());
-    if (view.isUpdateQualifiedNames()) {
-      renameSettings.setFilePatterns(view.getFilePatterns());
-    }
-    renameSettings.setUpdateTextualMatches(view.isUpdateTextualOccurrences());
-    renameSettings.setUpdateSimilarDeclarations(view.isUpdateSimilarlyVariables());
-    if (view.isUpdateSimilarlyVariables()) {
-      renameSettings.setMachStrategy(
-          similarNamesConfigurationPresenter.getMachStrategy().getValue());
+      return Promises.create(
+          (resolve, reject) ->
+              extensionServiceClient
+                  .rename(renameSettings)
+                  .then(
+                      result -> {
+                        if (status != CANCELLED) {
+                          onComplete(SUCCESS);
+
+                          resolve.apply(result);
+                        }
+                      })
+                  .catchError(
+                      arg -> {
+                        if (status != CANCELLED) {
+                          onComplete(FAIL);
+
+                          notificationManager.notify(
+                              locale.failedToRename(),
+                              arg.getMessage(),
+                              StatusNotification.Status.FAIL,
+                              FLOAT_MODE);
+                        }
+                      }));
     }
 
-    return renameSettings;
-  }
+    public Promise<Void> cancel() {
+      return Promises.create(
+          (resolve, reject) -> {
+            if (status != SUCCESS && status != FAIL) {
+              onComplete(CANCELLED);
 
-  private CreateRenameRefactoring createRenameRefactoringDto(RefactorInfo refactorInfo) {
-    CreateRenameRefactoring dto = dtoFactory.createDto(CreateRenameRefactoring.class);
+              cancelOperationHandler.onCancelled();
 
-    dto.setRefactorLightweight(false);
+              resolve.apply(null);
+              return;
+            }
 
-    if (refactorInfo == null) {
-      final VirtualFile file = editorAgent.getActiveEditor().getEditorInput().getFile();
+            reject.apply(create("Can not cancel operation, current status is " + status));
+          });
+    }
 
-      dto.setType(JAVA_ELEMENT);
-      dto.setPath(JavaUtil.resolveFQN(file));
-      dto.setOffset(((TextEditor) editorAgent.getActiveEditor()).getCursorOffset());
+    @Override
+    public Status getStatus() {
+      return status;
+    }
 
-      if (file instanceof Resource) {
-        final Project project = ((Resource) file).getRelatedProject().get();
+    private void onComplete(Status status) {
+      this.status = status;
 
-        dto.setProjectPath(project.getLocation().toString());
+      currentOperation = new EmptyOperation();
+
+      view.setLoaderVisibility(false);
+    }
+
+    private RenameSettings createRenameSettings() {
+      RenameSettings renameSettings = dtoFactory.createDto(RenameSettings.class);
+      renameSettings.setDelegateUpdating(view.isUpdateDelegateUpdating());
+      if (view.isUpdateDelegateUpdating()) {
+        renameSettings.setDeprecateDelegates(view.isUpdateMarkDeprecated());
       }
-    } else {
-      final Resource[] resources = refactorInfo.getResources();
-
-      checkState(resources != null && resources.length == 1);
-
-      final Resource resource = resources[0];
-
-      if (resource.getResourceType() == FILE) {
-        dto.setPath(JavaUtil.resolveFQN(resource));
-        dto.setType(COMPILATION_UNIT);
-      } else if (resource instanceof Container) {
-        dto.setPath(resource.getLocation().toString());
-        dto.setType(PACKAGE);
+      renameSettings.setUpdateSubpackages(view.isUpdateSubpackages());
+      renameSettings.setUpdateReferences(view.isUpdateReferences());
+      renameSettings.setUpdateQualifiedNames(view.isUpdateQualifiedNames());
+      if (view.isUpdateQualifiedNames()) {
+        renameSettings.setFilePatterns(view.getFilePatterns());
+      }
+      renameSettings.setUpdateTextualMatches(view.isUpdateTextualOccurrences());
+      renameSettings.setUpdateSimilarDeclarations(view.isUpdateSimilarlyVariables());
+      if (view.isUpdateSimilarlyVariables()) {
+        renameSettings.setMatchStrategy(similarNamesConfigurationPresenter.getMatchStrategy());
       }
 
-      final Project project = resource.getRelatedProject().get();
-
-      dto.setProjectPath(project.getLocation().toString());
+      return renameSettings;
     }
 
-    return dto;
+    private RenameParams createRenameParams(RenameSettings renameSettings) {
+      RenameParams renameParams = dtoFactory.createDto(RenameParams.class);
+      renameParams.setNewName(view.getNewName());
+
+      if (RefactoredItemType.JAVA_ELEMENT.equals(refactorInfo.getRefactoredItemType())) {
+        EditorPartPresenter activeEditor = editorAgent.getActiveEditor();
+        VirtualFile file = activeEditor.getEditorInput().getFile();
+        TextDocumentIdentifier textDocumentIdentifier = dtoBuildHelper.createTDI(file);
+        renameParams.setTextDocument(textDocumentIdentifier);
+
+        TextPosition cursorPosition = ((TextEditor) activeEditor).getCursorPosition();
+        org.eclipse.lsp4j.Position position =
+            dtoFactory.createDto(org.eclipse.lsp4j.Position.class);
+        position.setCharacter(cursorPosition.getCharacter());
+        position.setLine(cursorPosition.getLine());
+        renameParams.setPosition(position);
+        renameSettings.setRenameKind(RenameKind.JAVA_ELEMENT);
+      } else if (RefactoredItemType.COMPILATION_UNIT.equals(refactorInfo.getRefactoredItemType())) {
+        renameSettings.setRenameKind(RenameKind.COMPILATION_UNIT);
+        TextDocumentIdentifier textDocumentIdentifier =
+            dtoFactory.createDto(TextDocumentIdentifier.class);
+        textDocumentIdentifier.setUri(refactorInfo.getResources()[0].getLocation().toString());
+        renameParams.setTextDocument(textDocumentIdentifier);
+      } else if (RefactoredItemType.PACKAGE.equals(refactorInfo.getRefactoredItemType())) {
+        renameSettings.setRenameKind(RenameKind.PACKAGE);
+        TextDocumentIdentifier textDocumentIdentifier =
+            dtoFactory.createDto(TextDocumentIdentifier.class);
+        textDocumentIdentifier.setUri(refactorInfo.getResources()[0].getLocation().toString());
+        renameParams.setTextDocument(textDocumentIdentifier);
+      }
+      return renameParams;
+    }
   }
 }

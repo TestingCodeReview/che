@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -38,7 +39,7 @@ import org.eclipse.che.multiuser.resource.api.exception.NoEnoughResourcesExcepti
 import org.eclipse.che.multiuser.resource.api.type.RamResourceType;
 import org.eclipse.che.multiuser.resource.api.type.RuntimeResourceType;
 import org.eclipse.che.multiuser.resource.api.type.WorkspaceResourceType;
-import org.eclipse.che.multiuser.resource.api.usage.ResourceUsageManager;
+import org.eclipse.che.multiuser.resource.api.usage.ResourceManager;
 import org.eclipse.che.multiuser.resource.api.usage.ResourcesLocks;
 import org.eclipse.che.multiuser.resource.model.Resource;
 
@@ -52,7 +53,7 @@ public class OrganizationResourcesDistributor {
   private final OrganizationDistributedResourcesDao organizationDistributedResourcesDao;
   private final OrganizationManager organizationManager;
   private final ResourcesLocks resourcesLocks;
-  private final ResourceUsageManager usageManager;
+  private final ResourceManager resourceManager;
   private final ResourceAggregator resourceAggregator;
 
   @Inject
@@ -60,12 +61,12 @@ public class OrganizationResourcesDistributor {
       OrganizationDistributedResourcesDao organizationDistributedResourcesDao,
       OrganizationManager organizationManager,
       ResourcesLocks resourcesLocks,
-      ResourceUsageManager usageManager,
+      ResourceManager resourceManager,
       ResourceAggregator resourceAggregator) {
     this.organizationDistributedResourcesDao = organizationDistributedResourcesDao;
     this.organizationManager = organizationManager;
     this.resourcesLocks = resourcesLocks;
-    this.usageManager = usageManager;
+    this.resourceManager = resourceManager;
     this.resourceAggregator = resourceAggregator;
   }
 
@@ -181,7 +182,7 @@ public class OrganizationResourcesDistributor {
       String suborganizationId, List<? extends Resource> newResourcesCap)
       throws NotFoundException, ConflictException, ServerException {
     Map<String, Resource> usedResources =
-        usageManager
+        resourceManager
             .getUsedResources(suborganizationId)
             .stream()
             .collect(Collectors.toMap(Resource::getType, Function.identity()));

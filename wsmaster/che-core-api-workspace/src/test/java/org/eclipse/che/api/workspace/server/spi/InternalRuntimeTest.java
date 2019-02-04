@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.workspace.server.spi;
 
-import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.eclipse.che.api.core.model.workspace.runtime.ServerStatus.RUNNING;
@@ -39,6 +39,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.eclipse.che.api.core.ValidationException;
 import org.eclipse.che.api.core.model.workspace.Warning;
+import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
+import org.eclipse.che.api.core.model.workspace.config.Command;
 import org.eclipse.che.api.core.model.workspace.config.ServerConfig;
 import org.eclipse.che.api.core.model.workspace.runtime.Machine;
 import org.eclipse.che.api.core.model.workspace.runtime.MachineStatus;
@@ -92,9 +94,8 @@ public class InternalRuntimeTest {
   }
 
   @Test(
-    expectedExceptions = StateException.class,
-    expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE
-  )
+      expectedExceptions = StateException.class,
+      expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE)
   public void shouldNotStartRunningRuntime() throws Exception {
     // given
     setRunningRuntime();
@@ -104,10 +105,9 @@ public class InternalRuntimeTest {
   }
 
   @Test(
-    timeOut = SECOND_IN_MILLISECONDS,
-    expectedExceptions = StateException.class,
-    expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE
-  )
+      timeOut = SECOND_IN_MILLISECONDS,
+      expectedExceptions = StateException.class,
+      expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE)
   public void shouldNotStartStartingRuntime() throws Exception {
     // given
     setStartingRuntime();
@@ -117,10 +117,9 @@ public class InternalRuntimeTest {
   }
 
   @Test(
-    timeOut = SECOND_IN_MILLISECONDS,
-    expectedExceptions = StateException.class,
-    expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE
-  )
+      timeOut = SECOND_IN_MILLISECONDS,
+      expectedExceptions = StateException.class,
+      expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE)
   public void shouldNotStartStoppingRuntime() throws Exception {
     // given
     setStoppingRuntime();
@@ -130,9 +129,8 @@ public class InternalRuntimeTest {
   }
 
   @Test(
-    expectedExceptions = StateException.class,
-    expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE
-  )
+      expectedExceptions = StateException.class,
+      expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE)
   public void shouldNotStartStoppedRuntime() throws Exception {
     // given
     setRunningRuntime();
@@ -143,10 +141,9 @@ public class InternalRuntimeTest {
   }
 
   @Test(
-    dataProvider = "excProvider",
-    expectedExceptions = StateException.class,
-    expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE
-  )
+      dataProvider = "excProvider",
+      expectedExceptions = StateException.class,
+      expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE)
   public void shouldNotStartRuntimeThatThrewExceptionOnPreviousStart(Exception e) throws Exception {
     // given
     setNewRuntime();
@@ -208,10 +205,9 @@ public class InternalRuntimeTest {
   }
 
   @Test(
-    timeOut = SECOND_IN_MILLISECONDS,
-    expectedExceptions = StateException.class,
-    expectedExceptionsMessageRegExp = "The environment must be running or starting"
-  )
+      timeOut = SECOND_IN_MILLISECONDS,
+      expectedExceptions = StateException.class,
+      expectedExceptionsMessageRegExp = "The environment must be running or starting")
   public void shouldNotStopStoppingRuntime() throws Exception {
     // given
     setStoppingRuntime();
@@ -221,9 +217,8 @@ public class InternalRuntimeTest {
   }
 
   @Test(
-    expectedExceptions = StateException.class,
-    expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE
-  )
+      expectedExceptions = StateException.class,
+      expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE)
   public void shouldNotStartRuntimeAfterStopThatCaughtInfrastructureExceptionInInternalStop()
       throws Exception {
     // given
@@ -239,10 +234,9 @@ public class InternalRuntimeTest {
   }
 
   @Test(
-    dataProvider = "excProvider",
-    expectedExceptions = StateException.class,
-    expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE
-  )
+      dataProvider = "excProvider",
+      expectedExceptions = StateException.class,
+      expectedExceptionsMessageRegExp = RUNTIME_STARTED_EXC_MESSAGE)
   public void shouldNotStartRuntimeAfterStopThatCaughtExceptionFromInternalStop(Exception e)
       throws Exception {
     // given
@@ -486,11 +480,12 @@ public class InternalRuntimeTest {
     List<WarningImpl> expectedWarnings = new ArrayList<>();
     expectedWarnings.add(
         new WarningImpl(
-            101, "Malformed URL for " + badServerName + " : " + badServerRewritingExcMessage));
+            InternalRuntime.MALFORMED_SERVER_URL_FOUND,
+            "Malformed URL for " + badServerName + " : " + badServerRewritingExcMessage));
     doReturn(internalMachines).when(internalRuntime).getInternalMachines();
     doThrow(new InfrastructureException(badServerRewritingExcMessage))
         .when(urlRewriter)
-        .rewriteURL(any(RuntimeIdentity.class), anyString(), eq(badServerURL));
+        .rewriteURL(any(RuntimeIdentity.class), any(), anyString(), eq(badServerURL));
 
     // when
     Map<String, ? extends Machine> actualMachines = internalRuntime.getMachines();
@@ -545,7 +540,7 @@ public class InternalRuntimeTest {
     return new ServerImpl()
         .withStatus(server.getStatus())
         .withAttributes(server.getAttributes())
-        .withUrl(TEST_URL_REWRITER.rewriteURL(null, null, server.getUrl()));
+        .withUrl(TEST_URL_REWRITER.rewriteURL(null, null, null, server.getUrl()));
   }
 
   /**
@@ -611,14 +606,16 @@ public class InternalRuntimeTest {
     return Executors.newSingleThreadExecutor(
         new ThreadFactoryBuilder()
             .setDaemon(true)
-            .setNameFormat(this.getClass().getSimpleName())
+            .setNameFormat(this.getClass().getSimpleName() + "-%d")
             .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
             .build());
   }
 
   private static class TestURLRewriter implements URLRewriter {
+
     @Override
-    public String rewriteURL(RuntimeIdentity identity, String name, String url)
+    public String rewriteURL(
+        RuntimeIdentity identity, String machineName, String serverName, String url)
         throws InfrastructureException {
       return url + "#something";
     }
@@ -628,14 +625,19 @@ public class InternalRuntimeTest {
     public TestInternalRuntime(URLRewriter urlRewriter, boolean running)
         throws ValidationException, InfrastructureException {
       super(
-          new TestRuntimeContext(null, new RuntimeIdentityImpl("ws", "env", "owner"), null),
+          new TestRuntimeContext(
+              new InternalEnvironment() {}, new RuntimeIdentityImpl("ws", "env", "id"), null),
           urlRewriter,
-          emptyList(),
-          running);
+          running ? WorkspaceStatus.RUNNING : null);
     }
 
     @Override
     protected Map<String, ? extends Machine> getInternalMachines() {
+      return null;
+    }
+
+    @Override
+    public List<? extends Command> getCommands() throws InfrastructureException {
       return null;
     }
 

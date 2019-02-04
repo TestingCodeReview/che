@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -44,21 +45,8 @@ public interface MavenAttributes {
   String DEFAULT_PACKAGING = "jar";
   String DEFAULT_OUTPUT_FOLDER = "target/classes";
 
-  String DEFAULT_OUTPUT_DIRECTORY = "target/classes";
-  String DEFAULT_TEST_OUTPUT_DIRECTORY = "target/test-classes";
-
   String POM_XML = "pom.xml";
-
-  /** Name of WebSocket chanel */
-  String MAVEN_CHANEL_NAME = "maven:workspace";
-
-  String MAVEN_OUTPUT_UNSUBSCRIBE = "mavenOutput/unsubscribe";
-  String MAVEN_OUTPUT_SUBSCRIBE = "mavenOutput/subscribe";
-  String MAVEN_OUTPUT_TEXT_METHOD = "mavenOutput/text";
-  String MAVEN_OUTPUT_UPDATE_METHOD = "mavenOutput/update";
-  String MAVEN_OUTPUT_START_STOP_METHOD = "mavenOutput/start_stop";
-  String MAVEN_OUTPUT_PERCENT_METHOD = "mavenOutput/percent";
-  String MAVEN_OUTPUT_PERCENT_UNDEFINED_METHOD = "mavenOutput/percentUndefined";
+  String UNKNOWN_VALUE = "unknown";
 
   String MAVEN_ARCHETYPE_CHANEL_UNSUBSCRIBE = "mavenArchetype/unsubscribe";
   String MAVEN_ARCHETYPE_CHANEL_SUBSCRIBE = "mavenArchetype/subscribe";

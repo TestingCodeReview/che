@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,6 +12,11 @@
 package org.eclipse.che.ide.projecttype.wizard;
 
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.FLOAT_MODE;
+import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
+import static org.eclipse.che.ide.api.notification.StatusNotification.Status.PROGRESS;
+import static org.eclipse.che.ide.api.notification.StatusNotification.Status.SUCCESS;
 import static org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode.CREATE;
 import static org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode.IMPORT;
 import static org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode.UPDATE;
@@ -26,10 +32,13 @@ import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.workspace.shared.dto.CommandDto;
+import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.command.CommandImpl;
 import org.eclipse.che.ide.api.command.CommandImpl.ApplicableContext;
 import org.eclipse.che.ide.api.command.CommandManager;
+import org.eclipse.che.ide.api.notification.NotificationManager;
+import org.eclipse.che.ide.api.notification.StatusNotification;
 import org.eclipse.che.ide.api.project.MutableProjectConfig;
 import org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode;
 import org.eclipse.che.ide.api.resources.Container;
@@ -51,19 +60,26 @@ public class ProjectWizard extends AbstractWizard<MutableProjectConfig> {
   private static final String PROJECT_PATH_MACRO_REGEX = "\\$\\{current.project.path\\}";
 
   private final ProjectWizardMode mode;
-  private final AppContext appContext;
-  private final CommandManager commandManager;
+
+  private AppContext appContext;
+  private CommandManager commandManager;
+  private NotificationManager notificationManager;
+  private CoreLocalizationConstant localizedConstant;
 
   @Inject
   public ProjectWizard(
       @Assisted MutableProjectConfig dataObject,
       @Assisted ProjectWizardMode mode,
       AppContext appContext,
-      CommandManager commandManager) {
+      CommandManager commandManager,
+      NotificationManager notificationManager,
+      CoreLocalizationConstant localizedConstant) {
     super(dataObject);
     this.mode = mode;
     this.appContext = appContext;
     this.commandManager = commandManager;
+    this.notificationManager = notificationManager;
+    this.localizedConstant = localizedConstant;
 
     context.put(WIZARD_MODE_KEY, mode.toString());
     context.put(PROJECT_NAME_KEY, dataObject.getName());
@@ -94,12 +110,32 @@ public class ProjectWizard extends AbstractWizard<MutableProjectConfig> {
 
                 final Container container = optContainer.get();
                 if (container.getResourceType() == PROJECT) {
+                  StatusNotification notification =
+                      notificationManager.notify(
+                          localizedConstant.projectWizardUpdateProject(dataObject.getName()),
+                          null,
+                          PROGRESS,
+                          FLOAT_MODE);
+
                   ((Project) container)
                       .update()
                       .withBody(dataObject)
                       .send()
-                      .then(onComplete(callback))
-                      .catchError(onFailure(callback));
+                      .then(
+                          project -> {
+                            notification.setStatus(SUCCESS);
+                            callback.onCompleted();
+                          })
+                      .catchError(
+                          error -> {
+                            String errorMessage = error.getMessage();
+                            if (!isNullOrEmpty(errorMessage)) {
+                              notification.setContent(errorMessage);
+                            }
+
+                            notification.setStatus(FAIL);
+                            callback.onFailure(error.getCause());
+                          });
                 } else if (container.getResourceType() == FOLDER) {
                   ((Folder) container)
                       .toProject()
@@ -168,6 +204,35 @@ public class ProjectWizard extends AbstractWizard<MutableProjectConfig> {
   }
 
   private Operation<PromiseError> onFailure(final CompleteCallback callback) {
-    return error -> callback.onFailure(error.getCause());
+    return error -> {
+      String title;
+      switch (mode) {
+        case CREATE:
+          title = localizedConstant.projectWizardCreateProjectFailed();
+          break;
+
+        case IMPORT:
+          title = localizedConstant.projectWizardImportProjectFailed();
+          break;
+
+        case UPDATE:
+          title = localizedConstant.projectWizardUpdateProjectFailed();
+          break;
+
+        default:
+          title = localizedConstant.projectWizardDefaultErrorTitle();
+          break;
+      }
+
+      Throwable throwable = error.getCause();
+      String errorMessage =
+          throwable != null && !isNullOrEmpty(throwable.getLocalizedMessage())
+              ? throwable.getLocalizedMessage()
+              : "";
+
+      notificationManager.notify(title, errorMessage, FAIL, FLOAT_MODE);
+
+      callback.onFailure(throwable);
+    };
   }
 }

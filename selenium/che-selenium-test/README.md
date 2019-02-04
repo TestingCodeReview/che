@@ -12,23 +12,20 @@ Go to [OAuth application page](https://github.com/settings/applications/new) and
 Substitute `CHE_OAUTH_GITHUB_CLIENTID` and `CHE_OAUTH_GITHUB_CLIENTSECRET` properties in `che.env` with `Client ID` and `Client Secret` taken from 
 newly created [OAuth application](https://github.com/settings/developers).
 
-#### 2. Add configuration file
-
-Set `CHE_LOCAL_CONF_DIR` environment variable and point to the folder where selenium tests configuration will be stored.
-Create file `selenium.properties` in that folder with the following content:
+#### 2. Configure selenium tests
+In case of running GitHub-related tests (which are run by default) you need to define GitHub test users credentials. Set `CHE_LOCAL_CONF_DIR` environment variable 
+and point to the folder where selenium tests configuration will be stored. Then create file with `.properties` extension in that folder 
+with the following content:
 ```
 # GitHub account credentials
 github.username=<MAIN_GITHUB_USERNAME>
 github.password=<MAIN_GITHUB_PASSWORD>
 github.auxiliary.username=<AUXILIARY_GITHUB_USERNAME>
 github.auxiliary.password=<AUXILIARY_GITHUB_PASSWORD>
-
-# Google account credentials (IMAP has to be enabled)
-google.user=<GOOGLE_USER>
-google.password=<GOOGLE_PASSWORD>
 ```
 
-In case of running of tests for Eclipse Che in Multi User mode you can set your own credentials of test user or admin instead of default ones
+In case of running the tests for Eclipse Che in Multi User mode you can set your own credentials of test user or admin instead of default ones
+```
 export CHE_ADMIN_NAME=<che_admin_name>
 export CHE_ADMIN_EMAIL=<che_admin_email>
 export CHE_ADMIN_PASSWORD=<che_admin_password>
@@ -36,16 +33,18 @@ export CHE_ADMIN_PASSWORD=<che_admin_password>
 export CHE_TESTUSER_NAME=<che_test_user_name>
 export CHE_TESTUSER_EMAIL=<che_test_user_email>
 export CHE_TESTUSER_PASSWORD=<che_test_user_password>
+```
 
-#### 3. Prepare repository 
-Fork all repositories from [https://github.com/idexmai?tab=repositories](https://github.com/idexmai?tab=repositories) into the main GitHub account.
-Fork the repository [https://github.com/iedexmain1/pull-request-plugin-fork-test](https://github.com/iedexmain1/pull-request-plugin-fork-test) into the auxiliary GitHub account.
+Default values:
+- CHE_ADMIN_NAME: "admin"
+- CHE_ADMIN_EMAIL: "admin@admin.com"
+- CHE_ADMIN_PASSWORD: "admin"
 
-#### 4. Start Eclipse Che
+#### 3. Start Eclipse Che
 
 Follow the guide: [https://github.com/eclipse/che](https://github.com/eclipse/che)
 
-#### 5. Run tests
+#### 4. Run tests
 
 Simply launch `./selenium-tests.sh`
 
@@ -56,6 +55,24 @@ export CHE_INFRASTRUCTURE=openshift
 Launch `./selenium-tests.sh --host=<Che host on openshift> --port=80`
 
 Example: `./selenium-tests.sh --host=che-spi.192.168.99.100.nip.io --port=80`
+
+In case of running the tests for Eclipse Che on OCP, which is run remotely with default Eclipse Che admin and test user credentials: 
+```
+export OPENSHIFT_USERNAME=<openshift_web_console_username>
+export OPENSHIFT_PASSWORD=<openshift_web_console_password>
+export OPENSHIFT_TOKEN=<openshift_web_console_bearer_auth_token>
+export OPENSHIFT_CHE_NAMESPACE=<namespace_of_eclipse_che_deployed_on_openshift>
+export OPENSHIFT_URL=<url_of_openshift_web_console>
+```
+where `OPENSHIFT_TOKEN` is optional and is aimed to replace username/password when OpenShift is configured with oAuth. 
+
+
+Default values:
+- OPENSHIFT_USERNAME: "developer"
+- OPENSHIFT_PASSWORD: "any"
+- OPENSHIFT_CHE_NAMESPACE: "eclipse-che"
+- OPENSHIFT_URL: https://<che_host_ip>:8443
+
 
 Run tests configuration properties
 --------------------------------------
@@ -88,10 +105,12 @@ Modes (defines environment to run tests):
                                         Default value is in range [2,5] and depends on available RAM.
 
 Define tests scope:
-    --test=<TEST_CLASS>                 Single test to run
-    --suite=<SUITE>                     Test suite to run, found:
-                                            * CheSuite.xml
-
+    --test=<TEST_CLASS>                 Single test/package to run.
+                                        For example: '--test=DialogAboutTest', '--test=org.eclipse.che.selenium.git.**'. 
+    --suite=<SUITE>                     Test suite to run. Default suite is CheSuite.xml.
+    --exclude=<TEST_GROUPS_TO_EXCLUDE>  Comma-separated list of test groups to exclude from execution.
+                                        For example, use '--exclude=github' to exclude GitHub-related tests.
+                                        
 Handle failing tests:
     --failed-tests                      Rerun failed tests that left after the previous try
     --regression-tests                  Rerun regression tests that left after the previous try
@@ -105,6 +124,8 @@ Other options:
     --skip-sources-validation           Fast build. Skips source validation and enforce plugins
     --workspace-pool-size=[<SIZE>|auto] Size of test workspace pool.
                                         Default value is 0, that means that test workspaces are created on demand.
+    --include-tests-under-repair        Include tests which permanently fail and so belong to group 'UNDER REPAIR'
+    --include-flaky-tests               Include tests which randomly fail and so belong to group 'FLAKY'        
 
 HOW TO of usage:
     Test Eclipse Che single user assembly:
@@ -122,6 +143,9 @@ HOW TO of usage:
     Run suite:
         ./selenium-tests.sh <...> --suite=<PATH_TO_SUITE>
 
+    Include tests which belong to groups 'UNDER REPAIR' and 'FLAKY'
+        ./selenium-tests.sh --include-tests-under-repair --include-flaky-tests
+         
     Rerun failed tests:
         ./selenium-tests.sh <...> --failed-tests
         ./selenium-tests.sh <...> --failed-tests --rerun [ATTEMPTS]
@@ -133,4 +157,8 @@ HOW TO of usage:
         ./selenium-tests.sh --compare-with-ci [BUILD NUMBER]
 ```
 
+Test development tips
+--------------------------------------
+It's impossible to use `@Test(dependsOnMethods)` to express dependency between the tests because it breaks parallel execution of test classes (an issue https://github.com/cbeust/testng/issues/1773).
 
+`@Test(priority)` can be used instead, and dependent test will be skipped if preceding test with higher priority from the same test class has failed.

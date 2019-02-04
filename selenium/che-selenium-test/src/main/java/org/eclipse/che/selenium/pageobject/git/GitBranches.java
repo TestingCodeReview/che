@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -46,7 +47,7 @@ public class GitBranches {
     String DELETE_BTN_ID = "git-branches-delete";
     String RENAME_BTN_ID = "git-branches-rename";
     String CLOSE_BTN_ID = "git-branches-close";
-    String DELBRANCH_FORM = "//div[text()='Delete branch']/ancestor::div[3]"; // TODO CREATE ID
+    String DELBRANCH_FORM = "//table[@title='Delete branch']"; // TODO CREATE ID
     String DELBRANCH_BUTN_OK = "ask-dialog-ok";
     String SEARCH_FILTER_LABEL_ID = "gwt-debug-git-branches-search_filter";
   }

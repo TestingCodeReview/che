@@ -1,16 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.assistant;
 
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.ERROR_MARKER;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.ERROR;
 
 import com.google.inject.Inject;
 import java.net.URL;
@@ -22,6 +23,7 @@ import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -36,16 +38,11 @@ import org.testng.annotations.Test;
 public class OrganizeImportsTest {
   private static final String PROJECT_NAME =
       NameGenerator.generate(OrganizeImportsTest.class.getSimpleName(), 4);
-  private static final String SOURCE_FOLDER = "src/main/java";
   private static final String PATH_TO_CLASS_IN_SPRING_PACKAGE =
       PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/" + "AppController.java";
   private static final String TEST_FILE_NAME = "TestClass.java";
   private static final String PATH_TO_A_PACKAGE = PROJECT_NAME + "/src/main/java/a";
-  private static final String PATH_TO_CLASS_IN_A_PACKAGE =
-      PROJECT_NAME + "/src/main/java/a/TestClass.java";
   private static final String PATH_TO_B_PACKAGE = PROJECT_NAME + "/src/main/java/b";
-  private static final String PATH_TO_CLASS_IN_B_PACKAGE =
-      PROJECT_NAME + "/src/main/java/b/TestClass.java";
   private static final String NAME_OF_A_PACKAGE = "a.TestClass";
   private static final String NAME_OF_B_PACKAGE = "b.TestClass";
   private static final String NAME_OF_LIST_PACKAGE = "java.util.List";
@@ -69,6 +66,7 @@ public class OrganizeImportsTest {
   @Inject private OrganizeImports organizeImports;
   @Inject private AskForValueDialog askForValueDialog;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -80,6 +78,7 @@ public class OrganizeImportsTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(testWorkspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -90,25 +89,25 @@ public class OrganizeImportsTest {
     projectExplorer.openItemByPath(PATH_TO_CLASS_IN_SPRING_PACKAGE);
     loader.waitOnClosed();
     editor.waitActive();
-    editor.setCursorToLine(15);
+    editor.setCursorToLine(16);
     editor.deleteCurrentLine();
-    editor.waitMarkerInPosition(ERROR_MARKER, 24);
-    editor.waitMarkerInPosition(ERROR_MARKER, 36);
+    editor.waitMarkerInPosition(ERROR, 25);
+    editor.waitMarkerInPosition(ERROR, 37);
     loader.waitOnClosed();
     menu.runCommand(
         TestMenuCommandsConstants.Assistant.ASSISTANT,
         TestMenuCommandsConstants.Assistant.ORGANIZE_IMPORTS);
     loader.waitOnClosed();
-    editor.waitAllMarkersDisappear(ERROR_MARKER);
     Assert.assertTrue(
         editor.checkWhatTextLinePresentOnce(
             "import org.springframework.web.servlet.ModelAndView;"));
 
-    editor.setCursorToLine(20);
+    editor.setCursorToLine(21);
     editor.typeTextIntoEditorWithoutDelayForSaving(
         "import org.springframework.web.servlet.ModelAndView;");
     loader.waitOnClosed();
-    editor.goToCursorPositionVisible(20, 8);
+    editor.waitAllMarkersInvisibility(ERROR);
+    editor.goToCursorPositionVisible(21, 8);
     editor.launchPropositionAssistPanel();
     editor.enterTextIntoFixErrorPropByEnter("Organize imports");
     loader.waitOnClosed();
@@ -123,17 +122,17 @@ public class OrganizeImportsTest {
           editor.checkWhatTextLinePresentOnce(
               "import org.springframework.web.servlet.ModelAndView;"));
     }
-    editor.goToCursorPositionVisible(29, 23);
+    editor.goToCursorPositionVisible(30, 23);
     menu.runCommand(
         TestMenuCommandsConstants.Assistant.ASSISTANT,
         TestMenuCommandsConstants.Assistant.QUICK_FIX);
     editor.waitPropositionAssistContainer();
     loader.waitOnClosed();
     createNewStructure();
-    editor.setCursorToLine(35);
+    editor.setCursorToLine(36);
     editor.typeTextIntoEditor(CALL_TEST_TEXT);
-    editor.waitMarkerInPosition(ERROR_MARKER, 36);
-    editor.waitMarkerInPosition(ERROR_MARKER, 37);
+    editor.waitMarkerInPosition(ERROR, 37);
+    editor.waitMarkerInPosition(ERROR, 38);
 
     menu.runCommand(
         TestMenuCommandsConstants.Assistant.ASSISTANT,
@@ -148,12 +147,8 @@ public class OrganizeImportsTest {
     organizeImports.selectImport(NAME_OF_B_PACKAGE);
     organizeImports.clickOnNextButton();
     organizeImports.clickOnFinishButton();
-    editor.waitAllMarkersDisappear(ERROR_MARKER);
     loader.waitOnClosed();
-
-    projectExplorer.waitItem(PATH_TO_CLASS_IN_SPRING_PACKAGE);
-    projectExplorer.openItemByPath(PATH_TO_CLASS_IN_SPRING_PACKAGE);
-    loader.waitOnClosed();
+    editor.waitAllMarkersInvisibility(ERROR);
 
     Assert.assertTrue(editor.checkWhatTextLinePresentOnce("import b.TestClass;"));
     Assert.assertTrue(editor.checkWhatTextLinePresentOnce("import java.util.ArrayList;"));

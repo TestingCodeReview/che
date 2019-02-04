@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,12 +13,10 @@ package org.eclipse.che.selenium.dashboard.organization;
 
 import static org.eclipse.che.commons.lang.NameGenerator.generate;
 import static org.eclipse.che.selenium.pageobject.dashboard.NavigationBar.MenuItem.ORGANIZATIONS;
-import static org.testng.Assert.fail;
 
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
-import org.eclipse.che.selenium.core.annotation.Multiuser;
-import org.eclipse.che.selenium.core.client.TestOrganizationServiceClient;
+import org.eclipse.che.selenium.core.TestGroup;
+import org.eclipse.che.selenium.core.client.CheTestAdminOrganizationServiceClient;
 import org.eclipse.che.selenium.core.organization.InjectTestOrganization;
 import org.eclipse.che.selenium.core.organization.TestOrganization;
 import org.eclipse.che.selenium.core.user.AdminTestUser;
@@ -29,22 +28,18 @@ import org.eclipse.che.selenium.pageobject.dashboard.organization.AddMember;
 import org.eclipse.che.selenium.pageobject.dashboard.organization.AddOrganization;
 import org.eclipse.che.selenium.pageobject.dashboard.organization.OrganizationListPage;
 import org.eclipse.che.selenium.pageobject.dashboard.organization.OrganizationPage;
-import org.openqa.selenium.TimeoutException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Sergey Skorik */
-@Multiuser
+@Test(groups = {TestGroup.MULTIUSER, TestGroup.DOCKER, TestGroup.OPENSHIFT, TestGroup.K8S})
 public class OrganizationMembersTest {
   private static final String NEW_ORG_NAME = generate("new-org-", 5);
 
   @InjectTestOrganization private TestOrganization organization;
 
-  @Inject
-  @Named("admin")
-  private TestOrganizationServiceClient testOrganizationServiceClient;
-
+  @Inject private CheTestAdminOrganizationServiceClient adminOrganizationServiceClient;
   @Inject private OrganizationListPage organizationListPage;
   @Inject private OrganizationPage organizationPage;
   @Inject private NavigationBar navigationBar;
@@ -63,10 +58,9 @@ public class OrganizationMembersTest {
 
   @AfterClass
   public void tearDown() throws Exception {
-    testOrganizationServiceClient.deleteByName(NEW_ORG_NAME);
+    adminOrganizationServiceClient.deleteByName(NEW_ORG_NAME);
   }
 
-  @Test
   public void testOperationsWithMembersInExistsOrganization() {
     navigationBar.waitNavigationBar();
     navigationBar.clickOnMenu(ORGANIZATIONS);
@@ -98,16 +92,9 @@ public class OrganizationMembersTest {
     organizationPage.checkMemberExistsInMembersList(testUser.getEmail());
     organizationPage.clearSearchField();
 
-    // Delete the members from the members list
-    try {
-      organizationPage.deleteMember(testUser.getEmail());
-    } catch (TimeoutException e) {
-      // remove try-catch block after the issue has been resolved
-      fail("Known issue https://github.com/codenvy/codenvy/issues/2473", e);
-    }
+    organizationPage.deleteMember(testUser.getEmail());
   }
 
-  @Test
   public void testAddingMembersToNewOrganization() {
     navigationBar.waitNavigationBar();
     navigationBar.clickOnMenu(ORGANIZATIONS);

@@ -1,23 +1,31 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.workspace.infrastructure.openshift.project;
 
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.Service;
+import com.google.common.annotations.VisibleForTesting;
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.openshift.api.model.Project;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
+import org.eclipse.che.workspace.infrastructure.kubernetes.KubernetesInfrastructureException;
+import org.eclipse.che.workspace.infrastructure.kubernetes.namespace.KubernetesConfigsMaps;
+import org.eclipse.che.workspace.infrastructure.kubernetes.namespace.KubernetesDeployments;
+import org.eclipse.che.workspace.infrastructure.kubernetes.namespace.KubernetesIngresses;
+import org.eclipse.che.workspace.infrastructure.kubernetes.namespace.KubernetesNamespace;
+import org.eclipse.che.workspace.infrastructure.kubernetes.namespace.KubernetesPersistentVolumeClaims;
+import org.eclipse.che.workspace.infrastructure.kubernetes.namespace.KubernetesSecrets;
+import org.eclipse.che.workspace.infrastructure.kubernetes.namespace.KubernetesServices;
 import org.eclipse.che.workspace.infrastructure.openshift.OpenShiftClientFactory;
 
 /**
@@ -25,33 +33,61 @@ import org.eclipse.che.workspace.infrastructure.openshift.OpenShiftClientFactory
  *
  * @author Sergii Leshchenko
  */
-public class OpenShiftProject {
+public class OpenShiftProject extends KubernetesNamespace {
 
-  private final OpenShiftPods pods;
-  private final OpenShiftServices services;
   private final OpenShiftRoutes routes;
-  private final OpenShiftPersistentVolumeClaims pvcs;
+  private final OpenShiftClientFactory clientFactory;
 
-  public OpenShiftProject(OpenShiftClientFactory clientFactory, String name, String workspaceId)
-      throws InfrastructureException {
-    this.pods = new OpenShiftPods(name, workspaceId, clientFactory);
-    this.services = new OpenShiftServices(name, workspaceId, clientFactory);
+  @VisibleForTesting
+  OpenShiftProject(
+      OpenShiftClientFactory clientFactory,
+      String workspaceId,
+      String name,
+      KubernetesDeployments deployments,
+      KubernetesServices services,
+      OpenShiftRoutes routes,
+      KubernetesPersistentVolumeClaims pvcs,
+      KubernetesIngresses ingresses,
+      KubernetesSecrets secrets,
+      KubernetesConfigsMaps configMaps) {
+    super(
+        clientFactory,
+        workspaceId,
+        name,
+        deployments,
+        services,
+        pvcs,
+        ingresses,
+        secrets,
+        configMaps);
+    this.clientFactory = clientFactory;
+    this.routes = routes;
+  }
+
+  public OpenShiftProject(OpenShiftClientFactory clientFactory, String name, String workspaceId) {
+    super(clientFactory, name, workspaceId);
+    this.clientFactory = clientFactory;
     this.routes = new OpenShiftRoutes(name, workspaceId, clientFactory);
-    this.pvcs = new OpenShiftPersistentVolumeClaims(name, clientFactory);
-    final OpenShiftClient client = clientFactory.create();
-    if (get(name, client) == null) {
-      create(name, client);
+  }
+
+  /**
+   * Prepare project for using.
+   *
+   * <p>Preparing includes creating if needed and waiting for default service account.
+   *
+   * @throws InfrastructureException if any exception occurs during namespace preparing
+   */
+  void prepare() throws InfrastructureException {
+    String workspaceId = getWorkspaceId();
+    String projectName = getName();
+
+    KubernetesClient kubeClient = clientFactory.create(workspaceId);
+    OpenShiftClient osClient = clientFactory.createOC(workspaceId);
+
+    if (get(projectName, osClient) == null) {
+      create(projectName, osClient);
+      waitDefaultServiceAccount(projectName, kubeClient);
     }
-  }
-
-  /** Returns object for managing {@link Pod} instances inside project. */
-  public OpenShiftPods pods() {
-    return pods;
-  }
-
-  /** Returns object for managing {@link Service} instances inside project. */
-  public OpenShiftServices services() {
-    return services;
   }
 
   /** Returns object for managing {@link Route} instances inside project. */
@@ -59,21 +95,19 @@ public class OpenShiftProject {
     return routes;
   }
 
-  /** Returns object for managing {@link PersistentVolumeClaim} instances inside project. */
-  public OpenShiftPersistentVolumeClaims persistentVolumeClaims() {
-    return pvcs;
-  }
-
-  /** Removes all object except persistent volume claim inside project. */
+  /** Removes all object except persistent volume claims inside project. */
   public void cleanUp() throws InfrastructureException {
-    pods.delete();
-    services.delete();
-    routes.delete();
+    doRemove(
+        routes::delete,
+        services()::delete,
+        deployments()::delete,
+        secrets()::delete,
+        configMaps()::delete);
   }
 
-  private void create(String projectName, OpenShiftClient client) throws InfrastructureException {
+  private void create(String projectName, OpenShiftClient osClient) throws InfrastructureException {
     try {
-      client
+      osClient
           .projectrequests()
           .createNew()
           .withNewMetadata()
@@ -81,7 +115,7 @@ public class OpenShiftProject {
           .endMetadata()
           .done();
     } catch (KubernetesClientException e) {
-      throw new InfrastructureException(e.getMessage(), e);
+      throw new KubernetesInfrastructureException(e);
     }
   }
 
@@ -93,7 +127,7 @@ public class OpenShiftProject {
         // project is foreign or doesn't exist
         return null;
       } else {
-        throw new InfrastructureException(e.getMessage(), e);
+        throw new KubernetesInfrastructureException(e);
       }
     }
   }

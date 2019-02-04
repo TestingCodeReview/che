@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,28 +29,27 @@ public class RuntimeConsistencyCheckerTest {
 
   @Test(dataProvider = "consistentRuntimesProvider")
   public void consistentRuntimes(InternalEnvironment environment, DockerInternalRuntime runtime)
-      throws ValidationException {
+      throws Exception {
     new RuntimeConsistencyChecker().check(environment, runtime);
   }
 
   @Test(
-    dataProvider = "inconsistentRuntimesProvider",
-    expectedExceptions = ValidationException.class
-  )
+      dataProvider = "inconsistentRuntimesProvider",
+      expectedExceptions = ValidationException.class)
   public void inconsistentRuntimes(InternalEnvironment environment, DockerInternalRuntime runtime)
-      throws ValidationException {
+      throws Exception {
     new RuntimeConsistencyChecker().check(environment, runtime);
   }
 
   @DataProvider
-  private static Object[][] consistentRuntimesProvider() {
+  private static Object[][] consistentRuntimesProvider() throws Exception {
     return new Object[][] {
       {environment("a", "b"), runtime("b", "a")}, {environment("b", "a"), runtime("b", "a")}
     };
   }
 
   @DataProvider
-  private static Object[][] inconsistentRuntimesProvider() {
+  private static Object[][] inconsistentRuntimesProvider() throws Exception {
     return new Object[][] {
       {environment("a", "b"), runtime("a")},
       {environment("a", "b"), runtime("a", "c")},
@@ -71,7 +71,7 @@ public class RuntimeConsistencyCheckerTest {
     return environment;
   }
 
-  private static DockerInternalRuntime runtime(String... names) {
+  private static DockerInternalRuntime runtime(String... names) throws Exception {
     Map<String, DockerMachine> machines = new HashMap<>();
     for (String name : names) {
       machines.put(name, mock(DockerMachine.class));

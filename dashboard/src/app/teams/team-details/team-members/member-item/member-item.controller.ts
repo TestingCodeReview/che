@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,6 +17,9 @@
  * @author Ann Shumilova
  */
 export class MemberItemController {
+
+  static $inject = ['$mdDialog', 'cheTeam', 'lodash', 'confirmDialogService'];
+
   /**
    * Team API interaction.
    */
@@ -52,7 +56,6 @@ export class MemberItemController {
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
   constructor($mdDialog: angular.material.IDialogService, cheTeam: che.api.ICheTeam, lodash: any, confirmDialogService: any) {
     this.$mdDialog = $mdDialog;
@@ -98,7 +101,7 @@ export class MemberItemController {
 
     let roles = this.cheTeam.getRolesFromActions(this.member.permissions.actions);
     let titles = [];
-    let processedActions = []
+    let processedActions = [];
     roles.forEach((role: any) => {
       titles.push(role.title);
       processedActions = processedActions.concat(role.actions);

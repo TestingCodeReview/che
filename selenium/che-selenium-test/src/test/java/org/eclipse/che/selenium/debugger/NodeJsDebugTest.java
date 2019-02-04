@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.debugger;
 
+import static org.eclipse.che.selenium.core.TestGroup.FLAKY;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
@@ -42,6 +44,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** Created by mmusienko on 12.02.17. */
+@Test(groups = FLAKY)
 public class NodeJsDebugTest {
 
   private static final String PROJECT_NAME =
@@ -68,9 +71,11 @@ public class NodeJsDebugTest {
     testProjectServiceClient.importProject(
         ws.getId(), Paths.get(resource.toURI()), PROJECT_NAME, ProjectTemplates.NODE_JS);
     ide.open(ws);
+
+    ide.waitOpenedWorkspaceIsReadyToUse();
   }
 
-  @Test(priority = 0)
+  @Test
   public void debugNodeJsTest()
       throws ExecutionException, JsonParseException, InterruptedException {
     String nameOfDebugCommand = "check_node_js_debug";
@@ -82,9 +87,18 @@ public class NodeJsDebugTest {
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.DEBUG,
         TestMenuCommandsConstants.Run.DEBUG + "/" + nameOfDebugCommand);
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
+
+    try {
+      notifications.waitExpectedMessageOnProgressPanelAndClose("Remote debugger connected");
+    } catch (TimeoutException ex) {
+      // remove try-catch block after issue has been resolved
+      fail("Known random failure https://github.com/eclipse/che/issues/10728");
+    }
+
     editorPageObj.waitTabFileWithSavedStatus(APP_FILE);
     editorPageObj.waitActive();
+    debugPanel.waitDebugHighlightedText("/*");
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OVER);
     debugPanel.waitDebugHighlightedText("var greetings = require(\"./greetings.js\");");
     checkDebugStepsFeatures();
     checkEvaluationFeatures();
@@ -121,7 +135,7 @@ public class NodeJsDebugTest {
     debugPanel.waitDebugHighlightedText("return \"HELLO\";");
     debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OUT);
     debugPanel.waitDebugHighlightedText("var c=\"some add value\" + b;");
-    assertEquals(debugPanel.getExecutionPoint(), "app.js:13");
+    assertEquals(debugPanel.getExecutionPoint(), "app.js:14");
     debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OVER);
   }
 
@@ -133,7 +147,7 @@ public class NodeJsDebugTest {
       debugPanel.waitExpectedResultInEvaluateExpression("19");
     } catch (TimeoutException ex) {
       // remove try-catch block after issue has been resolved
-      fail("Known issue https://github.com/eclipse/che/issues/4720", ex);
+      fail("Known random failure https://github.com/eclipse/che/issues/4720", ex);
     }
     debugPanel.clickCloseEvaluateBtn();
   }

@@ -1,31 +1,24 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.java.client.search;
 
-import com.google.inject.ImplementedBy;
 import org.eclipse.che.ide.api.mvp.View;
-import org.eclipse.che.ide.api.parts.base.BaseActionDelegate;
-import org.eclipse.che.ide.ext.java.shared.dto.search.FindUsagesResponse;
+import org.eclipse.che.jdt.ls.extension.api.dto.UsagesResponse;
 
 /**
- * View for find usages result
+ * This interface only exists to allow mocking of the view in regular unit tests.
  *
- * @author Evgen Vidolob
+ * @author Thomas Mäder
  */
-@ImplementedBy(FindUsagesViewImpl.class)
-public interface FindUsagesView extends View<FindUsagesView.ActionDelegate> {
-
-  void setVisible(boolean visible);
-
-  void showUsages(FindUsagesResponse usagesResponse);
-
-  interface ActionDelegate extends BaseActionDelegate {}
+public interface FindUsagesView extends View<FindUsagesPresenter> {
+  void showUsages(UsagesResponse response);
 }

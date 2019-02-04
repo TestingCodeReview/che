@@ -1,336 +1,183 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.workspace.infrastructure.openshift;
 
-import static java.lang.String.format;
-import static java.util.Collections.emptyMap;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.assistedinject.Assisted;
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
-import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.client.Watcher.Action;
 import io.fabric8.openshift.api.model.Route;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
+import java.util.Set;
 import javax.inject.Inject;
 import javax.inject.Named;
-import org.eclipse.che.api.core.model.workspace.Warning;
-import org.eclipse.che.api.core.model.workspace.runtime.Machine;
-import org.eclipse.che.api.core.model.workspace.runtime.MachineStatus;
-import org.eclipse.che.api.core.model.workspace.runtime.ServerStatus;
-import org.eclipse.che.api.core.notification.EventService;
-import org.eclipse.che.api.workspace.server.DtoConverter;
 import org.eclipse.che.api.workspace.server.URLRewriter.NoOpURLRewriter;
-import org.eclipse.che.api.workspace.server.hc.ServersChecker;
 import org.eclipse.che.api.workspace.server.hc.ServersCheckerFactory;
+import org.eclipse.che.api.workspace.server.hc.probe.ProbeScheduler;
+import org.eclipse.che.api.workspace.server.hc.probe.WorkspaceProbesFactory;
 import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
-import org.eclipse.che.api.workspace.server.spi.InternalInfrastructureException;
-import org.eclipse.che.api.workspace.server.spi.InternalRuntime;
-import org.eclipse.che.api.workspace.server.spi.environment.InternalMachineConfig;
-import org.eclipse.che.api.workspace.shared.dto.event.MachineLogEvent;
-import org.eclipse.che.api.workspace.shared.dto.event.MachineStatusEvent;
-import org.eclipse.che.api.workspace.shared.dto.event.RuntimeStatusEvent;
-import org.eclipse.che.api.workspace.shared.dto.event.ServerStatusEvent;
-import org.eclipse.che.dto.server.DtoFactory;
-import org.eclipse.che.workspace.infrastructure.openshift.bootstrapper.OpenShiftBootstrapperFactory;
+import org.eclipse.che.api.workspace.server.spi.provision.InternalEnvironmentProvisioner;
+import org.eclipse.che.commons.annotation.Nullable;
+import org.eclipse.che.commons.annotation.Traced;
+import org.eclipse.che.commons.tracing.OptionalTracer;
+import org.eclipse.che.commons.tracing.TracingTags;
+import org.eclipse.che.workspace.infrastructure.kubernetes.KubernetesInternalRuntime;
+import org.eclipse.che.workspace.infrastructure.kubernetes.RuntimeHangingDetector;
+import org.eclipse.che.workspace.infrastructure.kubernetes.StartSynchronizerFactory;
+import org.eclipse.che.workspace.infrastructure.kubernetes.bootstrapper.KubernetesBootstrapperFactory;
+import org.eclipse.che.workspace.infrastructure.kubernetes.cache.KubernetesMachineCache;
+import org.eclipse.che.workspace.infrastructure.kubernetes.cache.KubernetesRuntimeStateCache;
+import org.eclipse.che.workspace.infrastructure.kubernetes.namespace.pvc.WorkspaceVolumesStrategy;
+import org.eclipse.che.workspace.infrastructure.kubernetes.util.KubernetesSharedPool;
+import org.eclipse.che.workspace.infrastructure.kubernetes.util.RuntimeEventsPublisher;
+import org.eclipse.che.workspace.infrastructure.kubernetes.util.UnrecoverablePodEventListener;
+import org.eclipse.che.workspace.infrastructure.kubernetes.util.UnrecoverablePodEventListenerFactory;
+import org.eclipse.che.workspace.infrastructure.kubernetes.wsplugins.SidecarToolingProvisioner;
 import org.eclipse.che.workspace.infrastructure.openshift.environment.OpenShiftEnvironment;
 import org.eclipse.che.workspace.infrastructure.openshift.project.OpenShiftProject;
-import org.eclipse.che.workspace.infrastructure.openshift.project.event.ContainerEvent;
-import org.eclipse.che.workspace.infrastructure.openshift.project.event.ContainerEventHandler;
-import org.eclipse.che.workspace.infrastructure.openshift.project.event.PodActionHandler;
-import org.eclipse.che.workspace.infrastructure.openshift.project.pvc.WorkspaceVolumesStrategy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.che.workspace.infrastructure.openshift.server.OpenShiftServerResolver;
 
 /**
  * @author Sergii Leshchenko
  * @author Anton Korneta
  */
-public class OpenShiftInternalRuntime extends InternalRuntime<OpenShiftRuntimeContext> {
+public class OpenShiftInternalRuntime extends KubernetesInternalRuntime<OpenShiftEnvironment> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(OpenShiftInternalRuntime.class);
-
-  private static final String RUNTIME_STOPPED_STATE = "STOPPED";
-  private static final String RUNTIME_RUNNING_STATE = "RUNNING";
-  private static final String POD_FAILED_STATUS = "Failed";
-
-  private final EventService eventService;
-  private final ServersCheckerFactory serverCheckerFactory;
-  private final OpenShiftBootstrapperFactory bootstrapperFactory;
-  private final Map<String, OpenShiftMachine> machines;
-  private final int machineStartTimeoutMin;
   private final OpenShiftProject project;
-  private final WorkspaceVolumesStrategy volumesStrategy;
+  private final UnrecoverablePodEventListenerFactory unrecoverablePodEventListenerFactory;
 
   @Inject
   public OpenShiftInternalRuntime(
-      @Named("che.infra.openshift.machine_start_timeout_min") int machineStartTimeoutMin,
+      @Named("che.infra.kubernetes.workspace_start_timeout_min") int workspaceStartTimeout,
+      @Named("che.infra.kubernetes.ingress_start_timeout_min") int ingressStartTimeout,
       NoOpURLRewriter urlRewriter,
-      EventService eventService,
-      OpenShiftBootstrapperFactory bootstrapperFactory,
+      UnrecoverablePodEventListenerFactory unrecoverablePodEventListenerFactory,
+      KubernetesBootstrapperFactory bootstrapperFactory,
       ServersCheckerFactory serverCheckerFactory,
       WorkspaceVolumesStrategy volumesStrategy,
+      ProbeScheduler probeScheduler,
+      WorkspaceProbesFactory probesFactory,
+      RuntimeEventsPublisher eventPublisher,
+      KubernetesSharedPool sharedPool,
+      KubernetesRuntimeStateCache runtimesStatusesCache,
+      KubernetesMachineCache machinesCache,
+      StartSynchronizerFactory startSynchronizerFactory,
+      Set<InternalEnvironmentProvisioner> internalEnvironmentProvisioners,
+      OpenShiftEnvironmentProvisioner kubernetesEnvironmentProvisioner,
+      SidecarToolingProvisioner<OpenShiftEnvironment> toolingProvisioner,
+      RuntimeHangingDetector runtimeHangingDetector,
+      @Nullable OptionalTracer tracer,
       @Assisted OpenShiftRuntimeContext context,
-      @Assisted OpenShiftProject project,
-      @Assisted List<Warning> warnings) {
-    super(context, urlRewriter, warnings, false);
-    this.eventService = eventService;
-    this.bootstrapperFactory = bootstrapperFactory;
-    this.serverCheckerFactory = serverCheckerFactory;
-    this.volumesStrategy = volumesStrategy;
-    this.machineStartTimeoutMin = machineStartTimeoutMin;
+      @Assisted OpenShiftProject project) {
+    super(
+        workspaceStartTimeout,
+        ingressStartTimeout,
+        urlRewriter,
+        unrecoverablePodEventListenerFactory,
+        bootstrapperFactory,
+        serverCheckerFactory,
+        volumesStrategy,
+        probeScheduler,
+        probesFactory,
+        eventPublisher,
+        sharedPool,
+        runtimesStatusesCache,
+        machinesCache,
+        startSynchronizerFactory,
+        internalEnvironmentProvisioners,
+        kubernetesEnvironmentProvisioner,
+        toolingProvisioner,
+        runtimeHangingDetector,
+        tracer,
+        context,
+        project);
     this.project = project;
-    this.machines = new ConcurrentHashMap<>();
+    this.unrecoverablePodEventListenerFactory = unrecoverablePodEventListenerFactory;
   }
 
   @Override
-  protected void internalStart(Map<String, String> startOptions) throws InfrastructureException {
-    try {
-      final OpenShiftEnvironment osEnv = getContext().getEnvironment();
-      volumesStrategy.prepare(osEnv, getContext().getIdentity().getWorkspaceId());
+  protected void startMachines() throws InfrastructureException {
+    OpenShiftEnvironment osEnv = getContext().getEnvironment();
+    String workspaceId = getContext().getIdentity().getWorkspaceId();
 
-      List<Service> createdServices = new ArrayList<>();
-      for (Service service : osEnv.getServices().values()) {
-        createdServices.add(project.services().create(service));
-      }
+    createSecrets(osEnv, workspaceId);
+    createConfigMaps(osEnv, workspaceId);
+    List<Service> createdServices = createServices(osEnv, workspaceId);
+    List<Route> createdRoutes = createRoutes(osEnv, workspaceId);
 
-      List<Route> createdRoutes = new ArrayList<>();
-      for (Route route : osEnv.getRoutes().values()) {
-        createdRoutes.add(project.routes().create(route));
-      }
-      // TODO https://github.com/eclipse/che/issues/7653
-      // project.pods().watch(new AbnormalStopHandler());
-      // project.pods().watchContainers(new MachineLogsPublisher());
+    // TODO https://github.com/eclipse/che/issues/7653
+    // project.pods().watch(new AbnormalStopHandler());
 
-      createPods(createdServices, createdRoutes);
+    project.deployments().watchEvents(new MachineLogsPublisher());
+    if (unrecoverablePodEventListenerFactory.isConfigured()) {
+      Set<String> toWatch = new HashSet<>();
+      OpenShiftEnvironment environment = getContext().getEnvironment();
+      toWatch.addAll(environment.getPodsCopy().keySet());
+      toWatch.addAll(environment.getDeploymentsCopy().keySet());
+      UnrecoverablePodEventListener handler =
+          unrecoverablePodEventListenerFactory.create(toWatch, this::handleUnrecoverableEvent);
+      project.deployments().watchEvents(handler);
+    }
 
-      // TODO Rework it to parallel waiting https://github.com/eclipse/che/issues/7067
-      for (OpenShiftMachine machine : machines.values()) {
-        try {
-          machine.waitRunning(machineStartTimeoutMin);
-          bootstrapMachine(machine);
-          checkMachineServers(machine);
-          machine.setStatus(MachineStatus.RUNNING);
-          sendRunningEvent(machine.getName());
-        } catch (InfrastructureException rethrow) {
-          sendFailedEvent(machine.getName(), rethrow.getMessage());
-          throw rethrow;
-        }
-      }
-    } catch (InfrastructureException | RuntimeException | InterruptedException e) {
-      LOG.warn(
-          "Failed to start OpenShift runtime of workspace {}. Cause: {}",
-          getContext().getIdentity().getWorkspaceId(),
-          e.getMessage());
-      boolean interrupted = Thread.interrupted() || e instanceof InterruptedException;
-      try {
-        project.cleanUp();
-      } catch (InfrastructureException ignored) {
-      }
-      if (interrupted) {
-        throw new InfrastructureException("OpenShift environment start was interrupted");
-      }
-      try {
-        throw e;
-      } catch (InfrastructureException rethrow) {
-        throw rethrow;
-      } catch (Exception wrap) {
-        throw new InternalInfrastructureException(e.getMessage(), wrap);
-      }
+    doStartMachine(new OpenShiftServerResolver(createdServices, createdRoutes));
+  }
+
+  @Traced
+  @SuppressWarnings("WeakerAccess") // package-private so that interception is possible
+  void createSecrets(OpenShiftEnvironment env, String workspaceId) throws InfrastructureException {
+    TracingTags.WORKSPACE_ID.set(workspaceId);
+    for (Secret secret : env.getSecrets().values()) {
+      project.secrets().create(secret);
     }
   }
 
-  @Override
-  public Map<String, ? extends Machine> getInternalMachines() {
-    return ImmutableMap.copyOf(machines);
-  }
-
-  @Override
-  protected void internalStop(Map<String, String> stopOptions) throws InfrastructureException {
-    project.cleanUp();
-  }
-
-  @Override
-  public Map<String, String> getProperties() {
-    return emptyMap();
-  }
-
-  /**
-   * Bootstraps machine.
-   *
-   * @param machine the OpenShift machine instance to bootstrap
-   * @throws InfrastructureException when any error occurs while bootstrapping machine
-   * @throws InterruptedException when machine bootstrapping was interrupted
-   */
-  private void bootstrapMachine(OpenShiftMachine machine)
-      throws InfrastructureException, InterruptedException {
-    InternalMachineConfig machineConfig =
-        getContext().getEnvironment().getMachines().get(machine.getName());
-    if (machineConfig != null && !machineConfig.getInstallers().isEmpty())
-      bootstrapperFactory
-          .create(getContext().getIdentity(), machineConfig.getInstallers(), machine)
-          .bootstrap();
-  }
-
-  /**
-   * Checks whether machine servers are ready.
-   *
-   * @param machine the OpenShift machine instance
-   * @throws InfrastructureException when any error while server checks occur
-   * @throws InterruptedException when process of server check was interrupted
-   */
-  private void checkMachineServers(OpenShiftMachine machine)
-      throws InfrastructureException, InterruptedException {
-    final ServersChecker check =
-        serverCheckerFactory.create(
-            getContext().getIdentity(), machine.getName(), machine.getServers());
-    check.startAsync(new ServerReadinessHandler(machine.getName()));
-    check.await();
-  }
-
-  /**
-   * Creates OpenShift pods and resolves machine servers based on routes and services.
-   *
-   * @param services created OpenShift services
-   * @param routes created OpenShift routes
-   * @throws InfrastructureException when any error occurs while creating OpenShift pods
-   */
-  @VisibleForTesting
-  void createPods(List<Service> services, List<Route> routes) throws InfrastructureException {
-    final ServerResolver serverResolver = ServerResolver.of(services, routes);
-    for (Pod toCreate : getContext().getEnvironment().getPods().values()) {
-      final Pod createdPod = project.pods().create(toCreate);
-      final ObjectMeta podMetadata = createdPod.getMetadata();
-      for (Container container : createdPod.getSpec().getContainers()) {
-        OpenShiftMachine machine =
-            new OpenShiftMachine(
-                Names.machineName(toCreate, container),
-                podMetadata.getName(),
-                container.getName(),
-                serverResolver.resolve(createdPod, container),
-                project);
-        machines.put(machine.getName(), machine);
-        sendStartingEvent(machine.getName());
-      }
+  @Traced
+  @SuppressWarnings("WeakerAccess") // package-private so that interception is possible
+  void createConfigMaps(OpenShiftEnvironment env, String workspaceId)
+      throws InfrastructureException {
+    TracingTags.WORKSPACE_ID.set(workspaceId);
+    for (ConfigMap configMap : env.getConfigMaps().values()) {
+      project.configMaps().create(configMap);
     }
   }
 
-  private class ServerReadinessHandler implements Consumer<String> {
-    private String machineName;
-
-    ServerReadinessHandler(String machineName) {
-      this.machineName = machineName;
+  @Traced
+  @SuppressWarnings("WeakerAccess") // package-private so that interception is possible
+  List<Service> createServices(OpenShiftEnvironment env, String workspaceId)
+      throws InfrastructureException {
+    TracingTags.WORKSPACE_ID.set(workspaceId);
+    Collection<Service> servicesToCreate = env.getServices().values();
+    List<Service> createdServices = new ArrayList<>(servicesToCreate.size());
+    for (Service service : servicesToCreate) {
+      createdServices.add(project.services().create(service));
     }
 
-    @Override
-    public void accept(String serverRef) {
-      final OpenShiftMachine machine = machines.get(machineName);
-      if (machine == null) {
-        // Probably machine was removed from the list during server check start due to some reason
-        return;
-      }
+    return createdServices;
+  }
 
-      machine.setServerStatus(serverRef, ServerStatus.RUNNING);
-
-      eventService.publish(
-          DtoFactory.newDto(ServerStatusEvent.class)
-              .withIdentity(DtoConverter.asDto(getContext().getIdentity()))
-              .withMachineName(machineName)
-              .withServerName(serverRef)
-              .withStatus(ServerStatus.RUNNING)
-              .withServerUrl(machine.getServers().get(serverRef).getUrl()));
+  @Traced
+  @SuppressWarnings("WeakerAccess") // package-private so that interception is possible
+  List<Route> createRoutes(OpenShiftEnvironment env, String workspaceId)
+      throws InfrastructureException {
+    TracingTags.WORKSPACE_ID.set(workspaceId);
+    Collection<Route> routesToCreate = env.getRoutes().values();
+    List<Route> createdRoutes = new ArrayList<>(routesToCreate.size());
+    for (Route route : routesToCreate) {
+      createdRoutes.add(project.routes().create(route));
     }
-  }
 
-  private void sendStartingEvent(String machineName) {
-    eventService.publish(
-        DtoFactory.newDto(MachineStatusEvent.class)
-            .withIdentity(DtoConverter.asDto(getContext().getIdentity()))
-            .withEventType(MachineStatus.STARTING)
-            .withMachineName(machineName));
-  }
-
-  private void sendRunningEvent(String machineName) {
-    eventService.publish(
-        DtoFactory.newDto(MachineStatusEvent.class)
-            .withIdentity(DtoConverter.asDto(getContext().getIdentity()))
-            .withEventType(MachineStatus.RUNNING)
-            .withMachineName(machineName));
-  }
-
-  private void sendFailedEvent(String machineName, String message) {
-    eventService.publish(
-        DtoFactory.newDto(MachineStatusEvent.class)
-            .withIdentity(DtoConverter.asDto(getContext().getIdentity()))
-            .withEventType(MachineStatus.FAILED)
-            .withMachineName(machineName)
-            .withError(message));
-  }
-
-  private void sendRuntimeStoppedEvent(String errorMsg) {
-    eventService.publish(
-        DtoFactory.newDto(RuntimeStatusEvent.class)
-            .withIdentity(DtoConverter.asDto(getContext().getIdentity()))
-            .withStatus(RUNTIME_STOPPED_STATE)
-            .withPrevStatus(RUNTIME_RUNNING_STATE)
-            .withFailed(true)
-            .withError(errorMsg));
-  }
-
-  /** Listens container's events and publish them as machine logs. */
-  class MachineLogsPublisher implements ContainerEventHandler {
-
-    @Override
-    public void handle(ContainerEvent event) {
-      final String podName = event.getPodName();
-      final String containerName = event.getContainerName();
-      for (Entry<String, OpenShiftMachine> entry : machines.entrySet()) {
-        final OpenShiftMachine machine = entry.getValue();
-        if (machine.getPodName().equals(podName)
-            && machine.getContainerName().equals(containerName)) {
-          eventService.publish(
-              DtoFactory.newDto(MachineLogEvent.class)
-                  .withMachineName(entry.getKey())
-                  .withRuntimeId(DtoConverter.asDto(getContext().getIdentity()))
-                  .withText(event.getMessage())
-                  .withTime(event.getTime()));
-          return;
-        }
-      }
-    }
-  }
-
-  /** Stops runtime if one of the pods was abnormally stopped. */
-  class AbnormalStopHandler implements PodActionHandler {
-
-    @Override
-    public void handle(Action action, Pod pod) {
-      if (pod.getStatus() != null && POD_FAILED_STATUS.equals(pod.getStatus().getPhase())) {
-        try {
-          internalStop(emptyMap());
-        } catch (InfrastructureException ex) {
-          LOG.error("OpenShift environment stop failed cause '{}'", ex.getMessage());
-        } finally {
-          sendRuntimeStoppedEvent(
-              format("Pod '%s' was abnormally stopped", pod.getMetadata().getName()));
-        }
-      }
-    }
+    return createdRoutes;
   }
 }

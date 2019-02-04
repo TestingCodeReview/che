@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -79,6 +80,7 @@ public class ThreadDumpTest {
 
     // open IDE
     ide.open(ws);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT);
     loader.waitOnClosed();
     projectExplorer.waitItem(PROJECT);
     notificationPopup.waitProgressPopupPanelClose();
@@ -86,7 +88,7 @@ public class ThreadDumpTest {
     // open project tree
     projectExplorer.quickExpandWithJavaScript();
     projectExplorer.waitVisibleItem(PROJECT);
-    projectExplorer.selectItem(PROJECT);
+    projectExplorer.waitAndSelectItem(PROJECT);
 
     startDebuggingApp();
   }
@@ -97,15 +99,15 @@ public class ThreadDumpTest {
 
     String[] frames = debugPanel.getFrames();
     assertEquals(frames.length, 1);
-    assertTrue(frames[0].contains("main(String[]):19, App"));
+    assertEquals("main(String[]):20, App", frames[0]);
 
     debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.RESUME_BTN_ID);
     debugPanel.waitDebugHighlightedText("this.title = title;");
 
     frames = debugPanel.getFrames();
     assertEquals(frames.length, 2);
-    assertTrue(frames[0].contains("<init>(String, String):18, BookImpl"));
-    assertTrue(frames[1].contains("main(String[]):19, App"));
+    assertEquals("<init>(String, String):19, BookImpl", frames[0]);
+    assertEquals("main(String[]):20, App", frames[1]);
 
     editor.closeAllTabs();
 
@@ -126,9 +128,9 @@ public class ThreadDumpTest {
 
   @Test(priority = 1)
   public void shouldShowAndNavigateBySuspendedThread() {
-    editor.setBreakpoint(20);
+    editor.setBreakpoint(21);
     debugPanel.configureBreakpoint(
-        "App.java", 20, new BreakpointConfigurationImpl(SuspendPolicy.THREAD));
+        "App.java", 21, new BreakpointConfigurationImpl(SuspendPolicy.THREAD));
     debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.RESUME_BTN_ID);
 
     debugPanel.selectThread("Finalizer");
@@ -152,14 +154,14 @@ public class ThreadDumpTest {
 
     // stops at breakpoint
     projectExplorer.openItemByPath(PROJECT + "/app/src/main/java/multimodule/App.java");
-    editor.setInactiveBreakpoint(19);
+    editor.setInactiveBreakpoint(20);
 
     projectExplorer.openItemByPath(
         PROJECT + "/model/src/main/java/multimodule/model/BookImpl.java");
-    editor.setInactiveBreakpoint(18);
+    editor.setInactiveBreakpoint(19);
 
     menu.runCommand(RUN_MENU, DEBUG, DEBUG + "/" + PROJECT);
-    notificationPopup.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
-    editor.waitActiveBreakpoint(19);
+    notificationPopup.waitExpectedMessageOnProgressPanelAndClose("Remote debugger connected");
+    editor.waitActiveBreakpoint(20);
   }
 }

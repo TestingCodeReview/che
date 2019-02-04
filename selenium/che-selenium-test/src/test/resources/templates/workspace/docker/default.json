@@ -4,8 +4,10 @@
       "machines": {
         "dev-machine": {
           "installers": [
+            "org.eclipse.che.exec",
             "org.eclipse.che.terminal",
-            "org.eclipse.che.ws-agent"
+            "org.eclipse.che.ws-agent",
+            "org.eclipse.che.ls.java"
           ],
           "attributes": {
             "memoryLimitBytes": "desired_memory_value"
@@ -27,7 +29,7 @@
         }
       },
       "recipe": {
-        "content": "FROM codenvy/ubuntu_jdk8",
+        "content": "FROM eclipse/ubuntu_jdk8",
         "contentType": "text/x-dockerfile",
         "type": "dockerfile"
       }

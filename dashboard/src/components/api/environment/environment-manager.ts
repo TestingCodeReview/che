@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
 import {IEnvironmentManagerMachine, IEnvironmentManagerMachineServer} from './environment-manager-machine';
+import {IParser} from './parser';
 
 /**
  * This is base class, which describes the environment manager.
@@ -22,6 +24,7 @@ const SSH_AGENT_NAME: string = 'org.eclipse.che.ssh';
 const DEFAULT_MEMORY_LIMIT: number = 2 * 1073741824;
 
 export abstract class EnvironmentManager {
+  parser: IParser;
   $log: ng.ILogService;
 
   constructor($log: ng.ILogService) {
@@ -54,13 +57,29 @@ export abstract class EnvironmentManager {
 
   abstract parseRecipe(content: string): any;
 
-  abstract stringifyRecipe(recipe: any): string;
+  /**
+   * Parses a recipe content and returns validation error.
+   *
+   * @param {string} content
+   * @returns {string} validation error
+   */
+  validateRecipe(content: string): string {
+    let error: string = null;
+    try {
+      this.parser.parse(content);
+    } catch (e) {
+      error = e.message;
+    }
+    return error;
+  }
+
+  abstract stringifyRecipe(recipeObj: any): string;
 
   abstract getSource(machine: IEnvironmentManagerMachine): {[sourceType: string]: string};
 
   abstract setSource(machine: IEnvironmentManagerMachine, image: string): void;
 
-  abstract createNewDefaultMachine(environment: che.IWorkspaceEnvironment, image?: string): IEnvironmentManagerMachine;
+  abstract createMachine(environment: che.IWorkspaceEnvironment, image?: string): IEnvironmentManagerMachine;
 
   abstract addMachine(environment: che.IWorkspaceEnvironment, machine: IEnvironmentManagerMachine): che.IWorkspaceEnvironment
 
@@ -127,7 +146,10 @@ export abstract class EnvironmentManager {
    * @returns {string}
    */
   getUniqueMachineName(environment: che.IWorkspaceEnvironment, namePrefix?: string): string {
-    let newMachineName =  namePrefix ? namePrefix : 'new-machine';
+    let newMachineName =  'new-machine';
+    if (namePrefix) {
+      newMachineName = `${namePrefix}/${newMachineName}`;
+    }
     const usedMachinesNames: Array<string> = environment && environment.machines ? Object.keys(environment.machines) : [];
     for (let pos: number = 1; pos < 1000; pos++) {
       if (usedMachinesNames.indexOf(newMachineName + pos.toString()) === -1) {
@@ -231,37 +253,13 @@ export abstract class EnvironmentManager {
   }
 
   /**
-   * Returns whether machine is developer or not.
+   * Returns whether machine contains 'ws-agent' installer.
    *
    * @param {IEnvironmentManagerMachine} machine
    * @returns {boolean}
    */
   isDev(machine: IEnvironmentManagerMachine): boolean {
     return machine.installers && machine.installers.indexOf(WS_AGENT_NAME) >= 0;
-  }
-
-  /**
-   * Set machine as developer one - contains 'ws-agent' agent.
-   *
-   * @param {IEnvironmentManagerMachine} machine machine to edit
-   * @param {boolean} isDev defined whether machine is developer or not
-   */
-  setDev(machine: IEnvironmentManagerMachine, isDev: boolean): void {
-    let hasWsAgent = this.isDev(machine);
-    if (isDev) {
-      machine.installers = machine.installers ? machine.installers : [];
-      if (!hasWsAgent) {
-        machine.installers.push(WS_AGENT_NAME);
-      }
-      if (machine.installers.indexOf(TERMINAL_AGENT_NAME) < 0) {
-        machine.installers.push(TERMINAL_AGENT_NAME);
-      }
-      return;
-    }
-
-    if (!isDev && hasWsAgent) {
-      machine.installers.splice(machine.installers.indexOf(WS_AGENT_NAME), 1);
-    }
   }
 
   getServers(machine: IEnvironmentManagerMachine): {[serverName: string]: IEnvironmentManagerMachineServer} {
@@ -323,6 +321,9 @@ export abstract class EnvironmentManager {
   }
 
   setAgents(machine: IEnvironmentManagerMachine, agents: string[]): void {
+    if (!machine) {
+      return;
+    }
     machine.installers = angular.copy(agents);
   }
 
@@ -353,7 +354,7 @@ export abstract class EnvironmentManager {
   setMemoryLimit(machine: IEnvironmentManagerMachine, limit: number): void {
     machine.attributes = machine.attributes ? machine.attributes : {};
     if (limit) {
-      machine.attributes.memoryLimitBytes = limit;
+      machine.attributes.memoryLimitBytes = limit.toString();
     }
   }
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,8 +19,10 @@ import {CheStack} from '../../../../../components/api/che-stack.factory';
  */
 export class CreateProjectStackLibraryController {
 
+  static $inject = ['$scope', 'cheStack', 'lodash'];
+
   private $scope: ng.IScope;
-  private lodash: _.LoDashStatic;
+  private lodash: any;
   private tabName: string;
   private selectedStackId: string;
   private allStackTags: Array<string> = [];
@@ -28,9 +31,10 @@ export class CreateProjectStackLibraryController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($scope: ng.IScope, cheStack: CheStack, lodash: _.LoDashStatic) {
+  constructor($scope: ng.IScope,
+              cheStack: CheStack,
+              lodash: any) {
     this.$scope = $scope;
     this.lodash = lodash;
 
@@ -43,7 +47,7 @@ export class CreateProjectStackLibraryController {
       });
     }
 
-    $scope.$on('event:library:selectStackId', (event, data) => {
+    $scope.$on('event:library:selectStackId', (event: ng.IAngularEvent, data: string) => {
       this.setStackSelectionById(data);
     });
   }

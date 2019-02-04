@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,16 +12,19 @@
 package org.eclipse.che.api.project.server.impl;
 
 import static java.io.File.separator;
+import static java.util.Collections.unmodifiableSet;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 import static org.eclipse.che.api.fs.server.WsPathUtils.absolutize;
+import static org.eclipse.che.api.fs.server.WsPathUtils.isRoot;
 import static org.eclipse.che.api.fs.server.WsPathUtils.nameOf;
 import static org.eclipse.che.api.fs.server.WsPathUtils.resolve;
 import static org.eclipse.che.api.project.server.impl.FileItemUtils.parseDir;
 import static org.eclipse.che.api.project.server.impl.FileItemUtils.parseFile;
 import static org.eclipse.che.api.project.server.impl.ProjectDtoConverter.asDto;
 import static org.eclipse.che.api.project.server.notification.ProjectItemModifiedEvent.EventType.UPDATED;
+import static org.eclipse.che.api.project.shared.Constants.CHE_DIR;
 import static org.eclipse.che.api.project.shared.Constants.EVENT_IMPORT_OUTPUT_PROGRESS;
 import static org.eclipse.che.dto.server.DtoFactory.newDto;
 
@@ -61,9 +65,13 @@ import org.eclipse.che.api.fs.server.FsDtoConverter;
 import org.eclipse.che.api.fs.server.FsManager;
 import org.eclipse.che.api.project.server.ProjectManager;
 import org.eclipse.che.api.project.server.ProjectService;
+import org.eclipse.che.api.project.server.notification.PreProjectDeletedEvent;
 import org.eclipse.che.api.project.server.notification.ProjectCreatedEvent;
+import org.eclipse.che.api.project.server.notification.ProjectDeletedEvent;
 import org.eclipse.che.api.project.server.notification.ProjectItemModifiedEvent;
+import org.eclipse.che.api.project.server.notification.ProjectUpdatedEvent;
 import org.eclipse.che.api.project.server.type.ProjectTypeResolution;
+import org.eclipse.che.api.project.shared.RegisteredProject;
 import org.eclipse.che.api.project.shared.dto.CopyOptions;
 import org.eclipse.che.api.project.shared.dto.ImportProgressRecordDto;
 import org.eclipse.che.api.project.shared.dto.ItemReference;
@@ -75,25 +83,31 @@ import org.eclipse.che.api.project.shared.dto.SearchOccurrenceDto;
 import org.eclipse.che.api.project.shared.dto.SearchResultDto;
 import org.eclipse.che.api.project.shared.dto.SourceEstimation;
 import org.eclipse.che.api.project.shared.dto.TreeElement;
+import org.eclipse.che.api.search.server.InvalidQueryException;
+import org.eclipse.che.api.search.server.OffsetData;
+import org.eclipse.che.api.search.server.QueryExecutionException;
+import org.eclipse.che.api.search.server.QueryExpression;
 import org.eclipse.che.api.search.server.SearchResult;
 import org.eclipse.che.api.search.server.Searcher;
-import org.eclipse.che.api.search.server.impl.LuceneSearcher;
-import org.eclipse.che.api.search.server.impl.QueryExpression;
 import org.eclipse.che.api.search.server.impl.SearchResultEntry;
 import org.eclipse.che.api.workspace.shared.dto.ProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.SourceStorageDto;
 import org.eclipse.che.dto.server.DtoFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Project service REST API back end. This class' methods are called from the {@link
  * ProjectService}.
  */
 public class ProjectServiceApi {
+  private static final Logger LOG = LoggerFactory.getLogger(ProjectServiceApi.class);
 
   private static Tika TIKA;
 
   private final ServiceContext serviceContext;
 
+  private final ProjectConfigRegistry projectConfigRegistry;
   private final ProjectManager projectManager;
   private final FsManager fsManager;
   private final FsDtoConverter fsDtoConverter;
@@ -106,6 +120,7 @@ public class ProjectServiceApi {
   @AssistedInject
   public ProjectServiceApi(
       @Assisted ServiceContext serviceContext,
+      ProjectConfigRegistry projectConfigRegistry,
       Searcher searcher,
       ProjectManager projectManager,
       FsManager fsManager,
@@ -115,6 +130,7 @@ public class ProjectServiceApi {
       ProjectServiceVcsStatusInjector vcsStatusInjector,
       RequestTransmitter transmitter) {
     this.serviceContext = serviceContext;
+    this.projectConfigRegistry = projectConfigRegistry;
     this.projectManager = projectManager;
     this.fsManager = fsManager;
     this.fsDtoConverter = fsDtoConverter;
@@ -206,10 +222,19 @@ public class ProjectServiceApi {
       throws NotFoundException, ConflictException, ForbiddenException, ServerException, IOException,
           BadRequestException {
     if (wsPath != null) {
-      projectConfigDto.setPath(absolutize(wsPath));
+      wsPath = absolutize(wsPath);
+      projectConfigDto.setPath(wsPath);
     }
 
+    RegisteredProject previous = projectManager.getOrNull(wsPath);
+
     RegisteredProject updated = projectManager.update(projectConfigDto);
+    if (previous == null) { // if project config set firstly we will fire event project created
+      eventService.publish(new ProjectCreatedEvent(updated.getPath()));
+    } else {
+      eventService.publish(new ProjectUpdatedEvent(wsPath, previous));
+    }
+
     return asDto(updated);
   }
 
@@ -219,7 +244,13 @@ public class ProjectServiceApi {
     wsPath = absolutize(wsPath);
 
     if (projectManager.isRegistered(wsPath)) {
-      projectManager.delete(wsPath);
+      eventService.publish(new PreProjectDeletedEvent(wsPath));
+
+      projectManager
+          .delete(wsPath)
+          .map(RegisteredProject::getPath)
+          .map(ProjectDeletedEvent::new)
+          .ifPresent(eventService::publish);
     } else {
       fsManager.delete(wsPath);
     }
@@ -275,12 +306,13 @@ public class ProjectServiceApi {
   /** Import project from specified source storage to specified location */
   public void importProject(
       String wsPath, boolean force, String clientId, SourceStorageDto sourceStorage)
-      throws ConflictException, ForbiddenException, UnauthorizedException, IOException,
-          ServerException, NotFoundException, BadRequestException {
+      throws ConflictException, ForbiddenException, UnauthorizedException, ServerException,
+          NotFoundException {
 
     wsPath = absolutize(wsPath);
 
     projectManager.doImport(wsPath, sourceStorage, force, jsonRpcImportConsumer(clientId));
+    eventService.publish(new ProjectCreatedEvent(wsPath));
   }
 
   /** Create file with specified path, name and content */
@@ -360,13 +392,14 @@ public class ProjectServiceApi {
   }
 
   /** Upload a folder from zip represented by form data to a specified location */
-  public Response uploadFolderFromZip(String wsPath, Iterator<FileItem> formData)
+  public Response uploadFolderFromZip(
+      String wsPath, Iterator<FileItem> formData, boolean force, boolean skipRoot)
       throws ServerException, ConflictException, ForbiddenException, NotFoundException {
     wsPath = absolutize(wsPath);
 
     FileItemParsed fileItemParsed = parseDir(formData);
     InputStream content = fileItemParsed.getContent();
-    fsManager.unzip(wsPath, content, false);
+    fsManager.unzip(wsPath, content, force, force, skipRoot);
 
     return Response.ok("", MediaType.TEXT_HTML).build();
   }
@@ -458,7 +491,10 @@ public class ProjectServiceApi {
     String dstWsPath = resolve(newParentWsPath, name);
 
     if (projectManager.isRegistered(wsPath)) {
+      eventService.publish(new PreProjectDeletedEvent(wsPath));
       projectManager.move(wsPath, dstWsPath, overwrite);
+      eventService.publish(new ProjectDeletedEvent(wsPath));
+      eventService.publish(new ProjectCreatedEvent(dstWsPath));
     } else {
       fsManager.move(wsPath, dstWsPath, overwrite, true);
     }
@@ -512,16 +548,17 @@ public class ProjectServiceApi {
 
     fsManager.unzip(wsPath, zip, skipFirstLevel);
 
+    Response response =
+        Response.created(
+                serviceContext
+                    .getBaseUriBuilder()
+                    .clone()
+                    .path(ProjectService.class)
+                    .path(ProjectService.class, "getChildren")
+                    .build(new String[] {wsPath.substring(1)}, false))
+            .build();
     eventService.publish(new ProjectCreatedEvent(wsPath));
-
-    return Response.created(
-            serviceContext
-                .getBaseUriBuilder()
-                .clone()
-                .path(ProjectService.class)
-                .path(ProjectService.class, "getChildren")
-                .build(new String[] {wsPath.substring(1)}, false))
-        .build();
+    return response;
   }
 
   /** Zip content under specified location */
@@ -553,7 +590,7 @@ public class ProjectServiceApi {
       throws NotFoundException, ForbiddenException, ServerException, IOException {
     wsPath = absolutize(wsPath);
 
-    Set<String> wsPaths = fsManager.getAllChildrenWsPaths(wsPath);
+    Set<String> wsPaths = applyTreeFilter(wsPath, fsManager.getAllChildrenWsPaths(wsPath));
     Set<ItemReference> itemReferences = fsDtoConverter.asDto(wsPaths);
 
     List<ItemReference> result =
@@ -602,9 +639,9 @@ public class ProjectServiceApi {
    */
   public ProjectSearchResponseDto search(
       String wsPath, String name, String text, int maxItems, int skipCount)
-      throws NotFoundException, ForbiddenException, ConflictException, ServerException {
+      throws BadRequestException, ServerException, NotFoundException {
     if (skipCount < 0) {
-      throw new ConflictException(String.format("Invalid 'skipCount' parameter: %d.", skipCount));
+      throw new BadRequestException(String.format("Invalid 'skipCount' parameter: %d.", skipCount));
     }
     wsPath = absolutize(wsPath);
 
@@ -617,11 +654,18 @@ public class ProjectServiceApi {
             .setSkipCount(skipCount)
             .setIncludePositions(true);
 
-    SearchResult result = searcher.search(expr);
-    List<SearchResultEntry> searchResultEntries = result.getResults();
-    return DtoFactory.newDto(ProjectSearchResponseDto.class)
-        .withTotalHits(result.getTotalHits())
-        .withItemReferences(prepareResults(searchResultEntries));
+    try {
+      SearchResult result = searcher.search(expr);
+      List<SearchResultEntry> searchResultEntries = result.getResults();
+      return DtoFactory.newDto(ProjectSearchResponseDto.class)
+          .withTotalHits(result.getTotalHits())
+          .withItemReferences(prepareResults(searchResultEntries));
+    } catch (InvalidQueryException e) {
+      throw new BadRequestException(e.getMessage());
+    } catch (QueryExecutionException e) {
+      LOG.warn(e.getLocalizedMessage());
+      throw new ServerException(e.getMessage());
+    }
   }
 
   /**
@@ -629,25 +673,25 @@ public class ProjectServiceApi {
    * found given text
    */
   private List<SearchResultDto> prepareResults(List<SearchResultEntry> searchResultEntries)
-      throws ServerException, NotFoundException {
+      throws NotFoundException {
     List<SearchResultDto> results = new ArrayList<>(searchResultEntries.size());
     for (SearchResultEntry searchResultEntry : searchResultEntries) {
       String path = searchResultEntry.getFilePath();
       if (fsManager.existsAsFile(path)) {
         ItemReference asDto = fsDtoConverter.asDto(path);
         ItemReference itemReference = injectFileLinks(asDto);
-        List<LuceneSearcher.OffsetData> datas = searchResultEntry.getData();
+        List<OffsetData> datas = searchResultEntry.getData();
         List<SearchOccurrenceDto> searchOccurrences = new ArrayList<>(datas.size());
-        for (LuceneSearcher.OffsetData data : datas) {
+        for (OffsetData data : datas) {
           SearchOccurrenceDto searchOccurrenceDto =
               DtoFactory.getInstance()
                   .createDto(SearchOccurrenceDto.class)
-                  .withPhrase(data.phrase)
-                  .withScore(data.score)
-                  .withStartOffset(data.startOffset)
-                  .withEndOffset(data.endOffset)
-                  .withLineNumber(data.lineNum)
-                  .withLineContent(data.line);
+                  .withPhrase(data.getPhrase())
+                  .withScore(data.getScore())
+                  .withStartOffset(data.getStartOffset())
+                  .withEndOffset(data.getEndOffset())
+                  .withLineNumber(data.getLineNum())
+                  .withLineContent(data.getLine());
           searchOccurrences.add(searchOccurrenceDto);
         }
         SearchResultDto searchResultDto = DtoFactory.getInstance().createDto(SearchResultDto.class);
@@ -680,7 +724,7 @@ public class ProjectServiceApi {
 
     try {
       return search(path, name, text, maxItems, skipCount);
-    } catch (ServerException | ConflictException | NotFoundException | ForbiddenException e) {
+    } catch (ServerException | NotFoundException | BadRequestException e) {
       throw new JsonRpcException(-27000, e.getMessage());
     }
   }
@@ -707,7 +751,9 @@ public class ProjectServiceApi {
     }
 
     Set<String> childrenWsPaths =
-        includeFiles ? fsManager.getAllChildrenWsPaths(wsPath) : fsManager.getDirWsPaths(wsPath);
+        includeFiles
+            ? applyTreeFilter(wsPath, fsManager.getAllChildrenWsPaths(wsPath))
+            : applyTreeFilter(wsPath, fsManager.getDirWsPaths(wsPath));
 
     List<TreeElement> nodes = new ArrayList<>(childrenWsPaths.size());
     for (String childWsPath : childrenWsPaths) {
@@ -726,6 +772,17 @@ public class ProjectServiceApi {
     }
 
     return vcsStatusInjector.injectVcsStatusTreeElements(nodes);
+  }
+
+  private Set<String> applyTreeFilter(String parentWsPath, Set<String> childrenWsPaths) {
+    if (!isRoot(parentWsPath)) {
+      return childrenWsPaths;
+    }
+
+    String rootCheDir = absolutize(CHE_DIR);
+    Set<String> copy = new HashSet<>(childrenWsPaths);
+    copy.removeIf(rootCheDir::equals);
+    return unmodifiableSet(copy);
   }
 
   private ItemReference injectFileLinks(ItemReference itemReference) {

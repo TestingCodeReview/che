@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,10 +13,12 @@ package org.eclipse.che.multiuser.organization.api.notification;
 
 import static java.util.Arrays.*;
 import static java.util.Collections.emptyList;
+import static org.eclipse.che.multiuser.organization.api.DtoConverter.asDto;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -86,10 +89,11 @@ public class OrganizationNotificationEmailSenderTest {
 
     // when
     emailSender.onEvent(
-        new MemberAddedEvent(
-            "admin",
-            new UserImpl("id", "email", null),
-            new OrganizationImpl("id", "/parent/name", "parent")));
+        asDto(
+            new MemberAddedEvent(
+                "admin",
+                new UserImpl("id", "email", null),
+                new OrganizationImpl("id", "/parent/name", "parent"))));
 
     // then
     verify(emails).memberAdded("name", DASHBOARD_ENDPOINT, "/parent/name", "admin");
@@ -106,10 +110,11 @@ public class OrganizationNotificationEmailSenderTest {
 
     // when
     emailSender.onEvent(
-        new MemberRemovedEvent(
-            "admin",
-            new UserImpl("id", "email", null),
-            new OrganizationImpl("id", "/parent/name", "parent")));
+        asDto(
+            new MemberRemovedEvent(
+                "admin",
+                new UserImpl("id", "email", null),
+                new OrganizationImpl("id", "/parent/name", "parent"))));
 
     // then
     verify(emails).memberRemoved("name", "admin");
@@ -126,21 +131,24 @@ public class OrganizationNotificationEmailSenderTest {
         .when(organizationManager)
         .getMembers(anyString(), anyInt(), anyLong());
 
-    when(userManager.getById("user1"))
-        .thenReturn(new UserImpl("user1", "email1", null, null, emptyList()));
-    when(userManager.getById("user2"))
-        .thenReturn(new UserImpl("user2", "email2", null, null, emptyList()));
+    doReturn(new UserImpl("user1", "email1", null, null, emptyList()))
+        .when(userManager)
+        .getById("user1");
+    doReturn(new UserImpl("user2", "email2", null, null, emptyList()))
+        .when(userManager)
+        .getById("user2");
 
     EmailBean email = new EmailBean().withBody("Org Remaned Notification");
     when(emails.organizationRenamed(anyString(), anyString())).thenReturn(email);
 
     // when
     emailSender.onEvent(
-        new OrganizationRenamedEvent(
-            "admin",
-            "oldName",
-            "newName",
-            new OrganizationImpl("org123", "/parent/newName", "parent")));
+        asDto(
+            new OrganizationRenamedEvent(
+                "admin",
+                "oldName",
+                "newName",
+                new OrganizationImpl("org123", "/parent/newName", "parent"))));
 
     // then
     verify(emails).organizationRenamed("oldName", "newName");
@@ -160,19 +168,21 @@ public class OrganizationNotificationEmailSenderTest {
         .getMembers(anyString(), anyInt(), anyLong());
 
     when(userManager.getById("user1")).thenThrow(new NotFoundException(""));
-    when(userManager.getById("user2"))
-        .thenReturn(new UserImpl("user2", "email2", null, null, emptyList()));
+    doReturn(new UserImpl("user2", "email2", null, null, emptyList()))
+        .when(userManager)
+        .getById("user2");
 
     EmailBean email = new EmailBean().withBody("Org Renamed Notification");
     when(emails.organizationRenamed(anyString(), anyString())).thenReturn(email);
 
     // when
     emailSender.onEvent(
-        new OrganizationRenamedEvent(
-            "admin",
-            "oldName",
-            "newName",
-            new OrganizationImpl("org123", "/parent/newName", "parent")));
+        asDto(
+            new OrganizationRenamedEvent(
+                "admin",
+                "oldName",
+                "newName",
+                new OrganizationImpl("org123", "/parent/newName", "parent"))));
 
     // then
     verify(emails).organizationRenamed("oldName", "newName");
@@ -185,18 +195,23 @@ public class OrganizationNotificationEmailSenderTest {
     MemberImpl member1 = new MemberImpl("user1", "org123", emptyList());
     MemberImpl member2 = new MemberImpl("user2", "org123", emptyList());
 
-    when(userManager.getById("user1"))
-        .thenReturn(new UserImpl("user1", "email1", null, null, emptyList()));
-    when(userManager.getById("user2"))
-        .thenReturn(new UserImpl("user2", "email2", null, null, emptyList()));
+    doReturn(new UserImpl("user1", "email1", null, null, emptyList()))
+        .when(userManager)
+        .getById("user1");
+    doReturn(new UserImpl("user2", "email2", null, null, emptyList()))
+        .when(userManager)
+        .getById("user2");
 
     EmailBean email = new EmailBean().withBody("Org Removed Notification");
     when(emails.organizationRemoved(anyString())).thenReturn(email);
 
     // when
     emailSender.onEvent(
-        new OrganizationRemovedEvent(
-            "admin", new OrganizationImpl("id", "/parent/q", "parent"), asList(member1, member2)));
+        asDto(
+            new OrganizationRemovedEvent(
+                "admin",
+                new OrganizationImpl("id", "/parent/q", "parent"),
+                asList(member1.getUserId(), member2.getUserId()))));
 
     // then
     verify(emails).organizationRemoved("q");
@@ -212,17 +227,21 @@ public class OrganizationNotificationEmailSenderTest {
     MemberImpl member1 = new MemberImpl("user1", "org123", emptyList());
     MemberImpl member2 = new MemberImpl("user2", "org123", emptyList());
 
-    when(userManager.getById("user1")).thenThrow(new NotFoundException(""));
-    when(userManager.getById("user2"))
-        .thenReturn(new UserImpl("user2", "email2", null, null, emptyList()));
+    doThrow(new NotFoundException("")).when(userManager).getById("user1");
+    doReturn(new UserImpl("user2", "email2", null, null, emptyList()))
+        .when(userManager)
+        .getById("user2");
 
     EmailBean email = new EmailBean().withBody("Org Removed Notification");
     when(emails.organizationRemoved(anyString())).thenReturn(email);
 
     // when
     emailSender.onEvent(
-        new OrganizationRemovedEvent(
-            "admin", new OrganizationImpl("id", "/parent/q", "parent"), asList(member1, member2)));
+        asDto(
+            new OrganizationRemovedEvent(
+                "admin",
+                new OrganizationImpl("id", "/parent/q", "parent"),
+                asList(member1.getUserId(), member2.getUserId()))));
 
     // then
     verify(emails).organizationRemoved("q");

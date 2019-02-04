@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,10 +15,13 @@ import static org.eclipse.che.ide.api.vcs.VcsStatus.ADDED;
 import static org.eclipse.che.ide.api.vcs.VcsStatus.MODIFIED;
 import static org.eclipse.che.ide.api.vcs.VcsStatus.NOT_MODIFIED;
 import static org.eclipse.che.ide.api.vcs.VcsStatus.UNTRACKED;
+import static org.eclipse.che.ide.ext.git.client.GitUtil.getRootPath;
 
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import org.eclipse.che.api.git.shared.FileChangedEventDto;
+import org.eclipse.che.api.git.shared.RepositoryDeletedEventDto;
+import org.eclipse.che.api.git.shared.RepositoryInitializedEventDto;
 import org.eclipse.che.api.git.shared.Status;
 import org.eclipse.che.api.git.shared.StatusChangedEventDto;
 import org.eclipse.che.ide.api.editor.EditorAgent;
@@ -80,7 +84,12 @@ public class EditorTabsColorizer implements GitEventsSubscriber {
         .get()
         .getOpenedEditors()
         .stream()
-        .filter(editor -> editor instanceof HasVcsChangeMarkerRender)
+        .filter(
+            editor ->
+                editor instanceof HasVcsChangeMarkerRender
+                    && statusChangedEventDto
+                        .getProjectName()
+                        .equals(getRootPath(editor.getEditorInput().getFile().getLocation())))
         .forEach(
             editor -> {
               EditorTab tab = multiPartStackProvider.get().getTabByPart(editor);
@@ -96,5 +105,37 @@ public class EditorTabsColorizer implements GitEventsSubscriber {
                 tab.setTitleColor(NOT_MODIFIED.getColor());
               }
             });
+  }
+
+  @Override
+  public void onGitRepositoryDeleted(
+      String endpointId, RepositoryDeletedEventDto repositoryDeletedEventDto) {
+    editorAgentProvider
+        .get()
+        .getOpenedEditors()
+        .stream()
+        .filter(editor -> editor instanceof HasVcsChangeMarkerRender)
+        .forEach(
+            editor ->
+                multiPartStackProvider
+                    .get()
+                    .getTabByPart(editor)
+                    .setTitleColor(NOT_MODIFIED.getColor()));
+  }
+
+  @Override
+  public void onGitRepositoryInitialized(
+      String endpointId, RepositoryInitializedEventDto gitRepositoryInitializedEventDto) {
+    editorAgentProvider
+        .get()
+        .getOpenedEditors()
+        .stream()
+        .filter(editor -> editor instanceof HasVcsChangeMarkerRender)
+        .forEach(
+            editor ->
+                multiPartStackProvider
+                    .get()
+                    .getTabByPart(editor)
+                    .setTitleColor(UNTRACKED.getColor()));
   }
 }

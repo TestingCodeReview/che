@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,6 +15,7 @@ import {WorkspaceStatus} from '../../../../components/api/workspace/che-workspac
 interface ITestScope extends ng.IRootScopeService {
   model: {
     workspaceStatus?: string;
+    buttonDisabled?: boolean;
     onStopWorkspace: Function;
     onRunWorkspace: Function;
   };
@@ -65,6 +67,7 @@ describe('WorkspaceStatusButton >', () => {
 
     const element = $compile(angular.element(
       `<workspace-status-button workspace-status="model.workspaceStatus"
+                                button-disabled="model.buttonDisabled"
                                 on-run-workspace="model.onRunWorkspace()"
                                 on-stop-workspace="model.onStopWorkspace()"></workspace-status-button>`
     ))($rootScope);
@@ -72,6 +75,30 @@ describe('WorkspaceStatusButton >', () => {
 
     return element;
   }
+
+  describe(`button is disabled >`, () => {
+    let jqRunButton: ng.IAugmentedJQuery;
+    let jqStopButton: ng.IAugmentedJQuery;
+
+    beforeEach(() => {
+      $rootScope.model.buttonDisabled = true;
+
+      const jqElement = getCompiledElement(WorkspaceStatus.STOPPED);
+      jqRunButton = jqElement.find('#run-workspace-button button');
+      jqStopButton = jqElement.find('#stop-workspace-button button');
+    });
+
+    it('should have "Run" button disabled', () => {
+      // timeout should be flashed
+      $timeout.flush();
+
+      expect(jqRunButton.get(0)).toBeTruthy();
+      expect(jqRunButton.attr('disabled')).toBeTruthy();
+
+      expect(jqStopButton.get(0)).toBeFalsy();
+    });
+
+  });
 
   describe('initially STOPPED >', () => {
     let jqRunButton: ng.IAugmentedJQuery;

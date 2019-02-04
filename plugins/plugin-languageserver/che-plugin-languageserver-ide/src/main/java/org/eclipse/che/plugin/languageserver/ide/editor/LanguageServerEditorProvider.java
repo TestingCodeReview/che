@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,7 +13,6 @@ package org.eclipse.che.plugin.languageserver.ide.editor;
 
 import javax.inject.Inject;
 import org.eclipse.che.api.promises.client.Function;
-import org.eclipse.che.api.promises.client.FunctionException;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.ide.api.editor.AsyncEditorProvider;
 import org.eclipse.che.ide.api.editor.EditorPartPresenter;
@@ -22,7 +22,6 @@ import org.eclipse.che.ide.api.editor.defaulteditor.EditorBuilder;
 import org.eclipse.che.ide.api.editor.editorconfig.DefaultTextEditorConfiguration;
 import org.eclipse.che.ide.api.editor.editorconfig.TextEditorConfiguration;
 import org.eclipse.che.ide.api.editor.texteditor.TextEditor;
-import org.eclipse.che.ide.api.resources.File;
 import org.eclipse.che.ide.api.resources.VirtualFile;
 import org.eclipse.che.ide.ui.loaders.request.LoaderFactory;
 import org.eclipse.che.ide.util.loging.Log;
@@ -72,33 +71,25 @@ public class LanguageServerEditorProvider implements AsyncEditorProvider, Editor
 
   @Override
   public Promise<EditorPartPresenter> createEditor(VirtualFile file) {
-    if (file instanceof File) {
-      File resource = (File) file;
+    return registry
+        .getOrInitializeServer(file)
+        .then(
+            (Function<ServerCapabilities, EditorPartPresenter>)
+                capabilities -> {
+                  if (editorBuilder == null) {
+                    Log.debug(
+                        AbstractTextEditorProvider.class,
+                        "No builder registered for default editor type - giving up.");
+                    return null;
+                  }
 
-      Promise<ServerCapabilities> promise =
-          registry.getOrInitializeServer(resource.getProject().getPath(), file);
-      return promise.then(
-          new Function<ServerCapabilities, EditorPartPresenter>() {
-            @Override
-            public EditorPartPresenter apply(ServerCapabilities capabilities)
-                throws FunctionException {
-              if (editorBuilder == null) {
-                Log.debug(
-                    AbstractTextEditorProvider.class,
-                    "No builder registered for default editor type - giving up.");
-                return null;
-              }
-
-              final TextEditor editor = editorBuilder.buildEditor();
-              TextEditorConfiguration configuration =
-                  capabilities == null
-                      ? new DefaultTextEditorConfiguration()
-                      : editorConfigurationFactory.build(editor, capabilities);
-              editor.initialize(configuration);
-              return editor;
-            }
-          });
-    }
-    return null;
+                  final TextEditor editor = editorBuilder.buildEditor();
+                  TextEditorConfiguration configuration =
+                      capabilities == null
+                          ? new DefaultTextEditorConfiguration()
+                          : editorConfigurationFactory.build(editor, capabilities);
+                  editor.initialize(configuration);
+                  return editor;
+                });
   }
 }

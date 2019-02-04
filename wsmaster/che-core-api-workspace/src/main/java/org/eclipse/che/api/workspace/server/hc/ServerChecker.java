@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,6 +29,7 @@ public abstract class ServerChecker {
   private final String serverRef;
   private final long period;
   private final long deadLine;
+  private final int successThreshold;
   private final CompletableFuture<String> reportFuture;
   private final Timer timer;
 
@@ -37,6 +39,8 @@ public abstract class ServerChecker {
    * @param machineName name of machine to whom the server belongs
    * @param serverRef reference of the server
    * @param period period between unsuccessful availability checks, measured in {@code timeUnit}
+   * @param successThreshold number of sequential successful pings to server after which it is
+   *     treated as available
    * @param timeout max time allowed for the server availability checks to last before server is
    *     treated unavailable, measured in {@code timeUnit}
    * @param timeUnit measurement unit for {@code period} and {@code timeout} parameters
@@ -46,10 +50,12 @@ public abstract class ServerChecker {
       String serverRef,
       long period,
       long timeout,
+      int successThreshold,
       TimeUnit timeUnit,
       Timer timer) {
     this.machineName = machineName;
     this.serverRef = serverRef;
+    this.successThreshold = successThreshold;
     this.timer = timer;
     this.period = TimeUnit.MILLISECONDS.convert(period, timeUnit);
     this.reportFuture = new CompletableFuture<>();
@@ -61,7 +67,7 @@ public abstract class ServerChecker {
    * checking times out.
    */
   public void start() {
-    timer.schedule(new ServerCheckingTask(), 0);
+    timer.schedule(new ServerCheckingTask(0), 0);
   }
 
   /**
@@ -102,6 +108,12 @@ public abstract class ServerChecker {
   }
 
   private class ServerCheckingTask extends TimerTask {
+    private int currentNumberOfSequentialSuccessfulPings;
+
+    public ServerCheckingTask(int currentNumberOfSequentialSuccessfulPings) {
+      this.currentNumberOfSequentialSuccessfulPings = currentNumberOfSequentialSuccessfulPings;
+    }
+
     @Override
     public void run() {
       if (isTimedOut()) {
@@ -110,9 +122,14 @@ public abstract class ServerChecker {
                 String.format(
                     "Server '%s' in machine '%s' not available.", serverRef, machineName)));
       } else if (isAvailable()) {
-        reportFuture.complete(serverRef);
+        currentNumberOfSequentialSuccessfulPings++;
+        if (currentNumberOfSequentialSuccessfulPings == successThreshold) {
+          reportFuture.complete(serverRef);
+        } else {
+          timer.schedule(new ServerCheckingTask(currentNumberOfSequentialSuccessfulPings), period);
+        }
       } else {
-        timer.schedule(new ServerCheckingTask(), period);
+        timer.schedule(new ServerCheckingTask(0), period);
       }
     }
   }

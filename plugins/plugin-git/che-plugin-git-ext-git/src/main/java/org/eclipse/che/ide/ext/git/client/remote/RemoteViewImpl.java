@@ -1,20 +1,22 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.git.client.remote;
 
+import static org.eclipse.che.ide.util.dom.DomUtils.isWidgetOrChildFocused;
+
 import com.google.gwt.cell.client.Cell;
 import com.google.gwt.cell.client.TextCell;
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -23,7 +25,6 @@ import com.google.gwt.user.cellview.client.Column;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.UIObject;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.view.client.SelectionChangeEvent;
 import com.google.gwt.view.client.SingleSelectionModel;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -34,7 +35,6 @@ import org.eclipse.che.api.git.shared.Remote;
 import org.eclipse.che.ide.ext.git.client.GitLocalizationConstant;
 import org.eclipse.che.ide.ext.git.client.GitResources;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
-import org.eclipse.che.ide.ui.dialogs.confirm.ConfirmCallback;
 import org.eclipse.che.ide.ui.window.Window;
 
 /**
@@ -87,59 +87,26 @@ public class RemoteViewImpl extends Window implements RemoteView {
     this.setWidget(widget);
 
     btnClose =
-        createButton(
-            locale.buttonClose(),
-            "git-remotes-remotes-close",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onCloseClicked();
-              }
-            });
-    addButtonToFooter(btnClose);
+        addFooterButton(
+            locale.buttonClose(), "git-remotes-remotes-close", event -> delegate.onCloseClicked());
 
     btnAdd =
-        createButton(
-            locale.buttonAdd(),
-            "git-remotes-remotes-add",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onAddClicked();
-              }
-            });
-    addButtonToFooter(btnAdd);
+        addFooterButton(
+            locale.buttonAdd(), "git-remotes-remotes-add", event -> delegate.onAddClicked(), true);
 
     btnDelete =
-        createButton(
-            locale.buttonRemove(),
-            "git-remotes-remotes-remove",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                onDeleteClicked();
-              }
-            });
-    addButtonToFooter(btnDelete);
+        addFooterButton(
+            locale.buttonRemove(), "git-remotes-remotes-remove", event -> onDeleteClicked());
   }
 
   @Override
-  protected void onEnterClicked() {
-    if (isWidgetFocused(btnClose)) {
+  public void onEnterPress(NativeEvent evt) {
+    if (isWidgetOrChildFocused(btnClose)) {
       delegate.onCloseClicked();
-      return;
-    }
-
-    if (isWidgetFocused(btnAdd)) {
+    } else if (isWidgetOrChildFocused(btnAdd)) {
       delegate.onAddClicked();
-      return;
-    }
-
-    if (isWidgetFocused(btnDelete)) {
-      onDeleteClicked();
+    } else if (isWidgetOrChildFocused(btnDelete)) {
+      delegate.onDeleteClicked();
     }
   }
 
@@ -148,12 +115,7 @@ public class RemoteViewImpl extends Window implements RemoteView {
         .createConfirmDialog(
             locale.deleteRemoteRepositoryTitle(),
             locale.deleteRemoteRepositoryQuestion(selectedObject.getName()),
-            new ConfirmCallback() {
-              @Override
-              public void accepted() {
-                delegate.onDeleteClicked();
-              }
-            },
+            () -> delegate.onDeleteClicked(),
             null)
         .show();
   }
@@ -199,12 +161,9 @@ public class RemoteViewImpl extends Window implements RemoteView {
 
     final SingleSelectionModel<Remote> selectionModel = new SingleSelectionModel<Remote>();
     selectionModel.addSelectionChangeHandler(
-        new SelectionChangeEvent.Handler() {
-          @Override
-          public void onSelectionChange(SelectionChangeEvent event) {
-            selectedObject = selectionModel.getSelectedObject();
-            delegate.onRemoteSelected(selectedObject);
-          }
+        event -> {
+          selectedObject = selectionModel.getSelectedObject();
+          delegate.onRemoteSelected(selectedObject);
         });
     repositories.setSelectionModel(selectionModel);
   }
@@ -252,10 +211,8 @@ public class RemoteViewImpl extends Window implements RemoteView {
     this.delegate = delegate;
   }
 
-  /** {@inheritDoc} */
   @Override
-  protected void onClose() {
+  protected void onHide() {
     this.isShown = false;
-    super.onClose();
   }
 }

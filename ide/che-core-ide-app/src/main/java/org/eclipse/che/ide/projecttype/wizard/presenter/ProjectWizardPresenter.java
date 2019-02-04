@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -38,7 +39,6 @@ import org.eclipse.che.ide.projecttype.wizard.ProjectWizardFactory;
 import org.eclipse.che.ide.projecttype.wizard.ProjectWizardRegistry;
 import org.eclipse.che.ide.projecttype.wizard.categoriespage.CategoriesPagePresenter;
 import org.eclipse.che.ide.resource.Path;
-import org.eclipse.che.ide.ui.dialogs.DialogFactory;
 
 /**
  * Presenter for project wizard.
@@ -60,7 +60,6 @@ public class ProjectWizardPresenter
   private final ProjectWizardFactory projectWizardFactory;
   private final ProjectWizardRegistry wizardRegistry;
   private final Provider<CategoriesPagePresenter> categoriesPageProvider;
-  private final DialogFactory dialogFactory;
   private final Map<ProjectTypeDto, ProjectWizard> wizardsCache;
   private CategoriesPagePresenter categoriesPage;
   private ProjectWizard wizard;
@@ -74,13 +73,11 @@ public class ProjectWizardPresenter
       ProjectWizardView view,
       ProjectWizardFactory projectWizardFactory,
       ProjectWizardRegistry wizardRegistry,
-      Provider<CategoriesPagePresenter> categoriesPageProvider,
-      DialogFactory dialogFactory) {
+      Provider<CategoriesPagePresenter> categoriesPageProvider) {
     this.view = view;
     this.projectWizardFactory = projectWizardFactory;
     this.wizardRegistry = wizardRegistry;
     this.categoriesPageProvider = categoriesPageProvider;
-    this.dialogFactory = dialogFactory;
     wizardsCache = new HashMap<>();
     view.setDelegate(this);
   }
@@ -113,7 +110,6 @@ public class ProjectWizardPresenter
 
           @Override
           public void onFailure(Throwable e) {
-            dialogFactory.createMessageDialog("Error", e.getMessage(), null).show();
             view.setLoaderVisibility(false);
           }
         });

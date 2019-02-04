@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,7 +21,7 @@ import com.google.gwt.user.client.ui.HTMLPanel;
 import com.google.gwt.user.client.ui.IsWidget;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
-import org.eclipse.che.ide.ui.window.Window;
+import org.eclipse.che.ide.ui.window.WindowClientBundle;
 
 /**
  * The footer show on choice dialogs.
@@ -30,7 +31,6 @@ import org.eclipse.che.ide.ui.window.Window;
  */
 public class ChoiceDialogFooter implements IsWidget {
 
-  private static final Window.Resources resources = GWT.create(Window.Resources.class);
   /** The UI binder instance. */
   private static ChoiceDialogFooterUiBinder uiBinder = GWT.create(ChoiceDialogFooterUiBinder.class);
 
@@ -43,16 +43,16 @@ public class ChoiceDialogFooter implements IsWidget {
   private ChoiceDialogView.ActionDelegate actionDelegate;
 
   @Inject
-  public ChoiceDialogFooter() {
+  public ChoiceDialogFooter(WindowClientBundle resources) {
     rootPanel = uiBinder.createAndBindUi(this);
 
-    firstChoiceButton.addStyleName(resources.windowCss().primaryButton());
+    firstChoiceButton.addStyleName(resources.getStyle().windowFrameFooterButtonPrimary());
     firstChoiceButton.getElement().setId("ask-dialog-first");
 
-    secondChoiceButton.addStyleName(resources.windowCss().button());
+    secondChoiceButton.addStyleName(resources.getStyle().windowFrameFooterButton());
     secondChoiceButton.getElement().setId("ask-dialog-second");
 
-    thirdChoiceButton.addStyleName(resources.windowCss().button());
+    thirdChoiceButton.addStyleName(resources.getStyle().windowFrameFooterButton());
     thirdChoiceButton.getElement().setId("ask-dialog-third");
   }
 

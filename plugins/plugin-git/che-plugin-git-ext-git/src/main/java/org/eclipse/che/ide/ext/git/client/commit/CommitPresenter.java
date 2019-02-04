@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -76,6 +77,7 @@ public class CommitPresenter extends GitAuthActionPresenter
   private final ProcessesPanelPresenter consolesPanelPresenter;
 
   private Project project;
+  private String latestCommitMessage;
 
   @Inject
   public CommitPresenter(
@@ -118,7 +120,11 @@ public class CommitPresenter extends GitAuthActionPresenter
               service
                   .log(project.getLocation(), null, -1, 1, false)
                   .then(
-                      arg -> {
+                      log -> {
+                        final Revision revision = getFirst(log.getCommits(), null);
+                        if (revision != null) {
+                          latestCommitMessage = revision.getMessage();
+                        }
                         if (diff.isEmpty()) {
                           showAskForAmendDialog();
                         } else {
@@ -140,6 +146,8 @@ public class CommitPresenter extends GitAuthActionPresenter
                                     newFiles.addAll(status.getUntracked());
                                     show(newFiles.stream().collect(joining("\nA\t", "A\t", "")));
                                   });
+                        } else {
+                          notificationManager.notify(locale.logFailed(), FAIL, NOT_EMERGE_MODE);
                         }
                       });
             })
@@ -267,30 +275,11 @@ public class CommitPresenter extends GitAuthActionPresenter
 
   @Override
   public void setAmendCommitMessage() {
-    service
-        .log(project.getLocation(), null, -1, -1, false)
-        .then(
-            log -> {
-              String message = "";
-              final Revision revision = getFirst(log.getCommits(), null);
-              if (revision != null) {
-                message = revision.getMessage();
-              }
-              CommitPresenter.this.view.setMessage(message);
-              CommitPresenter.this.view.setEnableCommitButton(!message.isEmpty());
-            })
-        .catchError(
-            error -> {
-              if (getErrorCode(error.getCause()) == ErrorCodes.INIT_COMMIT_WAS_NOT_PERFORMED) {
-                dialogFactory
-                    .createMessageDialog(
-                        locale.commitTitle(), locale.initCommitWasNotPerformed(), null)
-                    .show();
-              } else {
-                CommitPresenter.this.view.setMessage("");
-                notificationManager.notify(locale.logFailed(), FAIL, NOT_EMERGE_MODE);
-              }
-            });
+    if (latestCommitMessage == null) {
+      return;
+    }
+    view.setMessage(latestCommitMessage);
+    view.setEnableCommitButton(!latestCommitMessage.isEmpty());
   }
 
   private void onCommitSuccess(@NotNull final Revision revision) {

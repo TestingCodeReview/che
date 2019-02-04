@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,8 +15,8 @@ import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static org.eclipse.che.dto.server.DtoFactory.newDto;
 
-import com.google.inject.Inject;
-import com.google.inject.Singleton;
+import com.google.inject.assistedinject.Assisted;
+import com.google.inject.assistedinject.AssistedInject;
 import java.util.List;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
@@ -23,22 +24,31 @@ import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.multiuser.api.permission.shared.dto.PermissionsDto;
 import org.eclipse.che.multiuser.organization.shared.dto.OrganizationDto;
 import org.eclipse.che.selenium.core.provider.TestApiEndpointUrlProvider;
+import org.eclipse.che.selenium.core.requestfactory.TestUserHttpJsonRequestFactoryCreator;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** This util is handling the requests to Organization API. */
-@Singleton
 public class TestOrganizationServiceClient {
   private static final Logger LOG = LoggerFactory.getLogger(TestOrganizationServiceClient.class);
 
   private final String apiEndpoint;
   private final HttpJsonRequestFactory requestFactory;
 
-  @Inject
   public TestOrganizationServiceClient(
       TestApiEndpointUrlProvider apiEndpointUrlProvider, HttpJsonRequestFactory requestFactory) {
     this.apiEndpoint = apiEndpointUrlProvider.get().toString();
     this.requestFactory = requestFactory;
+  }
+
+  @AssistedInject
+  public TestOrganizationServiceClient(
+      TestApiEndpointUrlProvider apiEndpointUrlProvider,
+      TestUserHttpJsonRequestFactoryCreator testUserHttpJsonRequestFactoryCreator,
+      @Assisted TestUser testUser) {
+    this.apiEndpoint = apiEndpointUrlProvider.get().toString();
+    this.requestFactory = testUserHttpJsonRequestFactoryCreator.create(testUser);
   }
 
   public List<OrganizationDto> getAll() throws Exception {
@@ -46,14 +56,10 @@ public class TestOrganizationServiceClient {
   }
 
   public List<OrganizationDto> getAllRoot() throws Exception {
-    return getAll(null);
-  }
-
-  public List<OrganizationDto> getAll(@Nullable String parent) throws Exception {
     List<OrganizationDto> organizations =
         requestFactory.fromUrl(getApiUrl()).request().asList(OrganizationDto.class);
 
-    organizations.removeIf(o -> o.getParent() != parent);
+    organizations.removeIf(o -> o.getParent() != null);
     return organizations;
   }
 

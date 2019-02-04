@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -25,6 +26,7 @@ import com.google.gwt.event.dom.client.DoubleClickEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Event;
+import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.IsWidget;
@@ -140,7 +142,19 @@ public class EditorTabWidget extends Composite
   @Override
   public void onBrowserEvent(Event event) {
     if (event.getTypeInt() == Event.ONMOUSEDOWN && event.getButton() == NativeEvent.BUTTON_MIDDLE) {
-      editorAgent.closeEditor(relatedEditorPart);
+      if (editorAgent.getOpenedEditors().size() == 1) {
+        editorAgent.closeEditor(relatedEditorPart);
+      } else {
+        // In some OS paste action is assigned to middle mouse key by default. 'closeEditor'
+        // command restores cursor position in a new editor in the same time when the paste
+        // action fires. So adding 150 ms delay prevents pasting buffer content to the editor.
+        new Timer() {
+          @Override
+          public void run() {
+            editorAgent.closeEditor(relatedEditorPart);
+          }
+        }.schedule(150);
+      }
     }
 
     super.onBrowserEvent(event);

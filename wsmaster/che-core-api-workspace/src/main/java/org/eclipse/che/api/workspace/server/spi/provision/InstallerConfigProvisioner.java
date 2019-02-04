@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import org.eclipse.che.api.core.model.workspace.config.ServerConfig;
 import org.eclipse.che.api.core.model.workspace.runtime.RuntimeIdentity;
+import org.eclipse.che.api.installer.server.model.impl.InstallerImpl;
 import org.eclipse.che.api.installer.shared.model.Installer;
 import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
 import org.eclipse.che.api.workspace.server.spi.RuntimeInfrastructure;
@@ -49,8 +51,9 @@ public class InstallerConfigProvisioner implements InternalEnvironmentProvisione
   public void provision(RuntimeIdentity id, InternalEnvironment internalEnvironment)
       throws InfrastructureException {
     for (InternalMachineConfig machineConfig : internalEnvironment.getMachines().values()) {
+      LOG.debug("Start provisioning installer configs for workspace '{}'", id.getWorkspaceId());
       fillEnv(machineConfig.getEnv(), machineConfig.getInstallers());
-      fillServers(machineConfig.getServers(), machineConfig.getInstallers());
+      fillServers(id.getWorkspaceId(), machineConfig.getServers(), machineConfig.getInstallers());
     }
   }
 
@@ -60,7 +63,7 @@ public class InstallerConfigProvisioner implements InternalEnvironmentProvisione
    * @param env map to fill
    * @param installers installers to retrieve env
    */
-  private void fillEnv(Map<String, String> env, List<Installer> installers) {
+  private void fillEnv(Map<String, String> env, List<InstallerImpl> installers) {
     for (Installer installer : installers) {
       String envVars = installer.getProperties().get(Installer.ENVIRONMENT_PROPERTY);
       if (isNullOrEmpty(envVars)) {
@@ -84,16 +87,22 @@ public class InstallerConfigProvisioner implements InternalEnvironmentProvisione
   /**
    * Fill the provided map with servers that are provided by installers.
    *
+   * @param workspaceId workspace id
    * @param servers map to fill
    * @param installers installers to retrieve servers
    * @throws InfrastructureException if any installer has server that conflicts with already
    *     configured one
    */
-  private void fillServers(Map<String, ServerConfig> servers, List<Installer> installers)
+  private void fillServers(
+      String workspaceId, Map<String, ServerConfig> servers, List<InstallerImpl> installers)
       throws InfrastructureException {
-    for (Installer installer : installers) {
+    for (InstallerImpl installer : installers) {
       for (Map.Entry<String, ? extends ServerConfig> serverEntry :
           installer.getServers().entrySet()) {
+        LOG.debug(
+            "Provisioning installer config for workspace '{}' and installer '{}'",
+            workspaceId,
+            installer.getId());
         if (servers.putIfAbsent(serverEntry.getKey(), serverEntry.getValue()) != null
             && !servers.get(serverEntry.getKey()).equals(serverEntry.getValue())) {
           throw new InfrastructureException(

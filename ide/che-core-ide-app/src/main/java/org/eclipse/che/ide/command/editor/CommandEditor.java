@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -168,6 +169,20 @@ public class CommandEditor extends AbstractEditorPresenter
     return false;
   }
 
+  private boolean isInvalidData() {
+    for (CommandEditorPage page : pages) {
+      if (page.hasInvalidData()) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  public List<CommandEditorPage> getPages() {
+    return pages;
+  }
+
   @Nullable
   @Override
   public SVGResource getTitleImage() {
@@ -219,6 +234,16 @@ public class CommandEditor extends AbstractEditorPresenter
 
   @Override
   public void doSave(AsyncCallback<EditorInput> callback) {
+    if (isInvalidData()) {
+      dialogFactory
+          .createMessageDialog(
+              coreMessages.save(),
+              coreMessages.messagesInvalidCommand(),
+              () -> callback.onFailure(null))
+          .show();
+      return;
+    }
+
     commandManager
         .updateCommand(initialCommandName, editedCommand)
         .then(
@@ -236,7 +261,7 @@ public class CommandEditor extends AbstractEditorPresenter
 
               updateDirtyState(false);
 
-              view.setSaveEnabled(false);
+              initializePages();
 
               callback.onSuccess(getEditorInput());
             })

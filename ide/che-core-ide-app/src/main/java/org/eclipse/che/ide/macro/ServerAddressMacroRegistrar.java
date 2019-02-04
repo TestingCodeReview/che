@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,7 +21,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import org.eclipse.che.api.core.model.workspace.runtime.Machine;
 import org.eclipse.che.api.core.model.workspace.runtime.Server;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.macro.BaseMacro;
@@ -48,7 +48,7 @@ public class ServerAddressMacroRegistrar {
   private final AppContext appContext;
   private final WsAgentServerUtil wsAgentServerUtil;
 
-  private Set<Macro> macros;
+  private Set<Macro> macros = new HashSet<>();
 
   @Inject
   public ServerAddressMacroRegistrar(
@@ -73,8 +73,10 @@ public class ServerAddressMacroRegistrar {
     eventBus.addHandler(
         WorkspaceStoppedEvent.TYPE,
         e -> {
-          macros.forEach(macro -> macroRegistryProvider.get().unregister(macro));
-          macros.clear();
+          if (macros != null) {
+            macros.forEach(macro -> macroRegistryProvider.get().unregister(macro));
+            macros.clear();
+          }
         });
   }
 
@@ -82,19 +84,14 @@ public class ServerAddressMacroRegistrar {
     final Optional<MachineImpl> devMachine = wsAgentServerUtil.getWsAgentServerMachine();
 
     if (devMachine.isPresent()) {
-      macros = getMacros(devMachine.get());
+      macros.clear();
+
+      for (Map.Entry<String, ? extends Server> entry : devMachine.get().getServers().entrySet()) {
+        macros.add(new ServerAddressMacro(entry.getKey(), entry.getValue().getUrl()));
+      }
+
       macroRegistryProvider.get().register(macros);
     }
-  }
-
-  private Set<Macro> getMacros(Machine machine) {
-    Set<Macro> macros = new HashSet<>();
-
-    for (Map.Entry<String, ? extends Server> entry : machine.getServers().entrySet()) {
-      macros.add(new ServerAddressMacro(entry.getKey(), entry.getValue().getUrl()));
-    }
-
-    return macros;
   }
 
   private class ServerAddressMacro extends BaseMacro {

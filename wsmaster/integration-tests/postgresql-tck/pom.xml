@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (c) 2012-2017 Red Hat, Inc.
-    All rights reserved. This program and the accompanying materials
-    are made available under the terms of the Eclipse Public License v1.0
-    which accompanies this distribution, and is available at
-    http://www.eclipse.org/legal/epl-v10.html
+    Copyright (c) 2012-2018 Red Hat, Inc.
+    This program and the accompanying materials are made
+    available under the terms of the Eclipse Public License 2.0
+    which is available at https://www.eclipse.org/legal/epl-2.0/
+
+    SPDX-License-Identifier: EPL-2.0
 
     Contributors:
       Red Hat, Inc. - initial API and implementation
@@ -16,7 +17,7 @@
     <parent>
         <artifactId>integration-tests-parent</artifactId>
         <groupId>org.eclipse.che.core</groupId>
-        <version>6.0.0-M4-SNAPSHOT</version>
+        <version>6.18.0-SNAPSHOT</version>
     </parent>
     <artifactId>postgresql-tck</artifactId>
     <packaging>jar</packaging>
@@ -43,6 +44,10 @@
             <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-api-user</artifactId>
             <classifier>tests</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.che.infrastructure</groupId>
+            <artifactId>infrastructure-kubernetes</artifactId>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
@@ -125,6 +130,17 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.core</groupId>
+            <artifactId>che-core-api-workspace-activity</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.che.core</groupId>
+            <artifactId>che-core-api-workspace-activity</artifactId>
+            <classifier>tests</classifier>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.che.core</groupId>
             <artifactId>che-core-api-workspace-shared</artifactId>
             <scope>test</scope>
         </dependency>
@@ -188,6 +204,15 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>**/**</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
                     <execution>
@@ -196,120 +221,94 @@
                             <skip>true</skip>
                         </configuration>
                     </execution>
+                    <execution>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
+                            <includeArtifactIds>che-core-api-account,
+                                    che-core-api-user,
+                                    che-core-api-ssh,
+                                    che-core-api-workspace,
+                                    che-core-api-installer,
+                                    infrastructure-kubernetes</includeArtifactIds>
+                            <includeScope>test</includeScope>
+                            <includeClassifiers>tests</includeClassifiers>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
                 <configuration>
-                    <excludes>
-                        <exclude>**/**</exclude>
-                    </excludes>
+                    <systemPropertyVariables>
+                        <jdbc.driver>${jdbc.driver}</jdbc.driver>
+                        <jdbc.url>${jdbc.url}</jdbc.url>
+                        <jdbc.user>${jdbc.admin.name}</jdbc.user>
+                        <jdbc.password>${jdbc.admin.password}</jdbc.password>
+                    </systemPropertyVariables>
+                    <includes>
+                        <include>**/tck/**</include>
+                    </includes>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>start</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                            <goal>start</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>stop</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <images>
+                        <image>
+                            <alias>database</alias>
+                            <name>${db.image.name}</name>
+                            <run>
+                                <ports>
+                                    <port>jdbc.port:5432</port>
+                                </ports>
+                                <wait>
+                                    <log>server started</log>
+                                    <time>60000</time>
+                                </wait>
+                                <restartPolicy>
+                                    <name>always</name>
+                                </restartPolicy>
+                                <env>
+                                    <POSTGRESQL_USER>${jdbc.user.name}</POSTGRESQL_USER>
+                                    <POSTGRESQL_PASSWORD>${jdbc.user.password}</POSTGRESQL_PASSWORD>
+                                    <POSTGRESQL_DATABASE>che</POSTGRESQL_DATABASE>
+                                    <POSTGRESQL_ADMIN_PASSWORD>${jdbc.admin.password}</POSTGRESQL_ADMIN_PASSWORD>
+                                </env>
+                            </run>
+                        </image>
+                    </images>
                 </configuration>
             </plugin>
         </plugins>
     </build>
-    <profiles>
-        <profile>
-            <id>integration</id>
-            <activation>
-                <activeByDefault>false</activeByDefault>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-dependency-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>unpack-dependencies</goal>
-                                </goals>
-                                <configuration>
-                                    <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
-                                    <includeArtifactIds>che-core-api-account,
-                                        che-core-api-user,
-                                        che-core-api-ssh,
-                                        che-core-api-workspace,
-                                        che-core-api-installer</includeArtifactIds>
-                                    <includeScope>test</includeScope>
-                                    <includeClassifiers>tests</includeClassifiers>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-failsafe-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <goals>
-                                    <goal>integration-test</goal>
-                                    <goal>verify</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                        <configuration>
-                            <systemPropertyVariables>
-                                <jdbc.driver>${jdbc.driver}</jdbc.driver>
-                                <jdbc.url>${jdbc.url}</jdbc.url>
-                                <jdbc.user>${jdbc.admin.name}</jdbc.user>
-                                <jdbc.password>${jdbc.admin.password}</jdbc.password>
-                            </systemPropertyVariables>
-                            <includes>
-                                <include>**/tck/**</include>
-                            </includes>
-                        </configuration>
-                    </plugin>
-                    <plugin>
-                        <groupId>io.fabric8</groupId>
-                        <artifactId>docker-maven-plugin</artifactId>
-                        <executions>
-                            <execution>
-                                <id>start</id>
-                                <phase>pre-integration-test</phase>
-                                <goals>
-                                    <goal>stop</goal>
-                                    <goal>start</goal>
-                                </goals>
-                            </execution>
-                            <execution>
-                                <id>stop</id>
-                                <phase>post-integration-test</phase>
-                                <goals>
-                                    <goal>stop</goal>
-                                </goals>
-                            </execution>
-                        </executions>
-                        <configuration>
-                            <images>
-                                <image>
-                                    <alias>database</alias>
-                                    <name>${db.image.name}</name>
-                                    <run>
-                                        <ports>
-                                            <port>jdbc.port:5432</port>
-                                        </ports>
-                                        <wait>
-                                            <log>server started</log>
-                                            <time>60000</time>
-                                        </wait>
-                                        <restartPolicy>
-                                            <name>always</name>
-                                        </restartPolicy>
-                                        <env>
-                                            <POSTGRESQL_USER>${jdbc.user.name}</POSTGRESQL_USER>
-                                            <POSTGRESQL_PASSWORD>${jdbc.user.password}</POSTGRESQL_PASSWORD>
-                                            <POSTGRESQL_DATABASE>che</POSTGRESQL_DATABASE>
-                                            <POSTGRESQL_ADMIN_PASSWORD>${jdbc.admin.password}</POSTGRESQL_ADMIN_PASSWORD>
-                                        </env>
-                                    </run>
-                                </image>
-                            </images>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

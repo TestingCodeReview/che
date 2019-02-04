@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,7 +15,7 @@ import com.google.inject.ImplementedBy;
 import java.util.Map;
 import org.eclipse.che.ide.api.mvp.View;
 import org.eclipse.che.ide.ext.java.client.project.classpath.valueproviders.node.NodeWidget;
-import org.eclipse.che.ide.ext.java.shared.dto.classpath.ClasspathEntryDto;
+import org.eclipse.che.jdt.ls.extension.api.dto.ClasspathEntry;
 
 /**
  * View interface for the information about source folders on the build path.
@@ -31,7 +32,7 @@ public interface SourceEntryView extends View<SourceEntryView.ActionDelegate> {
    *
    * @param data map which binds categories of the sources
    */
-  void setData(Map<String, ClasspathEntryDto> data);
+  void setData(Map<String, ClasspathEntry> data);
 
   /**
    * Removes node from the sources.

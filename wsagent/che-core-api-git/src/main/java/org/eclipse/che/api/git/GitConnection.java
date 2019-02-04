@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -396,10 +397,19 @@ public interface GitConnection extends Closeable {
   /**
    * Get the current branch on the current directory
    *
-   * @return the name of the branch
+   * @deprecated Use {@link #getCurrentReference()} instead.
+   * @return the name of the branch or <i>HEAD</i> if the repo points to tag or commit
    * @throws GitException if any exception occurs
    */
   String getCurrentBranch() throws GitException;
+
+  /**
+   * Get the current reference on the current directory
+   *
+   * @return reference object with branch, tag or commit id
+   * @throws GitException if any exception occurs
+   */
+  Reference getCurrentReference() throws GitException;
 
   /**
    * Revert the specified commit

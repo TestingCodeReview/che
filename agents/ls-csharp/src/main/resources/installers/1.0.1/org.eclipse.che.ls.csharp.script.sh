@@ -1,9 +1,10 @@
 #
-# Copyright (c) 2012-2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
+# Copyright (c) 2012-2018 Red Hat, Inc.
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
 #
 # Contributors:
 #   Red Hat, Inc. - initial API and implementation
@@ -26,7 +27,8 @@ unset PACKAGES
 command -v tar >/dev/null 2>&1 || { PACKAGES=${PACKAGES}" tar"; }
 command -v curl >/dev/null 2>&1 || { PACKAGES=${PACKAGES}" curl"; }
 
-AGENT_BINARIES_URI=https://codenvy.com/update/repository/public/download/org.eclipse.che.ls.csharp.binaries/1.0.1
+LS_CSHARP_VERSION="1.31.1"
+AGENT_BINARIES_URI="https://github.com/OmniSharp/omnisharp-roslyn/releases/download/v${LS_CSHARP_VERSION}/omnisharp-linux-x64.tar.gz"
 CHE_DIR=$HOME/che
 LS_DIR=${CHE_DIR}/ls-csharp
 LS_LAUNCHER=${LS_DIR}/launch.sh
@@ -83,13 +85,6 @@ elif echo ${LINUX_TYPE} | grep -qi "Red Hat"; then
         ${SUDO} scl enable rh-dotnetcore20 bash;
     }
 
-    command -v nodejs >/dev/null 2>&1 || {
-        curl --silent --location https://rpm.nodesource.com/setup_6.x | ${SUDO} bash -;
-        ${SUDO} yum -y install nodejs;
-    }
-
-
-
 
 # Install for Ubuntu 14.04, 16.04, 16.10 & Linux Mint 17, 18 (64 bit)
 ####################################
@@ -123,16 +118,6 @@ elif echo ${LINUX_TYPE} | grep -qi "ubuntu"; then
         ${SUDO} apt-get -y install dotnet-sdk-2.0.0-preview2-006497
     }
 
-    command -v nodejs >/dev/null 2>&1 || {
-        {
-            curl -sL https://deb.nodesource.com/setup_6.x | ${SUDO} bash -;
-        };
-
-        ${SUDO} apt-get update;
-        ${SUDO} apt-get install -y nodejs;
-    }
-
-
 # Debian 8
 ##########
 elif echo ${LINUX_TYPE} | grep -qi "debian"; then
@@ -149,15 +134,6 @@ elif echo ${LINUX_TYPE} | grep -qi "debian"; then
         ${SUDO} tar zxf dotnet.tar.gz -C /opt/dotnet;
         rm dotnet.tar.gz;
         ${SUDO} ln -s /opt/dotnet/dotnet /usr/local/bin;
-    }
-
-    command -v nodejs >/dev/null 2>&1 || {
-        {
-            curl -sL https://deb.nodesource.com/setup_6.x | ${SUDO} bash -;
-        };
-
-        ${SUDO} apt-get update;
-        ${SUDO} apt-get install -y nodejs;
     }
 
 # Fedora 24, 25, 26
@@ -177,12 +153,6 @@ elif echo ${LINUX_TYPE} | grep -qi "fedora"; then
         ${SUDO} ln -s /opt/dotnet/dotnet /usr/local/bin;
     }
 
-    command -v nodejs >/dev/null 2>&1 || {
-        curl --silent --location https://rpm.nodesource.com/setup_6.x | ${SUDO} bash -;
-        ${SUDO} dnf -y install nodejs;
-    }
-
-
 # CentOS 7.1 (64 bit) & Oracle Linux 7.1 (64 bit)
 ###############################
 elif echo ${LINUX_TYPE} | grep -qi "centos"; then
@@ -198,12 +168,6 @@ elif echo ${LINUX_TYPE} | grep -qi "centos"; then
         rm dotnet.tar.gz;
         ${SUDO} ln -s /opt/dotnet/dotnet /usr/local/bin;
     }
-
-    command -v nodejs >/dev/null 2>&1 || {
-        curl --silent --location https://rpm.nodesource.com/setup_6.x | bash -;
-        ${SUDO} yum -y install nodejs;
-    }
-
 
 # SUSE Linux Enterprise Server (64 bit), openSUSE (64 bit)
 ###############
@@ -221,11 +185,6 @@ elif echo ${LINUX_TYPE} | grep -qi "opensuse"; then
         ${SUDO} ln -s /opt/dotnet/dotnet /usr/local/bin;
      }
 
-     command -v nodejs >/dev/null 2>&1 || {
-        ${SUDO} zypper ar http://download.opensuse.org/repositories/devel:/languages:/nodejs/openSUSE_13.1/ Node.js
-        ${SUDO} zypper in nodejs
-     }
-
 else
     >&2 echo "Unrecognized Linux Type"
     >&2 cat /etc/os-release
@@ -237,8 +196,13 @@ fi
 ### Install C# LS ###
 #####################
 
-curl -s ${AGENT_BINARIES_URI} | tar xzf - -C ${CHE_DIR}
+
+if [ ! -f "${LS_DIR}/run" ]; then
+    echo "Downloading C# language server"
+    curl -s -L -o ${LS_DIR}/omnisharp-linux-x64.tar.gz  ${AGENT_BINARIES_URI}
+    cd ${LS_DIR} && tar -xzf omnisharp-linux-x64.tar.gz
+fi
 
 touch ${LS_LAUNCHER}
 chmod +x ${LS_LAUNCHER}
-echo "nodejs ${LS_DIR}/node_modules/omnisharp-client/languageserver/server.js" > ${LS_LAUNCHER}
+echo "${LS_DIR}/run -lsp" > ${LS_LAUNCHER}

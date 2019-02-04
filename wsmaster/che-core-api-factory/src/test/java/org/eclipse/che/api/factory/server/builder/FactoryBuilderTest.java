@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
 import org.eclipse.che.api.core.ApiException;
+import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.factory.FactoryParameter;
 import org.eclipse.che.api.core.model.factory.Button;
 import org.eclipse.che.api.factory.server.impl.SourceStorageParametersValidator;
@@ -94,11 +96,10 @@ public class FactoryBuilderTest {
   }
 
   @Test(
-    expectedExceptions = ApiException.class,
-    dataProvider = "setByServerParamsProvider",
-    expectedExceptionsMessageRegExp =
-        "You have provided an invalid parameter .* for this version of Factory parameters.*"
-  )
+      expectedExceptions = ApiException.class,
+      dataProvider = "setByServerParamsProvider",
+      expectedExceptionsMessageRegExp =
+          "You have provided an invalid parameter .* for this version of Factory parameters.*")
   public void shouldNotAllowUsingParamsThatCanBeSetOnlyByServer(FactoryDto factory)
       throws Exception {
     factoryBuilder.checkValid(factory);
@@ -165,6 +166,39 @@ public class FactoryBuilderTest {
                     .withReferer("referrer")
                     .withSince(123L)
                     .withUntil(123L));
+
+    factoryBuilder.checkValid(factory);
+  }
+
+  @Test(
+      expectedExceptions = ConflictException.class,
+      expectedExceptionsMessageRegExp =
+          "You are missing a mandatory parameter \"workspace.projects\\[1\\].path\". .*")
+  public void shouldThrowExceptionWithMessagePointingToMissingMandatoryParameter()
+      throws Exception {
+    factoryBuilder = new FactoryBuilder(sourceProjectParametersValidator);
+
+    ProjectConfigDto project =
+        dto.createDto(ProjectConfigDto.class)
+            .withSource(
+                dto.createDto(SourceStorageDto.class).withType("git").withLocation("location"))
+            .withType("type")
+            .withAttributes(singletonMap("key", singletonList("value")))
+            .withDescription("description")
+            .withName("name")
+            .withPath("/path");
+
+    ProjectConfigDto project2 =
+        dto.createDto(ProjectConfigDto.class)
+            .withSource(
+                dto.createDto(SourceStorageDto.class).withType("git").withLocation("location"))
+            .withType("")
+            .withAttributes(singletonMap("key", singletonList("value")))
+            .withDescription("description")
+            .withName("test")
+            .withPath("");
+    FactoryDto factory = prepareFactory();
+    factory.getWorkspace().setProjects(asList(project, project2));
 
     factoryBuilder.checkValid(factory);
   }

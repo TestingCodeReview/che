@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -30,6 +31,7 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.Page;
 import org.eclipse.che.api.core.model.factory.Button;
 import org.eclipse.che.api.factory.server.model.impl.ActionImpl;
 import org.eclipse.che.api.factory.server.model.impl.AuthorImpl;
@@ -124,7 +126,10 @@ public class FactoryDaoTest {
     factoryDao.create(factory);
   }
 
-  @Test(expectedExceptions = ConflictException.class)
+  @Test(
+      expectedExceptions = ConflictException.class,
+      expectedExceptionsMessageRegExp =
+          "Factory with name 'factoryName0' already exists for current user")
   public void shouldThrowConflictExceptionWhenCreatingFactoryWithExistingNameAndUserId()
       throws Exception {
     final FactoryImpl factory = createFactory(10, users[0].getId());
@@ -166,7 +171,10 @@ public class FactoryDaoTest {
     assertEquals(factoryDao.getById(update.getId()), update);
   }
 
-  @Test(expectedExceptions = ConflictException.class)
+  @Test(
+      expectedExceptions = ConflictException.class,
+      expectedExceptionsMessageRegExp =
+          "Factory with name 'factoryName1' already exists for current user")
   public void shouldThrowConflictExceptionWhenUpdateFactoryWithExistingNameAndUserId()
       throws Exception {
     final FactoryImpl update = factories[0];
@@ -206,9 +214,9 @@ public class FactoryDaoTest {
   public void shouldGetFactoryByIdAttribute() throws Exception {
     final FactoryImpl factory = factories[0];
     final List<Pair<String, String>> attributes = ImmutableList.of(Pair.of("id", factory.getId()));
-    final List<FactoryImpl> result = factoryDao.getByAttribute(1, 0, attributes);
+    final Page<FactoryImpl> result = factoryDao.getByAttributes(1, 0, attributes);
 
-    assertEquals(new HashSet<>(result), ImmutableSet.of(factory));
+    assertEquals(new HashSet<>(result.getItems()), ImmutableSet.of(factory));
   }
 
   @Test(dependsOnMethods = "shouldUpdateFactory")
@@ -224,17 +232,25 @@ public class FactoryDaoTest {
     factory3.getPolicies().setReferer("ref2");
     factoryDao.update(factory1);
     factoryDao.update(factory3);
-    final List<FactoryImpl> result = factoryDao.getByAttribute(factories.length, 0, attributes);
+    final Page<FactoryImpl> result = factoryDao.getByAttributes(factories.length, 0, attributes);
 
-    assertEquals(new HashSet<>(result), ImmutableSet.of(factories[0], factories[2], factories[4]));
+    assertEquals(
+        new HashSet<>(result.getItems()),
+        ImmutableSet.of(factories[0], factories[2], factories[4]));
   }
 
   @Test
   public void shouldFindAllFactoriesWhenAttributesNotSpecified() throws Exception {
     final List<Pair<String, String>> attributes = emptyList();
-    final List<FactoryImpl> result = factoryDao.getByAttribute(factories.length, 0, attributes);
+    final Page<FactoryImpl> result = factoryDao.getByAttributes(factories.length, 0, attributes);
 
-    assertEquals(new HashSet<>(result), new HashSet<>(asList(factories)));
+    assertEquals(new HashSet<>(result.getItems()), new HashSet<>(asList(factories)));
+  }
+
+  @Test
+  public void shouldFindAllFactoriesOfSpecifiedUser() throws Exception {
+    final Page<FactoryImpl> result = factoryDao.getByUser(users[1].getId(), 30, 0);
+    assertEquals(new HashSet<>(result.getItems()), new HashSet<>(asList(factories[1])));
   }
 
   @Test(expectedExceptions = NotFoundException.class, dependsOnMethods = "shouldGetFactoryById")

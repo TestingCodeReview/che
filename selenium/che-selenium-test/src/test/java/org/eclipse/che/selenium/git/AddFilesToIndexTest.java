@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,12 +16,13 @@ import com.google.inject.name.Named;
 import java.net.URL;
 import java.nio.file.Paths;
 import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.selenium.core.TestGroup;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
@@ -36,8 +38,12 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Musienko Maksim */
+@Test(groups = TestGroup.GITHUB)
 public class AddFilesToIndexTest {
   private static final String PROJECT_NAME = NameGenerator.generate("AddFilesToIndex_", 4);
+  private static final String PATH_TO_JSP_FILE = "/src/main/webapp/index.jsp";
+  private static final String JAVA_TAB_FILE_NAME = "AppController";
+  private static final String JSP_FILE_NAME = "index.jsp";
 
   private static final String STATUS_MESSAGE_ONE_FILE =
       " On branch master\n"
@@ -77,11 +83,7 @@ public class AddFilesToIndexTest {
   @Named("github.username")
   private String gitHubUsername;
 
-  @Inject
-  @Named("github.password")
-  private String gitHubPassword;
-
-  @Inject private TestUser productUser;
+  @Inject private DefaultTestUser productUser;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Menu menu;
   @Inject private AskDialog askDialog;
@@ -104,9 +106,14 @@ public class AddFilesToIndexTest {
   }
 
   @Test
-  public void addFilesTest() throws InterruptedException {
+  public void addFilesTest() {
+    // preparation
+    String pathToJavaFileItem = PROJECT_NAME + "/src/main/java/org.eclipse.qa.examples";
+    String pathToJspFile = PROJECT_NAME + "/src/main/webapp";
+    String javaFileName = JAVA_TAB_FILE_NAME + ".java";
+
     projectExplorer.waitProjectExplorer();
-    projectExplorer.openItemByPath(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.INITIALIZE_REPOSITORY);
     askDialog.waitFormToOpen();
@@ -117,30 +124,29 @@ public class AddFilesToIndexTest {
     events.waitExpectedMessage(TestGitConstants.GIT_INITIALIZED_SUCCESS);
 
     // perform init commit
-    projectExplorer.quickExpandWithJavaScript();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.waitAndRunCommit("init");
     loader.waitOnClosed();
 
     // check state of the index
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.ADD_TO_INDEX);
     git.waitGitStatusBarWithMess(TestGitConstants.GIT_NOTHING_TO_ADD);
     events.clickEventLogBtn();
     events.waitExpectedMessage(TestGitConstants.GIT_NOTHING_TO_ADD);
 
+    // expand the tree and open files
+    projectExplorer.expandPathInProjectExplorerAndOpenFile(pathToJavaFileItem, javaFileName);
+    projectExplorer.expandPathInProjectExplorerAndOpenFile(pathToJspFile, JSP_FILE_NAME);
+
     // Edit index.jsp
-    projectExplorer.openItemByVisibleNameInExplorer("index.jsp");
-    editor.waitActive();
-    editor.typeTextIntoEditor(Keys.PAGE_DOWN.toString());
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.setCursorToLine(17);
     editor.typeTextIntoEditor("<!-- Testing add to index-->");
     loader.waitOnClosed();
 
     // Add this file to index
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/webapp/index.jsp");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + PATH_TO_JSP_FILE);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.ADD_TO_INDEX);
     git.waitGitStatusBarWithMess(TestGitConstants.GIT_ADD_TO_INDEX_SUCCESS);
     events.clickEventLogBtn();
@@ -151,16 +157,15 @@ public class AddFilesToIndexTest {
     loader.waitOnClosed();
     git.waitGitStatusBarWithMess(STATUS_MESSAGE_ONE_FILE);
 
-    // Edit GreetingController.java
-    projectExplorer.openItemByPath(
-        PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/AppController.java");
+    // Edit AppController.java
+    editor.selectTabByName(JAVA_TAB_FILE_NAME);
     editor.waitActive();
-    editor.setCursorToLine(16);
+    editor.setCursorToLine(15);
     editor.typeTextIntoEditor("//Testing add to index");
     loader.waitOnClosed();
 
     // Create new.css file
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/webapp");
+    projectExplorer.waitAndSelectItem(pathToJspFile);
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -170,7 +175,7 @@ public class AddFilesToIndexTest {
     askForValueDialog.clickOkBtn();
 
     // Add all files to index
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.ADD_TO_INDEX);
     git.waitAddToIndexFormToOpen();
     git.waitAddToIndexFileName("Add content of folder " + PROJECT_NAME + " to index?");
@@ -183,12 +188,10 @@ public class AddFilesToIndexTest {
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.STATUS);
     git.waitGitStatusBarWithMess(STATUS_MESSAGE_ALL_FILES);
 
-    // Edit GreetingController.java
-    editor.selectTabByName("AppController");
+    // Edit AppController.java
+    editor.selectTabByName(JAVA_TAB_FILE_NAME);
     editor.waitActive();
-    editor.typeTextIntoEditor(Keys.DOWN.toString());
-    editor.typeTextIntoEditor(Keys.DOWN.toString());
-    editor.typeTextIntoEditor(Keys.DOWN.toString());
+    editor.setCursorToLine(18);
     editor.typeTextIntoEditor("//Testing add to index");
     loader.waitOnClosed();
 
@@ -203,21 +206,20 @@ public class AddFilesToIndexTest {
     // Edit new.css
     editor.selectTabByName("new.css");
     editor.waitActive();
-    editor.typeTextIntoEditor(Keys.PAGE_DOWN.toString());
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.typeTextIntoEditor("/* Testing add to index */");
     loader.waitOnClosed();
 
     // Check status and add to index all files
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.STATUS);
     git.waitGitStatusBarWithMess(STATUS_MESSAGE_AFTER_EDIT);
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.ADD_TO_INDEX);
     git.waitGitStatusBarWithMess(TestGitConstants.GIT_ADD_TO_INDEX_SUCCESS);
 
     // delete README file and add to index
     deleteFromMenuFile();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.ADD_TO_INDEX);
     git.waitGitStatusBarWithMess(TestGitConstants.GIT_ADD_TO_INDEX_SUCCESS);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.STATUS);
@@ -226,7 +228,7 @@ public class AddFilesToIndexTest {
 
   private void deleteFromMenuFile() {
     loader.waitOnClosed();
-    projectExplorer.selectItem(PROJECT_NAME + "/README.md");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/README.md");
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     loader.waitOnClosed();
     askDialog.acceptDialogWithText("Delete file \"README.md\"?");

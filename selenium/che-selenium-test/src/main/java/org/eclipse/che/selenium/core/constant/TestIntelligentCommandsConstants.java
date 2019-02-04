@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.core.constant;
+
+import static java.lang.String.format;
 
 /** */
 public final class TestIntelligentCommandsConstants {
@@ -16,6 +19,28 @@ public final class TestIntelligentCommandsConstants {
   private TestIntelligentCommandsConstants() {
     // this prevents class instance creation
     throw new AssertionError();
+  }
+
+  public enum CommandItem {
+    RUN_COMMAND_ITEM("%s:run"),
+    BUILD_COMMAND_ITEM("%s:build"),
+    BUILD_AND_RUN_COMMAND_ITEM("%s:build and run"),
+    BUILD_AND_DEPLOY_COMMAND_ITEM("%s:build and deploy"),
+    STOP_TOMCAT_COMMAND_ITEM("%s:stop tomcat"),
+    RUN_TOMCAT_COMMAND_ITEM("%s:run tomcat"),
+    DEBUG_COMMAND_ITEM("%s:debug"),
+    INSTALL_DEPENDENCIES_COMMAND_ITEM("%s:install dependencies"),
+    UPDATE_DEPENDENCIES_COMMAND_ITEM("%s:update dependencies");
+
+    private final String itemTemplate;
+
+    CommandItem(String itemTemplate) {
+      this.itemTemplate = itemTemplate;
+    }
+
+    public String getItem(String projectName) {
+      return format(itemTemplate, projectName);
+    }
   }
 
   public static class CommandsGoals {

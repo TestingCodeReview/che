@@ -1,13 +1,14 @@
 #!/bin/bash
 #
 # Copyright (c) 2012-2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
 #
 # Contributors:
-#   Red Hat, Inc.- initial API and implementation
+#   Red Hat, Inc. - initial API and implementation
 #
 
 init_global_variables () {
@@ -32,6 +33,7 @@ Variables:
     CHE_REGISTRY_HOST                   Hostname of Docker registry to launch, otherwise 'localhost'
     CHE_LOG_LEVEL                       [INFO | DEBUG] Sets the output level of Tomcat messages
     CHE_DEBUG_SERVER                    If true, activates Tomcat's JPDA debugging mode
+    CHE_DEBUG_SUSPEND                   If true, Tomcat will start suspended waiting for debugger
     CHE_HOME                            Where the Che assembly resides - self-determining if not set
 "
 
@@ -64,6 +66,8 @@ Variables:
   DEFAULT_CHE_DEBUG_SERVER=false
   CHE_DEBUG_SERVER=${CHE_DEBUG_SERVER:-${DEFAULT_CHE_DEBUG_SERVER}}
 
+  DEFAULT_CHE_DEBUG_SUSPEND="false"
+  CHE_DEBUG_SUSPEND=${CHE_DEBUG_SUSPEND:-${DEFAULT_CHE_DEBUG_SUSPEND}}
 }
 
 error () {
@@ -105,6 +109,12 @@ set_environment_variables () {
   # Convert windows path name to POSIX
   if [[ "${CATALINA_HOME}" == *":"* ]]; then
     CATALINA_HOME=$(echo /"${CATALINA_HOME}" | sed  's|\\|/|g' | sed 's|:||g')
+  fi
+
+  if [[ "${CHE_DEBUG_SUSPEND}" == "true" ]]; then
+    export JPDA_SUSPEND="y"
+  else
+    export JPDA_SUSPEND="n"
   fi
 
   # Internal properties - should generally not be overridden
@@ -199,6 +209,20 @@ launch_docker_registry () {
     fi
 }
 
+perform_database_migration() {
+  CHE_DATA=/data
+  if [ -f ${CHE_DATA}/db/che.mv.db ]; then
+    echo "!!! Detected Che database, that is stored by an old path: ${CHE_DATA}/db/che.mv.db"
+    echo "!!! In case if you want to use it, move it manually to the new path ${CHE_DATA}/storage/db/che.mv.db"
+    echo "!!! It will be moved there automatically, if no database is present by the new path"
+    if [ ! -f ${CHE_DATA}/storage/db/che.mv.db ]; then
+      mkdir -p ${CHE_DATA}/storage/db
+      mv ${CHE_DATA}/db/che.mv.db ${CHE_DATA}/storage/db/che.mv.db
+      echo "Database has been successfully moved to the new path"
+    fi
+  fi
+}
+
 init() {
   ### Any variables with export is a value that native Tomcat che.sh startup script requires
   export CHE_IP=${CHE_IP}
@@ -230,12 +254,10 @@ init() {
     sudo chown -R ${CHE_USER} ${CHE_LOGS_DIR}
   fi
 
-  export CHE_DATABASE=/data/storage
-  export CHE_TEMPLATE_STORAGE=/data/templates
-  export CHE_WORKSPACE_AGENT_DEV=${CHE_DATA_HOST}/lib/ws-agent.tar.gz
-  export CHE_WORKSPACE_TERMINAL__LINUX__AMD64=${CHE_DATA_HOST}/lib/linux_amd64/terminal
-  export CHE_WORKSPACE_TERMINAL__LINUX__ARM7=${CHE_DATA_HOST}/lib/linux_arm7/terminal
-  export CHE_WORKSPACE_EXEC__LINUX__AMD64=${CHE_DATA_HOST}/lib/linux_amd64/exec
+  [ -z "$CHE_DATABASE" ] && export CHE_DATABASE=${CHE_DATA}/storage
+  [ -z "$CHE_TEMPLATE_STORAGE" ] && export CHE_TEMPLATE_STORAGE=${CHE_DATA}/templates
+
+  perform_database_migration
 
   # CHE_DOCKER_IP_EXTERNAL must be set if you are in a VM.
   HOSTNAME=${CHE_DOCKER_IP_EXTERNAL:-$(get_docker_external_hostname)}
@@ -244,14 +266,9 @@ init() {
     export CHE_DOCKER_IP_EXTERNAL=${HOSTNAME}
   fi
   ### Necessary to allow the container to write projects to the folder
-  export CHE_WORKSPACE_STORAGE__MASTER__PATH=/data/workspaces
-  export CHE_WORKSPACE_STORAGE="${CHE_DATA_HOST}/workspaces"
-  export CHE_WORKSPACE_STORAGE_CREATE_FOLDERS=false
-
-  # Move files from /lib to /lib-copy.  This puts files onto the host.
-  rm -rf ${CHE_DATA}/lib/*
-  mkdir -p ${CHE_DATA}/lib  
-  cp -rf ${CHE_HOME}/lib/* "${CHE_DATA}"/lib
+  [ -z "$CHE_WORKSPACE_STORAGE__MASTER__PATH" ] && export CHE_WORKSPACE_STORAGE__MASTER__PATH=${CHE_DATA}/workspaces
+  [ -z "$CHE_WORKSPACE_STORAGE" ] && export CHE_WORKSPACE_STORAGE="${CHE_DATA_HOST}/workspaces"
+  [ -z "$CHE_WORKSPACE_STORAGE_CREATE_FOLDERS" ] && export CHE_WORKSPACE_STORAGE_CREATE_FOLDERS=false
 
   # Cleanup no longer in use stacks folder, accordance to a new loading policy.
   if [[ -d "${CHE_DATA}"/stacks ]];then
@@ -271,6 +288,31 @@ init() {
     NETWORK_NAME=$CHE_DOCKER_NETWORK
   fi
   export JAVA_OPTS="${JAVA_OPTS} -Dche.docker.network=$NETWORK_NAME"
+}
+
+add_cert_to_truststore() {
+  if [ "${CHE_SELF__SIGNED__CERT}" != "" ]; then
+    DEFAULT_JAVA_TRUST_STORE=$JAVA_HOME/lib/security/cacerts
+    DEFAULT_JAVA_TRUST_STOREPASS="changeit"
+
+    JAVA_TRUST_STORE=/home/user/cacerts
+    SELF_SIGNED_CERT=/home/user/self-signed.crt
+
+    echo "Found a custom cert. Adding it to java trust store based on $DEFAULT_JAVA_TRUST_STORE"
+    cp $DEFAULT_JAVA_TRUST_STORE $JAVA_TRUST_STORE
+
+    echo "$CHE_SELF__SIGNED__CERT" > $SELF_SIGNED_CERT
+
+    # make sure that owner has permissions to write and other groups have permissions to read
+    chmod 644 $JAVA_TRUST_STORE
+
+    echo yes | keytool -keystore $JAVA_TRUST_STORE -importcert -alias HOSTDOMAIN -file $SELF_SIGNED_CERT -storepass $DEFAULT_JAVA_TRUST_STOREPASS > /dev/null
+
+    # allow only read by all groups
+    chmod 444 $JAVA_TRUST_STORE
+
+    export JAVA_OPTS="${JAVA_OPTS} -Djavax.net.ssl.trustStore=$JAVA_TRUST_STORE -Djavax.net.ssl.trustStorePassword=$DEFAULT_JAVA_TRUST_STOREPASS"
+  fi
 }
 
 get_che_data_from_host() {
@@ -332,6 +374,7 @@ trap 'responsible_shutdown' SIGHUP SIGTERM SIGINT
 init
 init_global_variables
 set_environment_variables
+add_cert_to_truststore
 
 # run che
 start_che_server &

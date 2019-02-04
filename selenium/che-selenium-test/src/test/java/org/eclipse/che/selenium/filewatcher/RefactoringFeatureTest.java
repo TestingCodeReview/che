@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,7 @@ import org.eclipse.che.selenium.core.pageobject.InjectPageObject;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Events;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -56,6 +58,9 @@ public class RefactoringFeatureTest {
   @InjectPageObject(driverId = 1)
   private Menu menu1;
 
+  @InjectPageObject(driverId = 1)
+  private Consoles consoles;
+
   @InjectPageObject(driverId = 2)
   private Ide ide2;
 
@@ -74,6 +79,9 @@ public class RefactoringFeatureTest {
   @InjectPageObject(driverId = 2)
   private Menu menu2;
 
+  @InjectPageObject(driverId = 2)
+  private Consoles consoles2;
+
   @Inject private TestProjectServiceClient testProjectServiceClient;
 
   @BeforeClass
@@ -83,6 +91,8 @@ public class RefactoringFeatureTest {
         ws.getId(), Paths.get(resource.toURI()), PROJECT_NAME, ProjectTemplates.MAVEN_SPRING);
     ide1.open(ws);
     ide2.open(ws);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
+    consoles2.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     events1.clickEventLogBtn();
     events2.clickEventLogBtn();
   }
@@ -94,7 +104,7 @@ public class RefactoringFeatureTest {
     projectExplorer1.waitItem(PROJECT_NAME);
     prepareFiles(editor1, projectExplorer1);
     prepareFiles(editor2, projectExplorer2);
-    editor1.goToCursorPositionVisible(21, 14);
+    editor1.goToCursorPositionVisible(22, 14);
     doRenameRefactor();
     checkWatching(expectedMessAfterRename);
     editor2.waitTabIsNotPresent(renamedClassName);
@@ -131,7 +141,7 @@ public class RefactoringFeatureTest {
     String pathToRenamedItem =
         String.format(
             PROJECT_NAME + "%s%s", "/src/main/java/org/eclipse/qa/examples/", renamedClassName);
-    projectExplorer2.selectItem(pathToRenamedItem);
+    projectExplorer2.waitAndSelectItem(pathToRenamedItem);
     menu2.runCommand(
         TestMenuCommandsConstants.Assistant.ASSISTANT,
         TestMenuCommandsConstants.Assistant.Refactoring.REFACTORING,

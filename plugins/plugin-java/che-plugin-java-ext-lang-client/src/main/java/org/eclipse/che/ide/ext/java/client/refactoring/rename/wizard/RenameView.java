@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,7 +13,7 @@ package org.eclipse.che.ide.ext.java.client.refactoring.rename.wizard;
 
 import com.google.inject.ImplementedBy;
 import org.eclipse.che.ide.api.mvp.View;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus;
+import org.eclipse.che.jdt.ls.extension.api.dto.RefactoringStatus;
 
 /**
  * The visual part of Rename wizard that has an ability to show configuration of a refactoring
@@ -27,17 +28,17 @@ interface RenameView extends View<RenameView.ActionDelegate> {
   String getNewName();
 
   /** Show Rename panel with the special information. */
-  void show();
+  void showDialog();
 
   /** Hide Rename panel. */
-  void hide();
+  void close();
 
   /**
    * Set title of wizard.
    *
    * @param title name of wizard
    */
-  void setTitle(String title);
+  void setTitleCaption(String title);
 
   /**
    * Sets the renaming name.
@@ -113,6 +114,13 @@ interface RenameView extends View<RenameView.ActionDelegate> {
    * @param isEnable enable state of scope property
    */
   void setEnableAcceptButton(boolean isEnable);
+
+  /**
+   * Set the visibility state of the loader for 'OK' button.
+   *
+   * @param isVisible <code>true</code> if visible, <code>false</code> otherwise.
+   */
+  void setLoaderVisibility(boolean isVisible);
 
   /** returns <code>true<code/> if update reference is checked, <code>false<code/> update reference is unchecked. */
   boolean isUpdateReferences();

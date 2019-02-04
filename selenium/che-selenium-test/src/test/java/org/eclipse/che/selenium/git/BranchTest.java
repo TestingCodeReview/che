@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,12 +16,13 @@ import com.google.inject.name.Named;
 import java.net.URL;
 import java.nio.file.Paths;
 import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.selenium.core.TestGroup;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
@@ -35,11 +37,16 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Aleksandr Shmaraev */
+@Test(groups = TestGroup.GITHUB)
 public class BranchTest {
   private static final String PROJECT_NAME = NameGenerator.generate("Branch_", 4);
+  private static final String APP_JAVA_TAB_NAME = "AppController";
+  private static final String HELLO_JAVA_TAB_NAME = "Hello";
+  private static final String JSP_TAB_NAME = "index.jsp";
   private static final String APP_JAVA_PATH =
       "/src/main/java/org/eclipse/qa/examples/AppController.java";
-  private static final String HELLO_JAVA_PATH = "/src/main/java/org/eclipse/qa/examples/Hello";
+  private static final String HELLO_JAVA_PATH = "/src/main/java/org/eclipse/qa/examples/Hello.java";
+  private static final String JSP_FILE_PATH = "/src/main/webapp/index.jsp";
   private static final String SCRIPT_FILE_PATH = "/src/main/webapp/script.js";
   private final String MASTER_BRANCH = "master";
   private final String TEST_BRANCH = "newbranch";
@@ -75,7 +82,7 @@ public class BranchTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private TestUser user;
+  @Inject private DefaultTestUser user;
 
   @Inject
   @Named("github.username")
@@ -102,11 +109,11 @@ public class BranchTest {
   }
 
   @Test
-  public void checkoutBranchTest() throws Exception {
+  public void checkoutBranchTest() {
     // perform init commit
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.INITIALIZE_REPOSITORY);
     loader.waitOnClosed();
@@ -114,32 +121,31 @@ public class BranchTest {
     git.waitGitStatusBarWithMess(TestGitConstants.GIT_INITIALIZED_SUCCESS);
     events.clickEventLogBtn();
     events.waitExpectedMessage(TestGitConstants.GIT_INITIALIZED_SUCCESS);
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
+    loader.waitOnClosed();
     git.waitAndRunCommit("init");
+    projectExplorer.quickExpandWithJavaScript();
     loader.waitOnClosed();
     createBranch();
     switchOnTestBranch();
 
     // create change in AppController.java
-    projectExplorer.quickExpandWithJavaScript();
     projectExplorer.openItemByPath(PROJECT_NAME + APP_JAVA_PATH);
-    editor.setCursorToLine(16);
-    editor.typeTextIntoEditor("\n" + "//some change");
-    editor.waitTextIntoEditor("\n" + "//some change");
+    editor.setCursorToLine(15);
+    editor.typeTextIntoEditor("//some change");
+    editor.waitTextIntoEditor("//some change");
     loader.waitOnClosed();
 
     // Create change in index.jsp
-    projectExplorer.openItemByPath(PROJECT_NAME + "/src/main/webapp/index.jsp");
+    projectExplorer.openItemByPath(PROJECT_NAME + JSP_FILE_PATH);
     editor.waitActive();
-    editor.typeTextIntoEditor(Keys.PAGE_DOWN.toString());
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.typeTextIntoEditor(CHANGE_CONTENT_1);
     editor.waitTextIntoEditor(CHANGE_CONTENT_1);
     loader.waitOnClosed();
 
     // Create Hello.java class
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples");
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -148,14 +154,11 @@ public class BranchTest {
     askForValueDialog.typeTextInFieldName("Hello");
     askForValueDialog.clickOkBtnNewJavaClass();
     askForValueDialog.waitNewJavaClassClose();
-    projectExplorer.waitItemInVisibleArea("Hello.java");
-    projectExplorer.openItemByVisibleNameInExplorer("Hello.java");
+    projectExplorer.openItemByPath(PROJECT_NAME + HELLO_JAVA_PATH);
     loader.waitOnClosed();
-    editor.closeFileByNameWithSaving("Hello");
-    editor.waitWhileFileIsClosed("Hello");
 
     // Create script.js file
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/webapp");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main/webapp");
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -166,13 +169,13 @@ public class BranchTest {
     askForValueDialog.waitFormToClose();
 
     // Check status
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main");
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.STATUS);
     loader.waitOnClosed();
     git.waitGitStatusBarWithMess(STATUS_MESSAGE_BEFORE_ADD);
 
     // add all files to index and check status
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main");
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.ADD_TO_INDEX);
     git.waitAddToIndexFormToOpen();
     git.confirmAddToIndexForm();
@@ -195,47 +198,47 @@ public class BranchTest {
     // checkout in main branch and check changed files
     switchOnMasterBranch();
     loader.waitOnClosed();
-    projectExplorer.openItemByVisibleNameInExplorer("AppController.java");
-    editor.waitTextNotPresentIntoEditor("\n" + "//some change");
-    projectExplorer.openItemByVisibleNameInExplorer("index.jsp");
+    editor.selectTabByName(APP_JAVA_TAB_NAME);
+    editor.waitTextNotPresentIntoEditor("//some change");
+    editor.selectTabByName(JSP_TAB_NAME);
     editor.waitTextNotPresentIntoEditor(CHANGE_CONTENT_1);
-    projectExplorer.waitDisappearItemByPath(PROJECT_NAME + HELLO_JAVA_PATH);
-    projectExplorer.waitDisappearItemByPath(PROJECT_NAME + SCRIPT_FILE_PATH);
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main");
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.STATUS);
     git.waitGitStatusBarWithMess(STATUS_MASTER_BRANCH);
     loader.waitOnClosed();
+    projectExplorer.waitDisappearItemByPath(PROJECT_NAME + HELLO_JAVA_PATH);
+    projectExplorer.waitDisappearItemByPath(PROJECT_NAME + SCRIPT_FILE_PATH);
 
     // switch to test branch again and check earlier changes
     switchOnTestBranch();
-    projectExplorer.openItemByVisibleNameInExplorer("AppController.java");
+    editor.selectTabByName(APP_JAVA_TAB_NAME);
     loader.waitOnClosed();
-    editor.waitTextIntoEditor("\n" + "//some change");
-    projectExplorer.openItemByVisibleNameInExplorer("index.jsp");
+    editor.waitTextIntoEditor("//some change");
+    editor.selectTabByName(JSP_TAB_NAME);
     editor.waitTextIntoEditor(CHANGE_CONTENT_1);
-    projectExplorer.openItemByVisibleNameInExplorer("Hello.java");
+    projectExplorer.quickRevealToItemWithJavaScript(PROJECT_NAME + HELLO_JAVA_PATH);
     loader.waitOnClosed();
-    editor.closeFileByNameWithSaving("Hello");
-    editor.waitWhileFileIsClosed("Hello");
-    projectExplorer.openItemByVisibleNameInExplorer("script.js");
+    projectExplorer.openItemByPath(PROJECT_NAME + HELLO_JAVA_PATH);
+    projectExplorer.openItemByPath(PROJECT_NAME + SCRIPT_FILE_PATH);
     loader.waitOnClosed();
     editor.closeFileByNameWithSaving("script.js");
-    editor.waitWhileFileIsClosed("script.js");
 
     // Checkout in main branch, change files in master branch (this creates conflict) and check
     // message with conflict
     switchOnMasterBranch();
     projectExplorer.waitProjectExplorer();
     loader.waitOnClosed();
+
     // create change in GreetingController.java
-    projectExplorer.openItemByPath(PROJECT_NAME + APP_JAVA_PATH);
-    editor.setCursorToLine(2);
-    editor.typeTextIntoEditor("\n" + "//change in master branch");
-    editor.waitTextIntoEditor("\n" + "//change in master branch");
-    editor.waitTabFileWithSavedStatus("AppController");
+    editor.selectTabByName(APP_JAVA_TAB_NAME);
+    editor.setCursorToLine(21);
+    editor.typeTextIntoEditor("//change in master branch");
+    editor.waitTextIntoEditor("//change in master branch");
+    editor.waitTabFileWithSavedStatus(APP_JAVA_TAB_NAME);
     loader.waitOnClosed();
+
     // create change in index.jsp
-    projectExplorer.openItemByPath(PROJECT_NAME + "/src/main/webapp/index.jsp");
+    editor.selectTabByName(JSP_TAB_NAME);
     editor.waitTextNotPresentIntoEditor(CHANGE_CONTENT_2);
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.typeTextIntoEditor(Keys.PAGE_UP.toString());
@@ -245,7 +248,7 @@ public class BranchTest {
     loader.waitOnClosed();
 
     // Add all files to index and check status
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main");
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.ADD_TO_INDEX);
     git.waitGitStatusBarWithMess(TestGitConstants.GIT_ADD_TO_INDEX_SUCCESS);
     events.clickEventLogBtn();
@@ -268,7 +271,7 @@ public class BranchTest {
     git.waitBranchInTheList("newbranch");
   }
 
-  private void createBranch() throws Exception {
+  private void createBranch() {
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.BRANCHES);
     git.waitBranchInTheList(MASTER_BRANCH);
     git.waitDisappearBranchName(TEST_BRANCH);
@@ -279,7 +282,7 @@ public class BranchTest {
     git.closeBranchesForm();
   }
 
-  private void switchOnTestBranch() throws Exception {
+  private void switchOnTestBranch() {
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.BRANCHES);
     git.waitBranchInTheList(MASTER_BRANCH);
     git.waitBranchInTheList(TEST_BRANCH);
@@ -291,7 +294,7 @@ public class BranchTest {
     loader.waitOnClosed();
   }
 
-  private void checkShwithConflict() throws Exception {
+  private void checkShwithConflict() {
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.BRANCHES);
     loader.waitOnClosed();
     git.waitBranchInTheList(MASTER_BRANCH);
@@ -301,7 +304,7 @@ public class BranchTest {
     git.waitGitStatusBarWithMess(CONFLICT_MESSAGE);
   }
 
-  private void switchOnMasterBranch() throws Exception {
+  private void switchOnMasterBranch() {
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.BRANCHES);
     loader.waitOnClosed();
     git.waitBranchInTheList(MASTER_BRANCH);

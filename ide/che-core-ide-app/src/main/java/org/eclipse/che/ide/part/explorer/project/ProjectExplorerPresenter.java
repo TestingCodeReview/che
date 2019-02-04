@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -69,6 +70,7 @@ import org.eclipse.che.ide.ui.smartTree.data.TreeExpander;
 import org.eclipse.che.ide.ui.smartTree.data.settings.NodeSettings;
 import org.eclipse.che.ide.ui.smartTree.data.settings.SettingsProvider;
 import org.eclipse.che.ide.ui.smartTree.presentation.HasPresentation;
+import org.eclipse.che.ide.util.loging.Log;
 import org.eclipse.che.providers.DynaObject;
 import org.vectomatic.dom.svg.ui.SVGResource;
 
@@ -128,7 +130,7 @@ public class ProjectExplorerPresenter extends BasePresenter
     eventBus.addHandler(ResourceChangedEvent.getType(), this);
     eventBus.addHandler(MarkerChangedEvent.getType(), this);
     eventBus.addHandler(SyntheticNodeUpdateEvent.getType(), this);
-    eventBus.addHandler(WorkspaceStoppedEvent.TYPE, event -> getTree().getNodeStorage().clear());
+    eventBus.addHandler(WorkspaceStoppedEvent.TYPE, event -> onWorkspaceStopped());
     eventBus.addHandler(WorkspaceRunningEvent.TYPE, event -> view.showPlaceholder(false));
     eventBus.addHandler(WorkspaceStoppedEvent.TYPE, event -> view.showPlaceholder(true));
     eventBus.addHandler(WorkspaceStartingEvent.TYPE, event -> view.showPlaceholder(true));
@@ -178,6 +180,14 @@ public class ProjectExplorerPresenter extends BasePresenter
             partStack.setActivePart(ProjectExplorerPresenter.this);
           }
         });
+  }
+
+  private void onWorkspaceStopped() {
+    try {
+      getTree().getNodeStorage().clear();
+    } catch (Exception e) {
+      Log.error(getClass(), e.getMessage(), e);
+    }
   }
 
   public void addSelectionHandler(SelectionHandler<Node> handler) {
@@ -230,6 +240,12 @@ public class ProjectExplorerPresenter extends BasePresenter
   }
 
   /* Expose Project Explorer's internal API to the world, to allow automated Selenium scripts expand all projects tree. */
+  /*
+  Notice that the reference to the exported method has been wrapped in a call to the $entry function.
+  This implicitly-defined function ensures that the Java-derived method is executed with the uncaught
+  exception handler installed and pumps a number of other utility services. The $entry function is
+  reentrant-safe and should be used anywhere that GWT-derived JavaScript may be called into from a non-GWT context.
+   */
   private native void registerNative() /*-{
         var that = this;
 
@@ -298,9 +314,17 @@ public class ProjectExplorerPresenter extends BasePresenter
               tree.setExpanded(node, true);
             }
           }
-        } else if (getNode(resource.getLocation()) == null) {
-          tree.getNodeStorage()
-              .add(nodeFactory.newContainerNode((Container) resource, nodeSettings));
+        } else {
+          Node node = getNode(resource.getLocation());
+          if (node != null) {
+            String oldId = tree.getNodeStorage().getKeyProvider().getKey(node);
+            ((ResourceNode) node).setData(delta.getResource());
+            tree.getNodeStorage().reIndexNode(oldId, node);
+            tree.refresh(node);
+          } else {
+            tree.getNodeStorage()
+                .add(nodeFactory.newContainerNode((Container) resource, nodeSettings));
+          }
         }
       } else if (delta.getKind() == REMOVED) {
         Node node = getNode(resource.getLocation());
@@ -340,8 +364,15 @@ public class ProjectExplorerPresenter extends BasePresenter
       final Node node = getNode(delta.getResource().getLocation());
       if (node != null) {
 
-        if (node instanceof ResourceNode && !delta.getResource().isProject()) {
-          ((ResourceNode) node).setData(delta.getResource());
+        if (node instanceof ResourceNode) {
+          int srcResourceType = ((ResourceNode) node).getData().getResourceType();
+          if (srcResourceType != resource.getResourceType()) { // resource changed own type
+            String oldId = tree.getNodeStorage().getKeyProvider().getKey(node);
+            ((ResourceNode) node).setData(delta.getResource());
+            tree.getNodeStorage().reIndexNode(oldId, node);
+          } else {
+            ((ResourceNode) node).setData(delta.getResource());
+          }
         }
 
         if (node instanceof HasPresentation) {

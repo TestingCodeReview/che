@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,6 +14,7 @@
 import {EnvironmentManager} from './environment-manager';
 import {DockerfileParser} from './docker-file-parser';
 import {IEnvironmentManagerMachine} from './environment-manager-machine';
+import {CheRecipeTypes} from '../recipe/che-recipe-types';
 
 /**
  * This is the implementation of environment manager that handles the docker file format of environment.
@@ -33,8 +35,6 @@ import {IEnvironmentManagerMachine} from './environment-manager-machine';
  * @author Ann Shumilova
  */
 
-const DOCKERFILE = 'dockerfile';
-const ENV_INSTRUCTION: string = 'ENV';
 const FROM_INSTRUCTION: string = 'FROM';
 
 export class DockerFileEnvironmentManager extends EnvironmentManager {
@@ -47,7 +47,7 @@ export class DockerFileEnvironmentManager extends EnvironmentManager {
   }
 
   get type(): string {
-    return DOCKERFILE;
+    return CheRecipeTypes.DOCKERFILE;
   }
 
   get editorMode(): string {
@@ -60,7 +60,7 @@ export class DockerFileEnvironmentManager extends EnvironmentManager {
    * @param {string} image
    * @return {IEnvironmentManagerMachine}
    */
-  createNewDefaultMachine(environment: che.IWorkspaceEnvironment, image?: string): IEnvironmentManagerMachine {
+  createMachine(environment: che.IWorkspaceEnvironment, image?: string): IEnvironmentManagerMachine {
     this.$log.error('EnvironmentManager: cannot create a new machine.');
     return null;
   }
@@ -180,7 +180,7 @@ export class DockerFileEnvironmentManager extends EnvironmentManager {
     }
 
     let from = machine.recipe.find((line: any) => {
-      return line.instruction === 'FROM';
+      return /^from$/i.test(line.instruction);
     });
 
     return {image: from.argument};

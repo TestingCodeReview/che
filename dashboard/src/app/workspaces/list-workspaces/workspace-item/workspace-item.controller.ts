@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
 import {CheWorkspace} from '../../../../components/api/workspace/che-workspace.factory';
+import {WorkspacesService} from '../../workspaces.service';
 
 /**
  * @ngdoc controller
@@ -18,20 +20,36 @@ import {CheWorkspace} from '../../../../components/api/workspace/che-workspace.f
  * @author Ann Shumilova
  */
 export class WorkspaceItemCtrl {
+
+  static $inject = ['$location', 'lodash', 'cheWorkspace', 'workspacesService'];
+
   $location: ng.ILocationService;
-  lodash: _.LoDashStatic;
+  lodash: any;
   cheWorkspace: CheWorkspace;
+  workspacesService: WorkspacesService;
 
   workspace: che.IWorkspace;
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($location: ng.ILocationService, lodash: _.LoDashStatic, cheWorkspace: CheWorkspace) {
+  constructor($location: ng.ILocationService,
+              lodash: any,
+              cheWorkspace: CheWorkspace,
+              workspacesService: WorkspacesService) {
     this.$location = $location;
     this.lodash = lodash;
     this.cheWorkspace = cheWorkspace;
+    this.workspacesService = workspacesService;
+  }
+
+  /**
+   * Returns `true` if default environment of workspace contains supported recipe type.
+   *
+   * @returns {boolean}
+   */
+  get isSupported(): boolean {
+    return this.workspacesService.isSupported(this.workspace);
   }
 
   /**

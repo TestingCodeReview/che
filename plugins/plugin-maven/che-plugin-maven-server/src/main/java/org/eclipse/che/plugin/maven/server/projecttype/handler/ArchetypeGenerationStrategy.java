@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,15 +20,16 @@ import static org.eclipse.che.plugin.maven.shared.MavenAttributes.DEFAULT_VERSIO
 import static org.eclipse.che.plugin.maven.shared.MavenAttributes.GROUP_ID;
 import static org.eclipse.che.plugin.maven.shared.MavenAttributes.VERSION;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import org.eclipse.che.api.core.ConflictException;
-import org.eclipse.che.api.core.ForbiddenException;
 import org.eclipse.che.api.core.ServerException;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 import org.eclipse.che.api.project.server.type.AttributeValue;
 import org.eclipse.che.ide.maven.tools.MavenArtifact;
 import org.eclipse.che.plugin.maven.generator.archetype.ArchetypeGenerator;
@@ -43,10 +45,13 @@ import org.eclipse.che.plugin.maven.shared.MavenArchetype;
 public class ArchetypeGenerationStrategy implements GeneratorStrategy {
 
   private final ArchetypeGenerator archetypeGenerator;
+  private final RootDirPathProvider rootDirPathProvider;
 
   @Inject
-  public ArchetypeGenerationStrategy(ArchetypeGenerator archetypeGenerator) throws ServerException {
+  public ArchetypeGenerationStrategy(
+      ArchetypeGenerator archetypeGenerator, RootDirPathProvider rootDirPathProvider) {
     this.archetypeGenerator = archetypeGenerator;
+    this.rootDirPathProvider = rootDirPathProvider;
   }
 
   public String getId() {
@@ -56,7 +61,7 @@ public class ArchetypeGenerationStrategy implements GeneratorStrategy {
   @Override
   public void generateProject(
       String projectPath, Map<String, AttributeValue> attributes, Map<String, String> options)
-      throws ForbiddenException, ConflictException, ServerException {
+      throws ServerException {
 
     AttributeValue artifactId = attributes.get(ARTIFACT_ID);
     AttributeValue groupId = attributes.get(GROUP_ID);
@@ -98,6 +103,11 @@ public class ArchetypeGenerationStrategy implements GeneratorStrategy {
           "Missed some required option (archetypeGroupId, archetypeArtifactId or archetypeVersion)");
     }
 
+    Path projectsParentPath = Paths.get(rootDirPathProvider.get(), projectPath).getParent();
+    if (Files.exists(projectsParentPath.resolve("pom.xml"))) {
+      throw new ServerException("Parent path witch contains 'pom.xml' file is not allowed");
+    }
+
     MavenArchetype mavenArchetype =
         new MavenArchetypeImpl(
             archetypeGroupId,
@@ -106,11 +116,12 @@ public class ArchetypeGenerationStrategy implements GeneratorStrategy {
             archetypeRepository,
             archetypeProperties);
 
-    String projectName = projectPath.substring(projectPath.lastIndexOf(separator));
+    String projectName = projectPath.substring(projectPath.lastIndexOf(separator) + 1);
     final MavenArtifact mavenArtifact = new MavenArtifact();
     mavenArtifact.setGroupId(getFirst(groupId.getList(), projectName));
     mavenArtifact.setArtifactId(getFirst(artifactId.getList(), projectName));
     mavenArtifact.setVersion(getFirst(version.getList(), DEFAULT_VERSION));
-    archetypeGenerator.generateFromArchetype(new File("/projects"), mavenArchetype, mavenArtifact);
+    archetypeGenerator.generateFromArchetype(
+        projectName, projectsParentPath.toFile(), mavenArchetype, mavenArtifact);
   }
 }

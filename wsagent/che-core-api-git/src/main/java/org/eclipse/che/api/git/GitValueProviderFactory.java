@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -23,7 +24,6 @@ import java.util.stream.Collectors;
 import javax.inject.Singleton;
 import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.fs.server.PathTransformer;
-import org.eclipse.che.api.git.params.LogParams;
 import org.eclipse.che.api.git.shared.Remote;
 import org.eclipse.che.api.project.server.type.ReadonlyValueProvider;
 import org.eclipse.che.api.project.server.type.ValueProvider;
@@ -59,15 +59,7 @@ public class GitValueProviderFactory implements ValueProviderFactory {
             case VCS_PROVIDER_NAME:
               return singletonList("git");
             case GIT_CURRENT_HEAD_NAME:
-              String currentBranch = gitConnection.getCurrentBranch();
-              return singletonList(
-                  "HEAD".equals(currentBranch)
-                      ? gitConnection
-                          .log(LogParams.create().withMaxCount(1))
-                          .getCommits()
-                          .get(0)
-                          .getId()
-                      : currentBranch);
+              return singletonList(gitConnection.getCurrentReference().getName());
             case GIT_REPOSITORY_REMOTES:
               return gitConnection
                   .remoteList(null, false)

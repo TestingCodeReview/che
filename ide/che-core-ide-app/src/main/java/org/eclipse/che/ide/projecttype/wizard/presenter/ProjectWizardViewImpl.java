@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,11 +13,11 @@ package org.eclipse.che.ide.projecttype.wizard.presenter;
 
 import static org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode.CREATE;
 import static org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode.UPDATE;
+import static org.eclipse.che.ide.util.dom.DomUtils.isWidgetOrChildFocused;
 
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.dom.client.Style;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Button;
@@ -51,48 +52,27 @@ public class ProjectWizardViewImpl extends Window implements ProjectWizardView {
       org.eclipse.che.ide.Resources resources, CoreLocalizationConstant coreLocalizationConstant) {
     this.locale = coreLocalizationConstant;
     setTitle(coreLocalizationConstant.projectWizardDefaultTitleText());
-    setWidget(ourUiBinder.createAndBindUi(this));
+    FlowPanel widget = ourUiBinder.createAndBindUi(this);
+    widget.getElement().getStyle().setPadding(0, Style.Unit.PX);
+    setWidget(widget);
 
     saveButton =
-        createPrimaryButton(
+        addFooterButton(
             locale.projectWizardDefaultSaveButtonText(),
             "projectWizard-saveButton",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onSaveClicked();
-              }
-            });
-    saveButton.addStyleName(resources.Css().buttonLoader());
-    addButtonToFooter(saveButton);
+            event -> delegate.onSaveClicked(),
+            true);
+    saveButton.addStyleName(resources.buttonLoaderCss().buttonLoader());
 
     nextStepButton =
-        createButton(
-            locale.next(),
-            "projectWizard-nextStepButton",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onNextClicked();
-              }
-            });
-    addButtonToFooter(nextStepButton);
+        addFooterButton(
+            locale.next(), "projectWizard-nextStepButton", event -> delegate.onNextClicked());
 
     previousStepButton =
-        createButton(
-            locale.back(),
-            "projectWizard-previousStepButton",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onBackClicked();
-              }
-            });
-    addButtonToFooter(previousStepButton);
+        addFooterButton(
+            locale.back(), "projectWizard-previousStepButton", event -> delegate.onBackClicked());
 
-    this.ensureDebugId("projectWizard-window");
-
-    getWidget().getElement().getStyle().setPadding(0, Style.Unit.PX);
+    ensureDebugId("projectWizard-window");
   }
 
   @Override
@@ -131,28 +111,18 @@ public class ProjectWizardViewImpl extends Window implements ProjectWizardView {
   }
 
   @Override
-  protected void onEnterClicked() {
-    if (isWidgetFocused(saveButton)) {
+  public void onEnterPress(NativeEvent evt) {
+    if (isWidgetOrChildFocused(saveButton)) {
       delegate.onSaveClicked();
-      return;
-    }
-
-    if (isWidgetFocused(nextStepButton)) {
+    } else if (isWidgetOrChildFocused(nextStepButton)) {
       delegate.onNextClicked();
-      return;
-    }
-
-    if (isWidgetFocused(previousStepButton)) {
+    } else if (isWidgetOrChildFocused(previousStepButton)) {
       delegate.onBackClicked();
-      return;
     }
 
     if (nextStepButton.isEnabled()) {
       delegate.onNextClicked();
-      return;
-    }
-
-    if (saveButton.isEnabled()) {
+    } else if (saveButton.isEnabled()) {
       delegate.onSaveClicked();
     }
   }
@@ -160,6 +130,10 @@ public class ProjectWizardViewImpl extends Window implements ProjectWizardView {
   @Override
   public void close() {
     hide();
+  }
+
+  @Override
+  protected void onHide() {
     setLoaderVisibility(false);
   }
 
@@ -186,11 +160,6 @@ public class ProjectWizardViewImpl extends Window implements ProjectWizardView {
   @Override
   public Widget asWidget() {
     return null;
-  }
-
-  @Override
-  protected void onClose() {
-    delegate.onCancelClicked();
   }
 
   interface ProjectWizardViewImplUiBinder extends UiBinder<FlowPanel, ProjectWizardViewImpl> {}

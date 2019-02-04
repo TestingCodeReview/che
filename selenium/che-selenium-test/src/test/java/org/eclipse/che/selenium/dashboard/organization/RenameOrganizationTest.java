@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,10 +19,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import com.google.inject.Inject;
-import org.eclipse.che.selenium.core.annotation.Multiuser;
+import org.eclipse.che.selenium.core.TestGroup;
 import org.eclipse.che.selenium.core.organization.InjectTestOrganization;
 import org.eclipse.che.selenium.core.organization.TestOrganization;
-import org.eclipse.che.selenium.core.user.AdminTestUser;
 import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.pageobject.dashboard.Dashboard;
 import org.eclipse.che.selenium.pageobject.dashboard.EditMode;
@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
  *
  * @author Ann Shumilova
  */
-@Multiuser
+@Test(groups = {TestGroup.MULTIUSER, TestGroup.DOCKER, TestGroup.OPENSHIFT, TestGroup.K8S})
 public class RenameOrganizationTest {
   private static final String NEW_PARENT_ORG_NAME = generate("new-parent-", 5);
   private static final String NEW_CHILD_ORG_NAME = generate("new-child-", 5);
@@ -59,7 +59,6 @@ public class RenameOrganizationTest {
   @Inject private EditMode editMode;
   @Inject private Dashboard dashboard;
   @Inject private TestUser testUser;
-  @Inject private AdminTestUser adminTestUser;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -69,7 +68,6 @@ public class RenameOrganizationTest {
     dashboard.open(testUser.getName(), testUser.getPassword());
   }
 
-  @Test
   public void testParentOrganizationRename() {
     navigationBar.waitNavigationBar();
     navigationBar.clickOnMenu(ORGANIZATIONS);
@@ -128,6 +126,7 @@ public class RenameOrganizationTest {
     // Back to the Organizations list and test that the organizations renamed
     organizationPage.clickBackButton();
     organizationListPage.waitForOrganizationsList();
+
     assertTrue(organizationListPage.getValues(NAME).contains(newChildOrgQualifiedName));
     assertTrue(organizationListPage.getValues(NAME).contains(NEW_PARENT_ORG_NAME));
   }

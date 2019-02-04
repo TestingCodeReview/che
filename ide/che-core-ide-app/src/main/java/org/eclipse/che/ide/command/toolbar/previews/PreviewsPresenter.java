@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,6 +16,7 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.google.web.bindery.event.shared.EventBus;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessesResponseDto;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseProvider;
 import org.eclipse.che.ide.api.app.AppContext;
@@ -24,7 +26,6 @@ import org.eclipse.che.ide.api.command.CommandsLoadedEvent;
 import org.eclipse.che.ide.api.command.exec.ExecAgentCommandManager;
 import org.eclipse.che.ide.api.command.exec.ProcessFinishedEvent;
 import org.eclipse.che.ide.api.command.exec.ProcessStartedEvent;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessesResponseDto;
 import org.eclipse.che.ide.api.macro.MacroProcessor;
 import org.eclipse.che.ide.api.mvp.Presenter;
 import org.eclipse.che.ide.api.workspace.event.WorkspaceStoppedEvent;
@@ -106,8 +107,7 @@ public class PreviewsPresenter implements Presenter, PreviewsView.ActionDelegate
         .map(CommandImpl::getPreviewURL)
         .filter(it -> !it.isEmpty())
         .map(s -> macroProcessorProvider.get().expandMacros(s))
-        .orElseGet(
-            () -> promiseProvider.reject(new Exception(messages.previewsNotAvailableError())));
+        .orElseGet(() -> promiseProvider.resolve(messages.previewsNotAvailableError()));
   }
 
   @Override

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,7 @@ import org.eclipse.che.api.debug.shared.model.Location;
 import org.eclipse.che.api.debug.shared.model.StackFrameDump;
 import org.eclipse.che.api.debug.shared.model.Variable;
 import org.eclipse.che.api.debug.shared.model.impl.VariablePathImpl;
+import org.eclipse.che.plugin.java.languageserver.JavaLanguageServerExtensionService;
 
 /**
  * /** {@link org.eclipse.che.api.debug.shared.model.StackFrameDump} implementation for Java
@@ -36,9 +38,10 @@ public class JdbStackFrame implements StackFrameDump {
   private final AtomicReference<List<Variable>> variables;
   private final Location location;
 
-  public JdbStackFrame(com.sun.jdi.StackFrame jdiStackFrame) {
+  public JdbStackFrame(
+      JavaLanguageServerExtensionService languageServer, com.sun.jdi.StackFrame jdiStackFrame) {
     this.jdiStackFrame = jdiStackFrame;
-    this.location = new JdbLocation(jdiStackFrame);
+    this.location = new JdbLocation(languageServer, jdiStackFrame);
     this.variables = new AtomicReference<>();
     this.fields = new AtomicReference<>();
   }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,6 +20,8 @@ import {CheUIElementsInjectorService} from '../../components/service/injector/ch
  * @author Florent Benoit
  */
 class IdeSvc {
+  static $inject = ['$location', '$log', '$mdDialog', '$q', '$rootScope', '$sce', '$timeout', 'cheAPI', 'cheWorkspace', 'lodash', 'proxySettings', 'routeHistory', 'userDashboardConfig', 'cheUIElementsInjectorService'];
+
   $location: ng.ILocationService;
   $log: ng.ILogService;
   $mdDialog: ng.material.IDialogService;
@@ -42,7 +45,6 @@ class IdeSvc {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($location: ng.ILocationService, $log: ng.ILogService, $mdDialog: ng.material.IDialogService,
               $q: ng.IQService, $rootScope: ng.IRootScopeService, $sce: ng.ISCEService, $timeout: ng.ITimeoutService,
@@ -140,11 +142,11 @@ class IdeSvc {
     let inDevMode = this.userDashboardConfig.developmentMode;
     let randVal = Math.floor((Math.random() * 1000000) + 1);
     let appendUrl = '?uid=' + randVal;
-
     let workspace = this.cheWorkspace.getWorkspaceById(workspaceId);
     this.openedWorkspace = workspace;
 
-    let ideUrlLink = workspace.links.ide;
+    let workspaceLoaderUrl = this.cheWorkspace.getWorkspaceLoaderUrl(workspace.namespace, workspace.config.name);
+    let ideUrlLink = workspaceLoaderUrl || workspace.links.ide;
 
     if (this.ideAction != null) {
       appendUrl = appendUrl + '&action=' + this.ideAction;

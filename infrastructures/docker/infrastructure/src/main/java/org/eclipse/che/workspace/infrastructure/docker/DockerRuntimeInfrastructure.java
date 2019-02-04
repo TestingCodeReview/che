@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -80,12 +81,22 @@ public class DockerRuntimeInfrastructure extends RuntimeInfrastructure {
 
   @Override
   public Set<RuntimeIdentity> getIdentities() throws InfrastructureException {
-    return containers.findIdentities();
+    // Due to https://github.com/eclipse/che/issues/5814, recovering is not fully possible
+    // so infrastructure should not claim support of it.
+    // return containers.findIdentities();
+    throw new UnsupportedOperationException("Runtimes tracking currently does not supported.");
   }
 
   private DockerEnvironment convertToDockerEnv(InternalEnvironment sourceEnv)
       throws ValidationException {
     String recipeType = sourceEnv.getRecipe().getType();
+    String envType = sourceEnv.getType();
+    if (!recipeType.equals(envType)) {
+      throw new ValidationException(
+          format(
+              "Environments with different type and source type are not supported. Type '%s'. Source type '%s'.",
+              envType, recipeType));
+    }
     DockerEnvironmentConverter converter = envConverters.get(recipeType);
     if (converter == null) {
       throw new ValidationException(

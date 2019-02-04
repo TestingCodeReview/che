@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -32,8 +33,8 @@ import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.ext.java.client.command.ClasspathContainer;
 import org.eclipse.che.ide.ext.java.client.project.classpath.ClasspathResolver;
 import org.eclipse.che.ide.ext.java.shared.Constants;
-import org.eclipse.che.ide.ext.java.shared.dto.classpath.ClasspathEntryDto;
 import org.eclipse.che.ide.resource.Path;
+import org.eclipse.che.jdt.ls.extension.api.dto.ClasspathEntry;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,9 +55,9 @@ public class SourcepathMacroTest {
   @Mock private Resource resource;
   @Mock private Optional<Project> projectOptional;
   @Mock private Project project;
-  @Mock private Promise<List<ClasspathEntryDto>> classpathEntriesPromise;
+  @Mock private Promise<List<ClasspathEntry>> classpathEntriesPromise;
 
-  @Captor private ArgumentCaptor<Function<List<ClasspathEntryDto>, String>> classpathEntriesCapture;
+  @Captor private ArgumentCaptor<Function<List<ClasspathEntry>, String>> classpathEntriesCapture;
 
   @InjectMocks private SourcepathMacro sourcepathMacro;
 
@@ -84,7 +85,7 @@ public class SourcepathMacroTest {
     String source1 = "/name/source1";
     String source2 = "/name/source2";
 
-    List<ClasspathEntryDto> entries = new ArrayList<>();
+    List<ClasspathEntry> entries = new ArrayList<>();
 
     Set<String> sources = new HashSet<>();
     sources.add(source1);
@@ -104,7 +105,7 @@ public class SourcepathMacroTest {
 
   @Test
   public void defaultValueOfSourcepathShouldBeBuilt() throws Exception {
-    List<ClasspathEntryDto> entries = new ArrayList<>();
+    List<ClasspathEntry> entries = new ArrayList<>();
     Path projectsRoot = Path.valueOf("/projects");
 
     when(appContext.getProjectsRoot()).thenReturn(projectsRoot);

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,7 @@ import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -42,6 +44,7 @@ public class CreateNewFoldersTest {
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Loader loader;
   @Inject private Menu menu;
+  @Inject private Consoles consoles;
   @Inject private AskForValueDialog askForValueDialog;
   @Inject private TestProjectServiceClient testProjectServiceClient;
 
@@ -54,6 +57,8 @@ public class CreateNewFoldersTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(testWorkspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -63,7 +68,7 @@ public class CreateNewFoldersTest {
     loader.waitOnClosed();
 
     // Create new folder in the folder webapp
-    projectExplorer.selectItem(PROJECT_NAME + "/" + SOURCE_FOLDER);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/" + SOURCE_FOLDER);
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -72,10 +77,10 @@ public class CreateNewFoldersTest {
     askForValueDialog.typeAndWaitText(NEW_FOLDER_NAME);
     askForValueDialog.clickOkBtn();
     askForValueDialog.waitFormToClose();
-    projectExplorer.waitItemInVisibleArea(NEW_FOLDER_NAME);
+    projectExplorer.waitVisibilityByName(NEW_FOLDER_NAME);
 
     // Create new folder in the folder main
-    projectExplorer.selectItem(PROJECT_NAME + "/" + SOURCE_FOLDER_2);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/" + SOURCE_FOLDER_2);
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -84,6 +89,6 @@ public class CreateNewFoldersTest {
     askForValueDialog.typeAndWaitText(NEW_FOLDER_NAME_2);
     askForValueDialog.clickOkBtn();
     askForValueDialog.waitFormToClose();
-    projectExplorer.waitItemInVisibleArea(NEW_FOLDER_NAME_2);
+    projectExplorer.waitVisibilityByName(NEW_FOLDER_NAME_2);
   }
 }

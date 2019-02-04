@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -36,6 +37,7 @@ import org.eclipse.che.multiuser.resource.spi.impl.ResourceImpl;
  * Tracks usage of {@link RamResourceType} resource.
  *
  * @author Sergii Leschenko
+ * @author Anton Korneta
  */
 @Singleton
 public class RamResourceUsageTracker implements ResourceUsageTracker {
@@ -70,21 +72,16 @@ public class RamResourceUsageTracker implements ResourceUsageTracker {
       if (WorkspaceStatus.STARTING.equals(activeWorkspace.getStatus())) {
         // starting workspace may not have all machine in runtime
         // it is need to calculate ram from environment config
-        EnvironmentImpl activeEnvironmentConfig =
+        final EnvironmentImpl startingEnvironment =
             activeWorkspace
                 .getConfig()
                 .getEnvironments()
                 .get(activeWorkspace.getRuntime().getActiveEnv());
-
-        currentlyUsedRamMB += environmentRamCalculator.calculate(activeEnvironmentConfig);
+        if (startingEnvironment != null) {
+          currentlyUsedRamMB += environmentRamCalculator.calculate(startingEnvironment);
+        }
       } else {
-        currentlyUsedRamMB += 0L;
-        //            activeWorkspace
-        //                .getRuntime()
-        //                .getMachines()
-        //                .stream()
-        //                .mapToInt(machine -> machine.getConfig().getLimits().getRam())
-        //                .sum();
+        currentlyUsedRamMB += environmentRamCalculator.calculate(activeWorkspace.getRuntime());
       }
     }
 

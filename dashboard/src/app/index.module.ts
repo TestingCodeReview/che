@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -41,47 +42,102 @@ import {ProfileConfig} from './profile/profile-config';
 
 // init module
 const initModule = angular.module('userDashboard', ['ngAnimate', 'ngCookies', 'ngTouch', 'ngSanitize', 'ngResource', 'ngRoute',
-  'angular-websocket', 'ui.bootstrap', 'ui.codemirror', 'ngMaterial', 'ngMessages', 'angularMoment', 'angular.filter',
-  'ngDropdowns', 'ngLodash', 'angularCharts', 'uuid4', 'angularFileUpload', 'ui.gravatar']);
+  'angular-websocket', 'ui.bootstrap', 'ngMaterial', 'ngMessages', 'angularMoment', 'angular.filter',
+  'ngLodash', 'uuid4', 'angularFileUpload', 'ui.gravatar']);
 
 window.name = 'NG_DEFER_BOOTSTRAP!';
 
 declare const Keycloak: Function;
-function buildKeycloakConfig(keycloakSettings: any) {
-  return {
-    url: keycloakSettings['che.keycloak.auth_server_url'],
-    realm: keycloakSettings['che.keycloak.realm'],
-    clientId: keycloakSettings['che.keycloak.client_id']
-  };
+function buildKeycloakConfig(keycloakSettings: any): any {
+  const theOidcProvider = keycloakSettings['che.keycloak.oidc_provider'];
+  if (!theOidcProvider) {
+    return {
+      url: keycloakSettings['che.keycloak.auth_server_url'],
+      realm: keycloakSettings['che.keycloak.realm'],
+      clientId: keycloakSettings['che.keycloak.client_id']
+    };
+  } else {
+    return {
+      oidcProvider: theOidcProvider,
+      clientId: keycloakSettings['che.keycloak.client_id']
+    };
+  }
 }
 interface IResolveFn<T> {
-  (value: T | PromiseLike<T>): Promise<T>;
+  (value?: T | PromiseLike<T>): void;
 }
 interface IRejectFn<T> {
-  (reason: any): Promise<T>;
+  (reason?: any): void;
 }
 function keycloakLoad(keycloakSettings: any) {
   return new Promise((resolve: IResolveFn<any>, reject: IRejectFn<any>) => {
     const script = document.createElement('script');
     script.async = true;
-    script.src = keycloakSettings['che.keycloak.auth_server_url'] + '/js/keycloak.js';
+    script.src = keycloakSettings['che.keycloak.js_adapter_url'];
     script.addEventListener('load', resolve);
     script.addEventListener('error', () => reject('Error loading script.'));
     script.addEventListener('abort', () => reject('Script loading aborted.'));
     document.head.appendChild(script);
   });
 }
-function keycloakInit(keycloakConfig: any) {
+
+function keycloakInit(keycloakConfig: any, initOptions: any) {
   return new Promise((resolve: IResolveFn<any>, reject: IRejectFn<any>) => {
     const keycloak = Keycloak(keycloakConfig);
+    window.sessionStorage.setItem('oidcDashboardRedirectUrl', location.href);
     keycloak.init({
-      onLoad: 'login-required', checkLoginIframe: false
+      onLoad: 'login-required',
+      checkLoginIframe: false,
+      useNonce: initOptions['useNonce'],
+      scope: 'email profile',
+      redirectUri: initOptions['redirectUrl']
     }).success(() => {
       resolve(keycloak);
     }).error((error: any) => {
       reject(error);
     });
   });
+}
+function setAuthorizationHeader(xhr: XMLHttpRequest, keycloak: any): Promise<any> {
+  return new Promise((resolve: IResolveFn<any>, reject: IRejectFn<any>) => {
+    if (keycloak && keycloak.token) {
+      keycloak.updateToken(5).success(() => {
+        xhr.setRequestHeader('Authorization', 'Bearer ' + keycloak.token);
+        resolve(xhr);
+      }).error(() => {
+        console.log('Failed to refresh token');
+        window.sessionStorage.setItem('oidcDashboardRedirectUrl', location.href);
+        keycloak.login();
+        reject('Authorization is needed.');
+      });
+      return;
+    }
+
+    resolve(xhr);
+  });
+}
+function getApis(keycloak: any): Promise<void> {
+  const request = new XMLHttpRequest();
+  request.open('GET', '/api');
+  return setAuthorizationHeader(request, keycloak).then((xhr: XMLHttpRequest) => {
+    return new Promise<void>((resolve: IResolveFn<void>, reject: IRejectFn<void>) => {
+      xhr.send();
+      xhr.onreadystatechange = () => {
+        if (xhr.readyState !== 4) { return; }
+        if (xhr.status === 200) {
+          resolve();
+        } else {
+          reject(xhr.responseText ? xhr.responseText : 'Unknown error');
+        }
+      };
+    });
+  });
+}
+function showErrorMessage(errorMessage: string) {
+  const div = document.createElement('p');
+  div.className = 'authorization-error';
+  div.innerHTML = errorMessage + '<br/>Click <a href="/">here</a> to reload page.';
+  document.querySelector('.main-page-loader').appendChild(div);
 }
 
 const keycloakAuth = {
@@ -101,7 +157,15 @@ angular.element(document).ready(() => {
     // load Keycloak
     return keycloakLoad(keycloakSettings).then(() => {
       // init Keycloak
-      return keycloakInit(keycloakAuth.config);
+      var theUseNonce: boolean;
+      if (typeof keycloakSettings['che.keycloak.use_nonce'] === 'string') {
+        theUseNonce = keycloakSettings['che.keycloak.use_nonce'].toLowerCase() === 'true';
+      }
+      var initOptions = {
+        useNonce: theUseNonce,
+        redirectUrl: keycloakSettings['che.keycloak.redirect_url.dashboard']
+      }
+      return keycloakInit(keycloakAuth.config, initOptions);
     }).then((keycloak: any) => {
       keycloakAuth.isPresent = true;
       keycloakAuth.keycloak = keycloak;
@@ -112,7 +176,15 @@ angular.element(document).ready(() => {
   }).catch((error: any) => {
     console.error('Keycloak initialization failed with error: ', error);
   }).then(() => {
+    const keycloak = (window as any)._keycloak;
+    // try to reach the API
+    // to check if user is authorized to do that
+    return getApis(keycloak);
+  }).then(() => {
     (angular as any).resumeBootstrap();
+  }).catch((error: string) => {
+    console.error(`Can't GET "/api". ${error ? 'Error: ' : ''}`, error);
+    showErrorMessage(error);
   });
 });
 
@@ -243,7 +315,7 @@ initModule.run(['$rootScope', '$location', '$routeParams', 'routingRedirect', '$
   }
 ]);
 
-initModule.config(($mdThemingProvider: ng.material.IThemingProvider, jsonColors: any) => {
+initModule.config(['$mdThemingProvider', 'jsonColors', ($mdThemingProvider: ng.material.IThemingProvider, jsonColors: any) => {
 
   const cheColors = angular.fromJson(jsonColors);
   const getColor = (key: string) => {
@@ -383,7 +455,7 @@ initModule.config(($mdThemingProvider: ng.material.IThemingProvider, jsonColors:
   $mdThemingProvider.theme('maincontent-theme')
     .primaryPalette('che')
     .accentPalette('cheAccent');
-});
+}]);
 
 initModule.constant('userDashboardConfig', {
   developmentMode: DEV

@@ -1,9 +1,10 @@
 #
-# Copyright (c) 2012-2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
+# Copyright (c) 2012-2018 Red Hat, Inc.
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
 #
 # Contributors:
 #   Red Hat, Inc. - initial API and implementation
@@ -264,15 +265,40 @@ else
     echo "Workspace Agent will be downloaded from Workspace Master"
     AGENT_BINARIES_URI=${DOWNLOAD_AGENT_BINARIES_URI}
     if [ ${CURL_INSTALLED} = true ]; then
-      curl -s  ${AGENT_BINARIES_URI} | tar  xzf - -C ${CHE_DIR}/ws-agent
+       CA_ARG=""
+      if [ -f /tmp/che/secret/ca.crt ]; then
+        echo "Certificate File /tmp/che/secret/ca.crt will be used for binaries downloading"
+        CA_ARG="--cacert /tmp/che/secret/ca.crt"
+      fi
+
+      curl -s ${CA_ARG} ${AGENT_BINARIES_URI} | tar  xzf - -C ${CHE_DIR}/ws-agent
     else
       # replace https by http as wget may not be able to handle ssl
       AGENT_BINARIES_URI=$(echo ${AGENT_BINARIES_URI} | sed 's/https/http/g')
 
+      CA_ARG=""
+      if [ -f /tmp/che/secret/ca.crt ]; then
+        echo "Certificate File /tmp/che/secret/ca.crt will be used for binaries downloading"
+        CA_ARG="--ca-certificate /tmp/che/secret/ca.crt"
+      fi
+
       # use wget
-      wget -qO- ${AGENT_BINARIES_URI} | tar xzf - -C ${CHE_DIR}/ws-agent
+      wget ${CA_ARG} -qO- ${AGENT_BINARIES_URI} | tar xzf - -C ${CHE_DIR}/ws-agent
     fi
 
 fi
 
-export JPDA_ADDRESS="4403" && ~/che/ws-agent/bin/catalina.sh jpda run
+DEFAULT_WSAGENT_DEBUG=false
+WSAGENT_DEBUG=${WSAGENT_DEBUG:-${DEFAULT_WSAGENT_DEBUG}}
+
+if [ "${WSAGENT_DEBUG}" = true ]; then
+   export DEFAULT_WSAGENT_DEBUG_PORT="4403"
+   export JPDA_ADDRESS=${WSAGENT_DEBUG_PORT:-${DEFAULT_WSAGENT_DEBUG_PORT}}
+
+   export DEFAULT_WSAGENT_DEBUG_SUSPEND="n"
+   export JPDA_SUSPEND=${WSAGENT_DEBUG_SUSPEND:-${DEFAULT_WSAGENT_DEBUG_SUSPEND}}
+
+   ~/che/ws-agent/bin/catalina.sh jpda run
+else
+   ~/che/ws-agent/bin/catalina.sh run
+fi

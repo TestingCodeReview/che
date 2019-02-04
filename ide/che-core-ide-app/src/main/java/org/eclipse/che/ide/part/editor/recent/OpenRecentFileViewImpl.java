@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,7 +19,6 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.event.dom.client.DoubleClickEvent;
-import com.google.gwt.event.dom.client.DoubleClickHandler;
 import com.google.gwt.resources.client.ClientBundle;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -38,7 +38,6 @@ import org.eclipse.che.ide.ui.smartTree.NodeStorage;
 import org.eclipse.che.ide.ui.smartTree.Tree;
 import org.eclipse.che.ide.ui.smartTree.data.HasAttributes;
 import org.eclipse.che.ide.ui.smartTree.data.Node;
-import org.eclipse.che.ide.ui.smartTree.event.SelectionChangedEvent;
 import org.eclipse.che.ide.ui.smartTree.presentation.DefaultPresentationRenderer;
 import org.eclipse.che.ide.ui.window.Window;
 
@@ -65,7 +64,9 @@ public class OpenRecentFileViewImpl extends Window implements OpenRecentFilesVie
   @Inject
   public OpenRecentFileViewImpl(CoreLocalizationConstant locale, Styles styles) {
 
-    setWidget(uiBinder.createAndBindUi(this));
+    Widget widget = uiBinder.createAndBindUi(this);
+    widget.addStyleName(styles.css().window());
+    setWidget(widget);
 
     styles.css().ensureInjected();
 
@@ -112,29 +113,26 @@ public class OpenRecentFileViewImpl extends Window implements OpenRecentFilesVie
     tree.getSelectionModel().setSelectionMode(SINGLE);
     tree.getSelectionModel()
         .addSelectionChangedHandler(
-            new SelectionChangedEvent.SelectionChangedHandler() {
-              @Override
-              public void onSelectionChanged(SelectionChangedEvent event) {
-                List<Node> selection = event.getSelection();
-                if (selection == null || selection.isEmpty()) {
-                  pathLabel.setText("");
-                  pathLabel.setTitle("");
-                  return;
-                }
-
-                Node head = selection.get(0);
-
-                if (head instanceof ResourceNode) {
-                  String path =
-                      getShortPath(((ResourceNode) head).getData().getLocation().toString());
-                  pathLabel.setText(path);
-                  pathLabel.setTitle(path);
-                  return;
-                }
-
+            event -> {
+              List<Node> selection = event.getSelection();
+              if (selection == null || selection.isEmpty()) {
                 pathLabel.setText("");
                 pathLabel.setTitle("");
+                return;
               }
+
+              Node head = selection.get(0);
+
+              if (head instanceof ResourceNode) {
+                String path =
+                    getShortPath(((ResourceNode) head).getData().getLocation().toString());
+                pathLabel.setText(path);
+                pathLabel.setTitle(path);
+                return;
+              }
+
+              pathLabel.setText("");
+              pathLabel.setTitle("");
             });
 
     KeyboardNavigationHandler handler =
@@ -147,14 +145,7 @@ public class OpenRecentFileViewImpl extends Window implements OpenRecentFilesVie
 
     handler.bind(tree);
 
-    tree.addDomHandler(
-        new DoubleClickHandler() {
-          @Override
-          public void onDoubleClick(DoubleClickEvent event) {
-            hide();
-          }
-        },
-        DoubleClickEvent.getType());
+    tree.addDomHandler(event -> hide(), DoubleClickEvent.getType());
 
     tree.ensureDebugId("recent-files");
     tree.getElement().getStyle().setOverflowY(AUTO);
@@ -163,14 +154,6 @@ public class OpenRecentFileViewImpl extends Window implements OpenRecentFilesVie
     content.add(tree);
 
     setTitle(locale.openRecentFilesTitle());
-
-    setHideOnEscapeEnabled(true);
-
-    getFooter().setVisible(false);
-
-    getWidget().setStyleName(styles.css().window());
-
-    hideCrossButton();
   }
 
   /** {@inheritDoc} */
@@ -194,8 +177,12 @@ public class OpenRecentFileViewImpl extends Window implements OpenRecentFilesVie
 
   /** {@inheritDoc} */
   @Override
-  public void show() {
-    super.show(tree);
+  public void showDialog() {
+    show(tree);
+  }
+
+  @Override
+  protected void onShow() {
     if (!tree.getRootNodes().isEmpty()) {
       tree.getSelectionModel().select(tree.getRootNodes().get(0), false);
     }

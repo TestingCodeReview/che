@@ -1,9 +1,10 @@
 #!/usr/bin/env bats
 # Copyright (c) 2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
 #
 # Contributors:
 #   Roman Iuvshyn
@@ -100,7 +101,7 @@ teardown() {
   backup=$(execute_cli_command --che-data-path=${tmp_path} --che-cli-command=backup --che-cli-extra-options="--skip:nightly --skip:pull")
 
   #THEN
-  [[ "$backup" == *"Saving codenvy data..."* ]]
+  [[ "$backup" == *"Saving Eclipse Che data..."* ]]
   [[ "$backup" == *"che data saved in ${tmp_path}/backup/che_backup.tar.gz"* ]]
   [[ -f "${container_tmp_path}"/backup/che_backup.tar.gz ]]
 

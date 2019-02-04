@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,8 +17,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.reflections.Reflections;
 import org.reflections.scanners.SubTypesScanner;
@@ -97,6 +101,7 @@ public abstract class DtoGenerator {
    * @param targetPackage the package name to use for the generated class
    * @param sourcePackages the source packages to use. THe packages must be on the class path at
    *     execution time.
+   * @param imports
    * @throws IOException
    */
   public void generate(
@@ -104,7 +109,9 @@ public abstract class DtoGenerator {
       String targetName,
       String targetPackage,
       String[] sourcePackages,
-      String[] classNames)
+      String[] classNames,
+      String[] excludes,
+      String[] imports)
       throws IOException {
     File targetFile =
         new File(
@@ -118,6 +125,12 @@ public abstract class DtoGenerator {
     for (String pkg : sourcePackages) {
       urls.addAll(ClasspathHelper.forPackage(pkg));
     }
+
+    List<Pattern> patterns = new ArrayList<>(excludes.length);
+    for (String exclude : excludes) {
+      patterns.add(Pattern.compile(exclude));
+    }
+
     Reflections reflection =
         new Reflections(
             new ConfigurationBuilder()
@@ -129,8 +142,9 @@ public abstract class DtoGenerator {
                       @Override
                       public boolean apply(String input) {
                         for (String pkg : sourcePackages) {
-                          if (input.startsWith(pkg)) {
-                            return input.indexOf('.', pkg.length() + 1) == input.lastIndexOf('.');
+                          if (input.startsWith(pkg)
+                              && input.indexOf('.', pkg.length() + 1) == input.lastIndexOf('.')) {
+                            return true;
                           }
                         }
                         return false;
@@ -145,7 +159,20 @@ public abstract class DtoGenerator {
       }
     }
 
-    allTypes = allTypes.stream().filter((cls) -> !cls.isInterface()).collect(Collectors.toSet());
+    allTypes =
+        allTypes
+            .stream()
+            .filter(
+                cls -> {
+                  for (Pattern exclude : patterns) {
+                    if (exclude.matcher(cls.getName()).matches()) {
+                      return false;
+                    }
+                  }
+                  return true;
+                })
+            .filter((cls) -> !cls.isInterface())
+            .collect(Collectors.toSet());
 
     try (PrintWriter out = new PrintWriter(targetFile, "utf-8")) {
 
@@ -161,9 +188,16 @@ public abstract class DtoGenerator {
       out.println("import java.util.ArrayList;");
       out.println("import java.util.HashMap;");
       out.println("import org.eclipse.lsp4j.jsonrpc.messages.Either;");
+      out.println("import org.eclipse.lsp4j.jsonrpc.messages.Either3;");
       out.println("import org.eclipse.che.api.languageserver.util.EitherUtil;");
       out.println("import org.eclipse.che.api.languageserver.util.JsonUtil;");
       out.println("import org.eclipse.che.api.languageserver.shared.util.JsonDecision;");
+
+      for (String toImport : imports) {
+        out.print("import ");
+        out.print(toImport);
+        out.println(";");
+      }
 
       for (Class<? extends Object> clazz : allTypes) {
         out.print("import ");

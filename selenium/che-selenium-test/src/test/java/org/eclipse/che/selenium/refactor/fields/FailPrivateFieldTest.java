@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,6 +29,7 @@ import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Refactor;
 import org.openqa.selenium.Keys;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -58,11 +60,22 @@ public class FailPrivateFieldTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SIMPLE);
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
     consoles.closeProcessesArea();
     projectExplorer.quickExpandWithJavaScript();
     loader.waitOnClosed();
+  }
+
+  @AfterMethod
+  public void closeForm() {
+    if (refactor.isWidgetOpened()) {
+      refactor.clickCancelButtonRefactorForm();
+    }
+    if (editor.isAnyTabsOpened()) {
+      editor.closeAllTabs();
+    }
   }
 
   @Test
@@ -71,11 +84,10 @@ public class FailPrivateFieldTest {
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
+    editor.setCursorToLine(14);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameFieldFormIsOpen();
     refactor.waitUpdateReferencesIsSelected();
     refactor.typeAndWaitNewName("g");
@@ -85,17 +97,16 @@ public class FailPrivateFieldTest {
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 1)
+  @Test
   public void testFail4() throws Exception {
     setFieldsForTest("testfail4");
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
+    editor.setCursorToLine(14);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameFieldFormIsOpen();
     refactor.waitUpdateReferencesIsSelected();
     refactor.typeAndWaitNewName("g");
@@ -105,17 +116,16 @@ public class FailPrivateFieldTest {
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 2)
+  @Test
   public void testFail6() throws Exception {
     setFieldsForTest("testfail6");
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
+    editor.setCursorToLine(14);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameFieldFormIsOpen();
     refactor.waitUpdateReferencesIsSelected();
     refactor.typeAndWaitNewName("g");
@@ -127,17 +137,16 @@ public class FailPrivateFieldTest {
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 3)
+  @Test
   public void testFail7() throws Exception {
     setFieldsForTest("testfail7");
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
+    editor.setCursorToLine(14);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameFieldFormIsOpen();
     refactor.waitUpdateReferencesIsSelected();
     refactor.typeAndWaitNewName("g");

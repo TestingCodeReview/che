@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,12 +16,14 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import javax.inject.Named;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.core.notification.EventSubscriber;
 import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
 import org.eclipse.che.api.workspace.shared.event.WorkspaceRemovedEvent;
 import org.eclipse.che.commons.annotation.Nullable;
+import org.eclipse.che.workspace.infrastructure.kubernetes.KubernetesInfrastructureException;
 import org.eclipse.che.workspace.infrastructure.openshift.OpenShiftClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 @Singleton
 public class RemoveProjectOnWorkspaceRemove implements EventSubscriber<WorkspaceRemovedEvent> {
+
   private static final Logger LOG = LoggerFactory.getLogger(RemoveProjectOnWorkspaceRemove.class);
 
   private final OpenShiftClientFactory clientFactory;
@@ -39,7 +43,7 @@ public class RemoveProjectOnWorkspaceRemove implements EventSubscriber<Workspace
 
   @Inject
   public RemoveProjectOnWorkspaceRemove(
-      @Nullable @Named("che.infra.openshift.project") String projectName,
+      @Nullable @Named("che.infra.kubernetes.namespace") String projectName,
       OpenShiftClientFactory clientFactory) {
     this.projectName = projectName;
     this.clientFactory = clientFactory;
@@ -66,6 +70,13 @@ public class RemoveProjectOnWorkspaceRemove implements EventSubscriber<Workspace
 
   @VisibleForTesting
   void doRemoveProject(String projectName) throws InfrastructureException {
-    clientFactory.create().projects().withName(projectName).delete();
+    try {
+      clientFactory.createOC(projectName).projects().withName(projectName).delete();
+    } catch (KubernetesClientException e) {
+      if (!(e.getCode() == 403)) {
+        throw new KubernetesInfrastructureException(e);
+      }
+      // project doesn't exist
+    }
   }
 }

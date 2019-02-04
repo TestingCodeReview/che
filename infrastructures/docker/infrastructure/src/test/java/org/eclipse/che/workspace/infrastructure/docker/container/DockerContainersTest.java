@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -48,8 +49,8 @@ public class DockerContainersTest {
 
   @Test
   public void findsIdentifiers() throws Exception {
-    RuntimeIdentity id1 = new RuntimeIdentityImpl("workspace123", "default", "test");
-    RuntimeIdentity id2 = new RuntimeIdentityImpl("workspace234", "default", "test");
+    RuntimeIdentity id1 = new RuntimeIdentityImpl("workspace123", "default", "id");
+    RuntimeIdentity id2 = new RuntimeIdentityImpl("workspace234", "default", "id");
 
     List<ContainerListEntry> entries =
         asList(mockContainer(id1, "container1"), mockContainer(id2, "container2"));
@@ -68,9 +69,8 @@ public class DockerContainersTest {
   }
 
   @Test(
-    expectedExceptions = InfrastructureException.class,
-    expectedExceptionsMessageRegExp = "oops"
-  )
+      expectedExceptions = InfrastructureException.class,
+      expectedExceptionsMessageRegExp = "oops")
   public void
       findsIdentitiesRethrowsIOExceptionThrownWhileListingContainersAsInternalInfraException()
           throws Exception {
@@ -81,7 +81,7 @@ public class DockerContainersTest {
 
   @Test
   public void findContainers() throws Exception {
-    RuntimeIdentity id = new RuntimeIdentityImpl("workspace123", "default", "test");
+    RuntimeIdentity id = new RuntimeIdentityImpl("workspace123", "default", "id");
     ContainerListEntry entry1 = mockContainer(id, "container1");
     ContainerListEntry entry2 = mockContainer(id, "container2");
 
@@ -105,15 +105,14 @@ public class DockerContainersTest {
   }
 
   @Test(
-    expectedExceptions = InternalInfrastructureException.class,
-    expectedExceptionsMessageRegExp = "oops"
-  )
+      expectedExceptions = InternalInfrastructureException.class,
+      expectedExceptionsMessageRegExp = "oops")
   public void
       findContainersRethrowsIOExceptionThrownWhileListingContainersAsInternalInfraException()
           throws Exception {
     when(docker.listContainers(anyObject())).thenThrow(new IOException("oops"));
 
-    containers.find(new RuntimeIdentityImpl("workspace123", "default", "test"));
+    containers.find(new RuntimeIdentityImpl("workspace123", "default", "id"));
   }
 
   private ContainerListEntry mockContainer(RuntimeIdentity runtimeId, String containerId)

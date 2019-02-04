@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,7 @@ import org.eclipse.che.workspace.infrastructure.docker.model.DockerEnvironment;
 import org.eclipse.che.workspace.infrastructure.docker.provisioner.ContainerSystemSettingsProvisionersApplier;
 import org.eclipse.che.workspace.infrastructure.docker.provisioner.env.EnvVarsConverter;
 import org.eclipse.che.workspace.infrastructure.docker.provisioner.labels.RuntimeLabelsProvisioner;
+import org.eclipse.che.workspace.infrastructure.docker.provisioner.labels.SinglePortLabelsProvisioner;
 import org.eclipse.che.workspace.infrastructure.docker.provisioner.memory.MemoryAttributeConverter;
 import org.eclipse.che.workspace.infrastructure.docker.provisioner.server.ServersConverter;
 import org.eclipse.che.workspace.infrastructure.docker.provisioner.volume.VolumesConverter;
@@ -48,6 +50,7 @@ public class LocalCheDockerEnvironmentProvisionerTest {
   @Mock private EnvVarsConverter envVarsConverter;
   @Mock private MemoryAttributeConverter memoryAttributeConverter;
   @Mock private VolumesConverter volumesConverter;
+  @Mock private SinglePortLabelsProvisioner singlePortLabelsProvisioner;
 
   private LocalCheDockerEnvironmentProvisioner provisioner;
 
@@ -57,12 +60,14 @@ public class LocalCheDockerEnvironmentProvisionerTest {
   public void setUp() throws Exception {
     provisioner =
         new LocalCheDockerEnvironmentProvisioner(
+            true,
             settingsProvisioners,
             projectsVolumeProvisioner,
             installerConfigProvisioner,
             labelsProvisioner,
             dockerApiEnvProvisioner,
             wsAgentServerConfigProvisioner,
+            singlePortLabelsProvisioner,
             serversConverter,
             envVarsConverter,
             memoryAttributeConverter,
@@ -79,7 +84,8 @@ public class LocalCheDockerEnvironmentProvisionerTest {
           serversConverter,
           envVarsConverter,
           memoryAttributeConverter,
-          volumesConverter
+          volumesConverter,
+          singlePortLabelsProvisioner
         };
   }
 
@@ -104,6 +110,9 @@ public class LocalCheDockerEnvironmentProvisionerTest {
         .provision(eq(dockerEnvironment), eq(runtimeIdentity));
     inOrder.verify(settingsProvisioners).provision(eq(dockerEnvironment), eq(runtimeIdentity));
     inOrder.verify(dockerApiEnvProvisioner).provision(eq(dockerEnvironment), eq(runtimeIdentity));
+    inOrder
+        .verify(singlePortLabelsProvisioner)
+        .provision(eq(dockerEnvironment), eq(runtimeIdentity));
     inOrder.verifyNoMoreInteractions();
   }
 }

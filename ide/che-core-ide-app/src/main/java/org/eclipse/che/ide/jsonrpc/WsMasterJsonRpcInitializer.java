@@ -1,22 +1,26 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.jsonrpc;
 
+import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.util.Collections.singletonMap;
 import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.STOPPED;
 import static org.eclipse.che.api.core.model.workspace.runtime.ServerStatus.RUNNING;
+import static org.eclipse.che.api.workspace.shared.Constants.ERROR_MESSAGE_ATTRIBUTE_NAME;
 import static org.eclipse.che.api.workspace.shared.Constants.INSTALLER_LOG_METHOD;
+import static org.eclipse.che.api.workspace.shared.Constants.INSTALLER_STATUS_CHANGED_METHOD;
 import static org.eclipse.che.api.workspace.shared.Constants.LINK_REL_ENVIRONMENT_STATUS_CHANNEL;
-import static org.eclipse.che.api.workspace.shared.Constants.MACHINE_LOG_METHOD;
 import static org.eclipse.che.api.workspace.shared.Constants.MACHINE_STATUS_CHANGED_METHOD;
+import static org.eclipse.che.api.workspace.shared.Constants.RUNTIME_LOG_METHOD;
 import static org.eclipse.che.api.workspace.shared.Constants.SERVER_EXEC_AGENT_HTTP_REFERENCE;
 import static org.eclipse.che.api.workspace.shared.Constants.SERVER_STATUS_CHANGED_METHOD;
 import static org.eclipse.che.api.workspace.shared.Constants.SERVER_TERMINAL_REFERENCE;
@@ -63,6 +67,8 @@ public class WsMasterJsonRpcInitializer {
   private final SecurityTokenProvider securityTokenProvider;
   private final WsAgentServerUtil wsAgentServerUtil;
 
+  private boolean initialized = false;
+
   @Inject
   public WsMasterJsonRpcInitializer(
       JsonRpcInitializer initializer,
@@ -84,15 +90,13 @@ public class WsMasterJsonRpcInitializer {
 
     eventBus.addHandler(BasicIDEInitializedEvent.TYPE, e -> initialize());
     eventBus.addHandler(WorkspaceStartingEvent.TYPE, e -> initialize());
-    eventBus.addHandler(
-        WorkspaceStoppedEvent.TYPE,
-        e -> {
-          unsubscribeFromEvents();
-          terminate();
-        });
   }
 
   private void initialize() {
+    if (initialized) {
+      return;
+    }
+
     securityTokenProvider
         .getSecurityToken()
         .then(
@@ -125,6 +129,8 @@ public class WsMasterJsonRpcInitializer {
               initActions.add(this::checkStatuses);
 
               initializer.initialize(WS_MASTER_JSON_RPC_ENDPOINT_ID, initProperties, initActions);
+
+              initialized = true;
             });
   }
 
@@ -151,9 +157,11 @@ public class WsMasterJsonRpcInitializer {
         WS_MASTER_JSON_RPC_ENDPOINT_ID, MACHINE_STATUS_CHANGED_METHOD, scope);
     subscriptionManagerClient.subscribe(
         WS_MASTER_JSON_RPC_ENDPOINT_ID, SERVER_STATUS_CHANGED_METHOD, scope);
-    subscriptionManagerClient.subscribe(WS_MASTER_JSON_RPC_ENDPOINT_ID, MACHINE_LOG_METHOD, scope);
+    subscriptionManagerClient.subscribe(WS_MASTER_JSON_RPC_ENDPOINT_ID, RUNTIME_LOG_METHOD, scope);
     subscriptionManagerClient.subscribe(
         WS_MASTER_JSON_RPC_ENDPOINT_ID, INSTALLER_LOG_METHOD, scope);
+    subscriptionManagerClient.subscribe(
+        WS_MASTER_JSON_RPC_ENDPOINT_ID, INSTALLER_STATUS_CHANGED_METHOD, scope);
   }
 
   private void unsubscribeFromEvents() {
@@ -166,9 +174,11 @@ public class WsMasterJsonRpcInitializer {
     subscriptionManagerClient.unSubscribe(
         WS_MASTER_JSON_RPC_ENDPOINT_ID, SERVER_STATUS_CHANGED_METHOD, scope);
     subscriptionManagerClient.unSubscribe(
-        WS_MASTER_JSON_RPC_ENDPOINT_ID, MACHINE_LOG_METHOD, scope);
+        WS_MASTER_JSON_RPC_ENDPOINT_ID, RUNTIME_LOG_METHOD, scope);
     subscriptionManagerClient.unSubscribe(
         WS_MASTER_JSON_RPC_ENDPOINT_ID, INSTALLER_LOG_METHOD, scope);
+    subscriptionManagerClient.unSubscribe(
+        WS_MASTER_JSON_RPC_ENDPOINT_ID, INSTALLER_STATUS_CHANGED_METHOD, scope);
   }
 
   /**
@@ -187,7 +197,12 @@ public class WsMasterJsonRpcInitializer {
               ((AppContextImpl) appContext).setWorkspace(workspace);
 
               if (workspace.getStatus() != workspacePrev.getStatus()) {
-                if (workspace.getStatus() == WorkspaceStatus.RUNNING) {
+                if (workspace.getStatus() == WorkspaceStatus.STOPPED) {
+                  String cause = workspace.getAttributes().get(ERROR_MESSAGE_ATTRIBUTE_NAME);
+                  eventBus.fireEvent(
+                      new WorkspaceStoppedEvent(true, firstNonNull(cause, "Reason is unknown.")));
+                  return;
+                } else if (workspace.getStatus() == WorkspaceStatus.RUNNING) {
                   eventBus.fireEvent(new WorkspaceRunningEvent());
                 }
               }

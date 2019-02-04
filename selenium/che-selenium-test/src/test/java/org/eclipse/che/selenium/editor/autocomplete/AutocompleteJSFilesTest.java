@@ -1,16 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.editor.autocomplete;
 
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.INFO_MARKER;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.INFO;
 
 import com.google.inject.Inject;
 import java.net.URL;
@@ -83,7 +84,7 @@ public class AutocompleteJSFilesTest {
     askForValueDialog.typeAndWaitText("newJsFile");
     askForValueDialog.clickOkBtn();
     loader.waitOnClosed();
-    projectExplorer.waitItemInVisibleArea("newJsFile.js");
+    projectExplorer.waitVisibilityByName("newJsFile.js");
 
     editor.waitActive();
     loader.waitOnClosed();
@@ -139,10 +140,10 @@ public class AutocompleteJSFilesTest {
     editor.typeTextIntoEditorWithoutDelayForSaving(Keys.END.toString());
     editor.typeTextIntoEditorWithoutDelayForSaving(Keys.BACK_SPACE.toString());
 
-    editor.waitMarkerInPositionAndClick(INFO_MARKER, 11);
+    editor.clickOnMarker(INFO, 11);
     editor.clickOnElementByXpath("//button[text()='Add missing semicolon']");
 
-    editor.waitAllMarkersDisappear(INFO_MARKER);
+    editor.waitAllMarkersInvisibility(INFO);
     loader.waitOnClosed();
   }
 }

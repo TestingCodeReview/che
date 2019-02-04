@@ -1,17 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.editor.autocomplete;
 
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.ERROR_MARKER;
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.WARNING_MARKER;
+import static org.eclipse.che.selenium.core.TestGroup.UNDER_REPAIR;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.ERROR;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.WARNING;
+import static org.testng.Assert.fail;
 
 import com.google.inject.Inject;
 import java.net.URL;
@@ -27,10 +30,12 @@ import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.openqa.selenium.Keys;
+import org.openqa.selenium.TimeoutException;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Andrienko Alexander on 08.01.15. */
+@Test(groups = UNDER_REPAIR)
 public class QuickFixAndCodeAssistantFeaturesTest {
   private static final String PROJECT_NAME =
       NameGenerator.generate(QuickFixAndCodeAssistantFeaturesTest.class.getSimpleName(), 4);
@@ -55,6 +60,7 @@ public class QuickFixAndCodeAssistantFeaturesTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -68,7 +74,7 @@ public class QuickFixAndCodeAssistantFeaturesTest {
 
     editor.setCursorToLine(28);
     editor.typeTextIntoEditor(TEXT_FOR_WARNING);
-    editor.waitMarkerInPosition(WARNING_MARKER, 28);
+    editor.waitMarkerInPosition(WARNING, 28);
     editor.launchPropositionAssistPanel();
     editor.waitTextIntoFixErrorProposition("Remove 'l', keep assignments with side effects");
     editor.waitTextIntoFixErrorProposition("Remove 'l' and all assignments");
@@ -76,8 +82,14 @@ public class QuickFixAndCodeAssistantFeaturesTest {
     editor.waitErrorPropositionPanelClosed();
 
     editor.launchPropositionAssistPanel();
-    editor.waitTextIntoFixErrorProposition("Convert local variable to field");
-    editor.waitTextIntoFixErrorProposition("Inline local variable");
+    try {
+      editor.waitTextIntoFixErrorProposition("Convert local variable to field");
+      editor.waitTextIntoFixErrorProposition("Inline local variable");
+    } catch (TimeoutException e) {
+      fail(
+          "Known permanent failure https://github.com/eclipse/eclipse.jdt.ls/issues/772, "
+              + "https://github.com/eclipse/eclipse.jdt.ls/issues/771");
+    }
     editor.typeTextIntoEditor(Keys.ESCAPE.toString());
     editor.waitErrorPropositionPanelClosed();
     loader.waitOnClosed();
@@ -86,15 +98,13 @@ public class QuickFixAndCodeAssistantFeaturesTest {
 
     editor.typeTextIntoEditor(TEXT_FOR_ERROR);
     editor.launchAutocompleteAndWaitContainer();
-    // ide.getEditor().selectItemIntoAutocompleteAndPasteByDoubleClick("null"); //TODO cursor
-    // disappears IDEX-3353
     editor.enterAutocompleteProposal("null");
-    projectExplorer.selectVisibleItem(
+    projectExplorer.waitAndSelectItemByName(
         "AppController.java"); // TODO because the cursor disappears after click in the autocomplete
     // panel
     projectExplorer.openItemByVisibleNameInExplorer("AppController.java");
     editor.typeTextIntoEditor(";");
-    editor.waitMarkerInPosition(ERROR_MARKER, 29);
+    editor.waitMarkerInPosition(ERROR, 29);
     editor.launchPropositionAssistPanel();
     editor.waitTextIntoFixErrorProposition("Change to 'ClassDesc' (javax.rmi.CORBA)");
     editor.waitTextIntoFixErrorProposition("Change to 'ClassUtils' (org.springframework.util)");

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,12 +12,12 @@
 package org.eclipse.che.ide.console;
 
 import java.util.function.Consumer;
+import org.eclipse.che.agent.exec.shared.dto.ProcessSubscribeResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.event.ProcessDiedEventDto;
+import org.eclipse.che.agent.exec.shared.dto.event.ProcessStartedEventDto;
+import org.eclipse.che.agent.exec.shared.dto.event.ProcessStdErrEventDto;
+import org.eclipse.che.agent.exec.shared.dto.event.ProcessStdOutEventDto;
 import org.eclipse.che.ide.api.command.CommandImpl;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessSubscribeResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.event.ProcessDiedEventDto;
-import org.eclipse.che.ide.api.command.exec.dto.event.ProcessStartedEventDto;
-import org.eclipse.che.ide.api.command.exec.dto.event.ProcessStdErrEventDto;
-import org.eclipse.che.ide.api.command.exec.dto.event.ProcessStdOutEventDto;
 import org.eclipse.che.ide.api.outputconsole.OutputConsole;
 
 /** Describes requirements for the console for command output. */

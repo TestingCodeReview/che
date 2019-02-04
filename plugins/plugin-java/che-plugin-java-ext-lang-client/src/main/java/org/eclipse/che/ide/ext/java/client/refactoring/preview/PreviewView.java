@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,11 +12,10 @@
 package org.eclipse.che.ide.ext.java.client.refactoring.preview;
 
 import com.google.inject.ImplementedBy;
+import java.util.Map;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.api.mvp.View;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.ChangePreview;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringPreview;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus;
+import org.eclipse.che.jdt.ls.extension.api.dto.RefactoringStatus;
 
 /**
  * The visual part of Preview view that has an ability to show preview information about the
@@ -27,18 +27,11 @@ import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus;
 @ImplementedBy(PreviewViewImpl.class)
 interface PreviewView extends View<PreviewView.ActionDelegate> {
   /**
-   * Sets tree of the changes.
-   *
-   * @param changes list of changes from the refactoring operation
-   */
-  void setTreeOfChanges(RefactoringPreview changes);
-
-  /**
    * Set a title of the window.
    *
    * @param title the name of the preview window
    */
-  void setTitle(String title);
+  void setTitleCaption(String title);
 
   /**
    * Show error message into bottom of view.
@@ -55,10 +48,17 @@ interface PreviewView extends View<PreviewView.ActionDelegate> {
   void showDiff(@Nullable ChangePreview preview);
 
   /** Hide Move panel. */
-  void hide();
+  void close();
 
   /** Show Preview panel with the special information. */
-  void show();
+  void showDialog();
+
+  /**
+   * Sets tree of the changes.
+   *
+   * @param nodes changes from the refactoring operation
+   */
+  void setTreeOfChanges(Map<String, PreviewNode> nodes);
 
   interface ActionDelegate {
     /** Performs some actions in response to user's clicking on the 'Cancel' button. */
@@ -71,9 +71,9 @@ interface PreviewView extends View<PreviewView.ActionDelegate> {
     void onBackButtonClicked();
 
     /** Performs some actions in response to user's choosing some change. */
-    void onEnabledStateChanged(RefactoringPreview change);
+    void onEnabledStateChanged(PreviewNode change);
 
-    /** Performs some actions in response to user's selecting some change. */
-    void onSelectionChanged(RefactoringPreview change);
+    /** Performs some actions in response to user selected some change. */
+    void onSelectionChanged(PreviewNode selectedNode);
   }
 }

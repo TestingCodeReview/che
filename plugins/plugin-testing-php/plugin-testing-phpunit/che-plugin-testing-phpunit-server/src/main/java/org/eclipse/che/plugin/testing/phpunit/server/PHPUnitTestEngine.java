@@ -1,11 +1,13 @@
-/**
- * ***************************************************************************** Copyright (c) 2016
- * Rogue Wave Software, Inc. All rights reserved. This program and the accompanying materials are
- * made available under the terms of the Eclipse Public License v1.0 which accompanies this
- * distribution, and is available at http://www.eclipse.org/legal/epl-v10.html
+/*
+ * Copyright (c) 2016 Rogue Wave Software, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
  *
- * <p>Contributors: Rogue Wave Software, Inc. - initial API and implementation
- * *****************************************************************************
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *   Rogue Wave Software, Inc. - initial API and implementation
  */
 package org.eclipse.che.plugin.testing.phpunit.server;
 
@@ -26,7 +28,6 @@ import org.apache.commons.io.FilenameUtils;
 import org.eclipse.che.api.core.util.CommandLine;
 import org.eclipse.che.api.testing.shared.TestExecutionContext;
 import org.eclipse.che.commons.lang.execution.ProcessHandler;
-import org.eclipse.core.resources.ResourcesPlugin;
 
 /**
  * PHPUnit tests running engine.
@@ -46,10 +47,10 @@ public class PHPUnitTestEngine {
     this.projectsRoot = projectsRoot.toPath().normalize().toAbsolutePath();
   }
 
-  public ProcessHandler executeTests(TestExecutionContext context) {
+  public ProcessHandler executeTests(TestExecutionContext context) throws IOException {
     String projectPath = context.getProjectPath();
     String testTargetRelativePath = context.getFilePath();
-    String projectAbsolutePath = ResourcesPlugin.getPathToWorkspace() + projectPath;
+    String projectAbsolutePath = projectsRoot.resolve(projectPath).toString();
     File testTargetFile = getTestTargetFile(testTargetRelativePath, projectAbsolutePath);
     File testTargetWorkingDirectory =
         testTargetFile.isDirectory() ? testTargetFile : testTargetFile.getParentFile();
@@ -75,13 +76,7 @@ public class PHPUnitTestEngine {
             .directory(testTargetWorkingDirectory)
             .command(cmdRunTests.toShellCommand());
     pb.environment().put("ZEND_PHPUNIT_PORT", String.valueOf(PRINTER_PORT));
-    try {
-      return new ProcessHandler(pb.start());
-    } catch (IOException e) {
-      LOG.error("Can't run PHPUnit", e);
-    }
-
-    return null;
+    return new ProcessHandler(pb.start());
   }
 
   private File getPrinterFile() {

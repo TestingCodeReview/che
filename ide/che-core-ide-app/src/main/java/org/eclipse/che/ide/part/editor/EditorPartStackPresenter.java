@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -46,12 +47,14 @@ import org.eclipse.che.ide.api.editor.EditorAgent;
 import org.eclipse.che.ide.api.editor.EditorPartPresenter;
 import org.eclipse.che.ide.api.editor.EditorWithErrors;
 import org.eclipse.che.ide.api.editor.EditorWithErrors.EditorState;
+import org.eclipse.che.ide.api.editor.texteditor.HasReadOnlyProperty;
 import org.eclipse.che.ide.api.parts.EditorPartStack;
 import org.eclipse.che.ide.api.parts.EditorTab;
 import org.eclipse.che.ide.api.parts.PartPresenter;
 import org.eclipse.che.ide.api.parts.PartStackView.TabItem;
 import org.eclipse.che.ide.api.parts.PropertyListener;
 import org.eclipse.che.ide.api.parts.base.MaximizePartEvent;
+import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.resources.ResourceChangedEvent;
 import org.eclipse.che.ide.api.resources.ResourceChangedEvent.ResourceChangedHandler;
 import org.eclipse.che.ide.api.resources.ResourceDelta;
@@ -225,15 +228,17 @@ public class EditorPartStackPresenter extends PartStackPresenter
 
     final EditorTab editorTab = tabItemFactory.createEditorPartButton(editorPart, this);
 
-    appContext
-        .getWorkspaceRoot()
-        .getFile(file.getLocation())
-        .then(
-            optional -> {
-              if (optional.isPresent()) {
-                editorTab.setTitleColor(optional.get().getVcsStatus().getColor());
-              }
-            });
+    if (file instanceof Resource) {
+      appContext
+          .getWorkspaceRoot()
+          .getFile(file.getLocation())
+          .then(
+              optional -> {
+                if (optional.isPresent()) {
+                  editorTab.setTitleColor(optional.get().getVcsStatus().getColor());
+                }
+              });
+    }
 
     editorPart.addPropertyListener(
         new PropertyListener() {
@@ -245,11 +250,6 @@ public class EditorPartStackPresenter extends PartStackPresenter
 
             boolean isReadOnly =
                 ((EditorPartPresenter) source).getEditorInput().getFile().isReadOnly();
-            if (propId == EditorPartPresenter.PROP_INPUT) {
-              editorTab.setReadOnlyMark(isReadOnly);
-              return;
-            }
-
             if (!isReadOnly && propId == EditorPartPresenter.PROP_DIRTY) {
               editorTab.setUnsavedDataMark(((EditorPartPresenter) source).isDirty());
             }
@@ -286,6 +286,12 @@ public class EditorPartStackPresenter extends PartStackPresenter
             }
           });
     }
+
+    if (editorPart instanceof HasReadOnlyProperty) {
+      boolean isReadOnly = editorPart.getEditorInput().getFile().isReadOnly();
+      editorTab.setReadOnlyMark(isReadOnly);
+    }
+
     view.selectTab(editorPart);
   }
 

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -23,28 +24,31 @@ import org.eclipse.che.api.core.model.workspace.config.Environment;
 import org.eclipse.che.api.installer.server.InstallerRegistry;
 import org.eclipse.che.api.workspace.server.model.impl.EnvironmentImpl;
 import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
-import org.eclipse.che.api.workspace.server.spi.environment.InternalEnvironmentFactory;
-import org.eclipse.che.api.workspace.server.spi.environment.InternalMachineConfig;
-import org.eclipse.che.api.workspace.server.spi.environment.InternalRecipe;
-import org.eclipse.che.api.workspace.server.spi.environment.MachineConfigsValidator;
-import org.eclipse.che.api.workspace.server.spi.environment.RecipeRetriever;
+import org.eclipse.che.api.workspace.server.spi.environment.*;
+import org.eclipse.che.commons.annotation.Nullable;
 
 /** @author Sergii Leshchenko */
 @Singleton
 public class DockerImageEnvironmentFactory
     extends InternalEnvironmentFactory<DockerImageEnvironment> {
 
+  private final MemoryAttributeProvisioner memoryProvisioner;
+
   @Inject
   public DockerImageEnvironmentFactory(
       InstallerRegistry installerRegistry,
       RecipeRetriever recipeRetriever,
-      MachineConfigsValidator machinesValidator) {
+      MachineConfigsValidator machinesValidator,
+      MemoryAttributeProvisioner memoryProvisioner) {
     super(installerRegistry, recipeRetriever, machinesValidator);
+    this.memoryProvisioner = memoryProvisioner;
   }
 
   @Override
   public DockerImageEnvironment create(Environment sourceEnv)
       throws InfrastructureException, ValidationException {
+    checkNotNull(
+        sourceEnv, "Null environment is not supported by docker image environment factory");
     if (sourceEnv.getRecipe().getLocation() != null) {
       // move image from location to content
       EnvironmentImpl envCopy = new EnvironmentImpl(sourceEnv);
@@ -57,8 +61,11 @@ public class DockerImageEnvironmentFactory
 
   @Override
   protected DockerImageEnvironment doCreate(
-      InternalRecipe recipe, Map<String, InternalMachineConfig> machines, List<Warning> warnings)
+      @Nullable InternalRecipe recipe,
+      Map<String, InternalMachineConfig> machines,
+      List<Warning> warnings)
       throws InfrastructureException, ValidationException {
+    checkNotNull(recipe, "Null recipe is not supported by docker image environment factory");
     if (!DockerImageEnvironment.TYPE.equals(recipe.getType())) {
       throw new ValidationException(
           format(
@@ -70,6 +77,22 @@ public class DockerImageEnvironmentFactory
 
     checkArgument(dockerImage != null, "Docker image should not be null.");
 
+    addRamAttributes(machines);
+
     return new DockerImageEnvironment(dockerImage, recipe, machines, warnings);
+  }
+
+  private void addRamAttributes(Map<String, InternalMachineConfig> machines) {
+    for (InternalMachineConfig machineConfig : machines.values()) {
+      memoryProvisioner.provision(machineConfig, 0L, 0L);
+    }
+  }
+
+  private static void checkNotNull(
+      Object object, String errorMessageTemplate, Object... errorMessageParams)
+      throws ValidationException {
+    if (object == null) {
+      throw new ValidationException(format(errorMessageTemplate, errorMessageParams));
+    }
   }
 }

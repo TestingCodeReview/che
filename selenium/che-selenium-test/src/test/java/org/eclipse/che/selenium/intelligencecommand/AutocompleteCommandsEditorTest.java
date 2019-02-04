@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,8 +15,8 @@ import static org.eclipse.che.selenium.core.constant.TestBuildConstants.BUILD_SU
 import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsConstants.CommandsDefaultNames.MAVEN_NAME;
 import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsConstants.CommandsGoals.BUILD_GOAL;
 import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsConstants.CommandsTypes.MAVEN_TYPE;
-import static org.eclipse.che.selenium.pageobject.intelligent.CommandsEditor.CommandsEditorType.COMMAND_LINE_EDITOR;
-import static org.eclipse.che.selenium.pageobject.intelligent.CommandsEditor.CommandsEditorType.PREVIEW_URL_EDITOR;
+import static org.eclipse.che.selenium.pageobject.intelligent.CommandsEditor.CommandsEditorLocator.COMMAND_LINE_EDITOR;
+import static org.eclipse.che.selenium.pageobject.intelligent.CommandsEditor.CommandsEditorLocator.PREVIEW_URL_EDITOR;
 
 import com.google.inject.Inject;
 import java.net.URL;
@@ -46,7 +47,7 @@ public class AutocompleteCommandsEditorTest {
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Loader loader;
   @Inject private Consoles consoles;
-  @Inject private CommandsEditor commandsEditor;
+  @Inject protected CommandsEditor commandsEditor;
   @Inject private CommandsExplorer commandsExplorer;
   @Inject private TestProjectServiceClient testProjectServiceClient;
 
@@ -56,6 +57,7 @@ public class AutocompleteCommandsEditorTest {
     testProjectServiceClient.importProject(
         testWorkspace.getId(), Paths.get(resource.toURI()), PROJ_NAME, ProjectTemplates.PLAIN_JAVA);
     ide.open(testWorkspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJ_NAME);
   }
 
   @Test(priority = 1)
@@ -91,7 +93,7 @@ public class AutocompleteCommandsEditorTest {
     commandsEditor.typeTextIntoEditor("echo ");
     commandsEditor.typeTextIntoEditor("na");
     commandsEditor.launchAutocompleteAndWaitContainer();
-    commandsEditor.selectItemIntoAutocompleteAndPasteByDoubleClick("${explorer.current.project.");
+    commandsEditor.selectItemIntoAutocompleteAndPerformDoubleClick("${explorer.current.project.");
     commandsEditor.waitAutocompleteContainerIsClosed();
     commandsEditor.waitTextIntoEditor("${explorer.current.project.name");
     commandsEditor.clickOnRunButton();
@@ -106,29 +108,19 @@ public class AutocompleteCommandsEditorTest {
     commandsEditor.setFocusIntoTypeCommandsEditor(PREVIEW_URL_EDITOR);
     commandsEditor.setCursorToLine(1);
     commandsEditor.deleteAllContent();
-    commandsEditor.typeTextIntoEditor("server.t");
-    commandsEditor.launchAutocompleteAndWaitContainer();
-    String[] autocompleteItems = {
-      "${server.terminal}", "${server.tomcat8-debug}", "${server.tomcat8}"
-    };
-    for (String autocompleteItem : autocompleteItems) {
-      commandsEditor.waitTextIntoAutocompleteContainer(autocompleteItem);
-    }
-    commandsEditor.selectAutocompleteProposal("omcat8}");
-    commandsEditor.waitTextIntoDescriptionMacrosForm("Returns address of the tomcat8 server");
+    checkItemsInAutocompleteContainer();
+    waitTextInMacrosForm();
+
     commandsEditor.closeAutocomplete();
     commandsEditor.waitActive();
     commandsEditor.deleteAllContent();
-    commandsEditor.typeTextIntoEditor("omcat8");
-    commandsEditor.launchAutocompleteAndWaitContainer();
-    commandsEditor.selectItemIntoAutocompleteAndPasteByDoubleClick("-debug}");
-    commandsEditor.waitTextIntoEditor("${server.tomcat8-debug}");
+    launchAutocompleteAndWaitText();
+
     commandsEditor.typeTextIntoEditor(Keys.ENTER.toString());
     commandsEditor.waitActive();
-    commandsEditor.typeTextIntoEditor("wsagent");
-    commandsEditor.launchAutocomplete();
+    typeTextInEditorAndLaunchAutocomplete();
     commandsEditor.waitTextIntoAutocompleteContainer("${server.wsagent/ws}");
-    commandsEditor.selectItemIntoAutocompleteAndPasteByDoubleClick("/ws}");
+    commandsEditor.selectItemIntoAutocompleteAndPerformDoubleClick("/ws}");
     commandsEditor.waitTextIntoEditor("${server.wsagent/ws}");
     commandsEditor.clickOnRunButton();
     consoles.waitExpectedTextIntoConsole(BUILD_SUCCESS);
@@ -145,7 +137,7 @@ public class AutocompleteCommandsEditorTest {
     commandsEditor.selectLineAndDelete();
     commandsEditor.waitActive();
     commandsEditor.launchAutocompleteAndWaitContainer();
-    commandsEditor.selectItemIntoAutocompleteAndPasteByDoubleClick("${current.class.fqn}");
+    commandsEditor.selectItemIntoAutocompleteAndPerformDoubleClick("${current.class.fqn}");
     commandsEditor.waitAutocompleteContainerIsClosed();
     commandsEditor.waitTextIntoEditor("${current.class.fqn}");
   }
@@ -159,5 +151,35 @@ public class AutocompleteCommandsEditorTest {
     loader.waitOnClosed();
     commandsExplorer.waitCommandInExplorerByName(MAVEN_NAME);
     commandsEditor.waitTabIsPresent(MAVEN_NAME);
+  }
+
+  protected void checkItemsInAutocompleteContainer() {
+    commandsEditor.typeTextIntoEditor("server.t");
+    commandsEditor.launchAutocompleteAndWaitContainer();
+
+    String[] autocompleteItems = {
+      "${server.terminal}", "${server.tomcat8-debug}", "${server.tomcat8}"
+    };
+
+    for (String autocompleteItem : autocompleteItems) {
+      commandsEditor.waitTextIntoAutocompleteContainer(autocompleteItem);
+    }
+  }
+
+  protected void waitTextInMacrosForm() {
+    commandsEditor.selectAutocompleteProposal("omcat8}");
+    commandsEditor.waitTextIntoDescriptionMacrosForm("Returns address of the tomcat8 server");
+  }
+
+  protected void launchAutocompleteAndWaitText() {
+    commandsEditor.typeTextIntoEditor("omcat8");
+    commandsEditor.launchAutocompleteAndWaitContainer();
+    commandsEditor.selectItemIntoAutocompleteAndPerformDoubleClick("-debug}");
+    commandsEditor.waitTextIntoEditor("${server.tomcat8-debug}");
+  }
+
+  protected void typeTextInEditorAndLaunchAutocomplete() {
+    commandsEditor.typeTextIntoEditor("wsagent");
+    commandsEditor.launchAutocompleteAndWaitContainer();
   }
 }

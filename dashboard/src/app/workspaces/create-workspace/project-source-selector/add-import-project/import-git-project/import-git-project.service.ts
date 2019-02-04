@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -24,7 +25,6 @@ export class ImportGitProjectService implements IEditingProgress {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor() {
     this._location = '';
@@ -66,7 +66,8 @@ export class ImportGitProjectService implements IEditingProgress {
    */
   getProjectProps(): che.IProjectTemplate {
     const props = {} as che.IProjectTemplate;
-    const [ , name] = /.*\/([^.]+)(\.git?|$)/i.exec(this._location);
+    const regExpExecArray = /.*\/([^\/]+?)(?:.git)?$/i.exec(this._location);
+    const name = angular.isArray(regExpExecArray) && regExpExecArray.length > 1 ? regExpExecArray[1] : 'new-project';
     const path = '/' +  name.replace(/[^\w-_]/g, '_');
     props.name = name;
     props.displayName = name;

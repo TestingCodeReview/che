@@ -1,16 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
-
 package org.eclipse.che.plugin.languageserver.ide.rename;
 
+import static org.eclipse.che.plugin.languageserver.ide.editor.LanguageServerEditorConfiguration.INITIAL_DOCUMENT_VERSION;
 import static org.slf4j.LoggerFactory.getLogger;
 
 import com.google.gwt.user.client.ui.AcceptsOneWidget;
@@ -27,6 +28,7 @@ import org.eclipse.che.api.languageserver.shared.model.ExtendedTextDocumentEdit;
 import org.eclipse.che.api.languageserver.shared.model.ExtendedTextEdit;
 import org.eclipse.che.api.languageserver.shared.model.ExtendedWorkspaceEdit;
 import org.eclipse.che.api.languageserver.shared.model.RenameResult;
+import org.eclipse.che.ide.actions.RenameItemAction;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.editor.position.PositionConverter.PixelCoordinates;
 import org.eclipse.che.ide.api.editor.text.Position;
@@ -40,16 +42,23 @@ import org.eclipse.che.ide.dto.DtoFactory;
 import org.eclipse.che.ide.runtime.OperationCanceledException;
 import org.eclipse.che.plugin.languageserver.ide.LanguageServerLocalization;
 import org.eclipse.che.plugin.languageserver.ide.editor.quickassist.ApplyWorkspaceEditAction;
+import org.eclipse.che.plugin.languageserver.ide.registry.LanguageServerRegistry;
 import org.eclipse.che.plugin.languageserver.ide.rename.RenameView.ActionDelegate;
 import org.eclipse.che.plugin.languageserver.ide.rename.model.RenameChange;
 import org.eclipse.che.plugin.languageserver.ide.rename.model.RenameFile;
 import org.eclipse.che.plugin.languageserver.ide.rename.model.RenameFolder;
 import org.eclipse.che.plugin.languageserver.ide.rename.model.RenameProject;
 import org.eclipse.che.plugin.languageserver.ide.service.TextDocumentServiceClient;
+import org.eclipse.che.plugin.languageserver.ide.util.DtoBuildHelper;
+import org.eclipse.lsp4j.DidCloseTextDocumentParams;
+import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.RenameParams;
+import org.eclipse.lsp4j.ResourceOperation;
 import org.eclipse.lsp4j.TextDocumentEdit;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.eclipse.lsp4j.TextDocumentItem;
 import org.eclipse.lsp4j.WorkspaceEdit;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.slf4j.Logger;
 
 /** Main controller for rename feature, calls rename and shows rename edits */
@@ -61,11 +70,14 @@ public class RenamePresenter extends BasePresenter implements ActionDelegate {
   private final LanguageServerLocalization localization;
   private final TextDocumentServiceClient client;
   private final DtoFactory dtoFactory;
+  private final DtoBuildHelper dtoHelper;
   private final Provider<RenameInputBox> renameInputBoxProvider;
   private final RenameView view;
   private final WorkspaceAgent workspaceAgent;
   private final AppContext appContext;
   private final ApplyWorkspaceEditAction workspaceEditAction;
+  private final RenameItemAction renameItemAction;
+  private final LanguageServerRegistry lsRegistry;
   private final Provider<RenameDialog> renameWindow;
   private final Map<List<ExtendedTextDocumentEdit>, List<RenameProject>> projectCache =
       new HashMap<>();
@@ -78,22 +90,74 @@ public class RenamePresenter extends BasePresenter implements ActionDelegate {
       LanguageServerLocalization localization,
       TextDocumentServiceClient client,
       DtoFactory dtoFactory,
+      DtoBuildHelper dtoHelper,
       Provider<RenameInputBox> renameInputBoxProvider,
       RenameView view,
       WorkspaceAgent workspaceAgent,
       AppContext appContext,
       ApplyWorkspaceEditAction workspaceEditAction,
+      RenameItemAction renameItemAction,
+      LanguageServerRegistry lsRegistry,
       Provider<RenameDialog> renameWindow) {
     this.localization = localization;
     this.client = client;
     this.dtoFactory = dtoFactory;
+    this.dtoHelper = dtoHelper;
     this.renameInputBoxProvider = renameInputBoxProvider;
     this.view = view;
     this.workspaceAgent = workspaceAgent;
     this.appContext = appContext;
     this.workspaceEditAction = workspaceEditAction;
+    this.renameItemAction = renameItemAction;
+    this.lsRegistry = lsRegistry;
     this.renameWindow = renameWindow;
     view.setDelegate(this);
+
+    addResourceRenameAction();
+  }
+
+  /**
+   * A workaround to be able to inform a language server that a file is renamed when it is being
+   * renamed through resource management component which does not related to language server client
+   * component so under normal circumstances language server would not know that something is being
+   * renamed.
+   */
+  private void addResourceRenameAction() {
+    renameItemAction.addCustomAction(
+        (oldResource, newResource) -> {
+          if (!oldResource.isFile()) {
+            return;
+          }
+
+          if (!lsRegistry.isLsRegistered(newResource)) {
+            return;
+          }
+
+          newResource
+              .asFile()
+              .getContent()
+              .then(
+                  text -> {
+                    DidCloseTextDocumentParams didCloseDto =
+                        dtoFactory.createDto(DidCloseTextDocumentParams.class);
+                    TextDocumentIdentifier didCloseTDDto =
+                        dtoFactory.createDto(TextDocumentIdentifier.class);
+                    didCloseTDDto.setUri(oldResource.getLocation().toString());
+                    didCloseDto.setTextDocument(didCloseTDDto);
+                    client.didClose(didCloseDto);
+
+                    DidOpenTextDocumentParams didOpenDto =
+                        dtoFactory.createDto(DidOpenTextDocumentParams.class);
+                    TextDocumentItem didOpenTDDto = dtoFactory.createDto(TextDocumentItem.class);
+                    didOpenTDDto.setUri(newResource.getLocation().toString());
+                    didOpenTDDto.setLanguageId(
+                        lsRegistry.getLanguageFilter(newResource.asFile()).getLanguageId());
+                    didOpenTDDto.setText(text);
+                    didOpenTDDto.setVersion(INITIAL_DOCUMENT_VERSION);
+                    didOpenDto.setTextDocument(didOpenTDDto);
+                    client.didOpen(didOpenDto);
+                  });
+        });
   }
 
   @Override
@@ -188,8 +252,7 @@ public class RenamePresenter extends BasePresenter implements ActionDelegate {
   private void callRename(String newName, TextPosition cursorPosition, TextEditor editor) {
     RenameParams dto = dtoFactory.createDto(RenameParams.class);
 
-    TextDocumentIdentifier identifier = dtoFactory.createDto(TextDocumentIdentifier.class);
-    identifier.setUri(editor.getEditorInput().getFile().getLocation().toString());
+    TextDocumentIdentifier identifier = dtoHelper.createTDI(editor.getEditorInput().getFile());
 
     dto.setNewName(newName);
     dto.setTextDocument(identifier);
@@ -270,9 +333,9 @@ public class RenamePresenter extends BasePresenter implements ActionDelegate {
   }
 
   private void applyRename(List<RenameProject> projects) {
-    List<TextDocumentEdit> edits = new ArrayList<>();
+    List<Either<TextDocumentEdit, ResourceOperation>> edits = new ArrayList<>();
     for (RenameProject project : projects) {
-      edits.addAll(project.getTextDocumentEdits());
+      project.getTextDocumentEdits().forEach(edit -> edits.add(Either.forLeft(edit)));
     }
     workspaceEditAction.applyWorkspaceEdit(new WorkspaceEdit(edits));
   }

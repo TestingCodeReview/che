@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,6 +21,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import org.eclipse.lsp4j.jsonrpc.messages.Either3;
 
 /**
  * This class generates code to convert dto object fields to json properties.
@@ -64,6 +66,8 @@ public class ToJsonGenerator extends ConversionGenerator {
       new ListConverter(varName, valueAccess, paramType).generateListConversion(indent, out);
     } else if (Map.class.isAssignableFrom(getRawClass(paramType))) {
       generateMapConversion(indent, out, varName, valueAccess, paramType);
+    } else if (Either3.class.isAssignableFrom(getRawClass(paramType))) {
+      generateEither3Conversion(indent, out, varName, valueAccess, paramType);
     } else if (Either.class.isAssignableFrom(getRawClass(paramType))) {
       generateEitherConversion(indent, out, varName, valueAccess, paramType);
     } else {
@@ -74,6 +78,38 @@ public class ToJsonGenerator extends ConversionGenerator {
               varName,
               jsonValueExpression(getRawClass(paramType), valueAccess)));
     }
+  }
+
+  private void generateEither3Conversion(
+      String indent, PrintWriter out, String varName, String valueAccess, Type paramType) {
+    String innerName = varName + "e";
+
+    out.println(indent + String.format("%1$s %2$s;", json.element(), varName));
+    out.println(indent + String.format("if (%1$s.isFirst()) {", valueAccess));
+    generateToJson(
+        indent + INDENT,
+        out,
+        innerName,
+        valueAccess + ".getFirst()",
+        EitherUtil.getFirstDisjointType(paramType));
+    out.println(indent + INDENT + String.format("%1$s= %2$s;", varName, innerName));
+    out.println(indent + String.format("} else if (%1$s.isSecond()) {", valueAccess));
+    generateToJson(
+        indent + INDENT,
+        out,
+        innerName,
+        valueAccess + ".getSecond()",
+        EitherUtil.getSecondDisjointType(paramType));
+    out.println(indent + INDENT + String.format("%1$s= %2$s;", varName, innerName));
+    out.println(indent + "} else  {");
+    generateToJson(
+        indent + INDENT,
+        out,
+        innerName,
+        valueAccess + ".getThird()",
+        EitherUtil.getThirdDisjointType(paramType));
+    out.println(indent + INDENT + String.format("%1$s= %2$s;", varName, innerName));
+    out.println(indent + "}");
   }
 
   private void generateEitherConversion(
@@ -102,6 +138,9 @@ public class ToJsonGenerator extends ConversionGenerator {
 
   private void generateMapConversion(
       String indent, PrintWriter out, String varName, String valueAccess, Type paramType) {
+    if (!(paramType instanceof ParameterizedType)) {
+      paramType = ((Class<?>) paramType).getGenericSuperclass();
+    }
     ParameterizedType genericType = (ParameterizedType) paramType;
     Type valueType = genericType.getActualTypeArguments()[1];
     String containedName = varName + "X";

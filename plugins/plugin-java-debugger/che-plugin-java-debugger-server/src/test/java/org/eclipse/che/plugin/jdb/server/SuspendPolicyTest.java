@@ -1,19 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.plugin.jdb.server;
 
-import static org.eclipse.che.plugin.jdb.server.util.JavaDebuggerUtils.ensureSuspendAtDesiredLocation;
-import static org.eclipse.che.plugin.jdb.server.util.JavaDebuggerUtils.findMainThreadId;
-import static org.eclipse.che.plugin.jdb.server.util.JavaDebuggerUtils.startJavaDebugger;
-import static org.eclipse.che.plugin.jdb.server.util.JavaDebuggerUtils.terminateVirtualMachineQuietly;
+import static org.eclipse.che.plugin.jdb.server.util.JavaDebuggerTestUtils.ensureDebuggerSuspendAtLocation;
+import static org.eclipse.che.plugin.jdb.server.util.JavaDebuggerTestUtils.findMainThreadId;
+import static org.eclipse.che.plugin.jdb.server.util.JavaDebuggerTestUtils.startJavaDebugger;
+import static org.eclipse.che.plugin.jdb.server.util.JavaDebuggerTestUtils.terminateVirtualMachineQuietly;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
@@ -48,7 +49,7 @@ public class SuspendPolicyTest {
     ProjectApiUtils.ensure();
 
     Location location =
-        new LocationImpl("/test/src/org/eclipse/SuspendPolicyTest.java", 15, "/test");
+        new LocationImpl("/test/src/org/eclipse/SuspendPolicyTest.java", 16, "/test");
 
     events = new ArrayBlockingQueue<>(10);
     debugger =
@@ -56,7 +57,7 @@ public class SuspendPolicyTest {
             new BreakpointImpl(location, true, new BreakpointConfigurationImpl(SuspendPolicy.ALL)),
             events);
 
-    ensureSuspendAtDesiredLocation(location, events);
+    ensureDebuggerSuspendAtLocation(location, events);
   }
 
   @AfterClass
@@ -75,7 +76,7 @@ public class SuspendPolicyTest {
   public void shouldReturnStackFrameDumpOnlyForSuspendedThread() throws Exception {
     debugger.addBreakpoint(
         new BreakpointImpl(
-            new LocationImpl("/test/src/org/eclipse/SuspendPolicyTest.java", 16, "/test"),
+            new LocationImpl("/test/src/org/eclipse/SuspendPolicyTest.java", 17, "/test"),
             true,
             new BreakpointConfigurationImpl(SuspendPolicy.THREAD)));
 

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,11 +12,14 @@
 package org.eclipse.che.api.watcher.server.detectors;
 
 import static java.util.stream.Collectors.toSet;
+import static org.eclipse.che.api.fs.server.WsPathUtils.isRoot;
+import static org.eclipse.che.api.fs.server.WsPathUtils.parentOf;
 import static org.eclipse.che.api.project.shared.dto.event.FileWatcherEventType.CREATED;
 import static org.eclipse.che.api.project.shared.dto.event.FileWatcherEventType.DELETED;
 import static org.eclipse.che.dto.server.DtoFactory.newDto;
 import static org.slf4j.LoggerFactory.getLogger;
 
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,9 +34,11 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerConfigurator;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestTransmitter;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 import org.eclipse.che.api.project.shared.dto.event.ProjectTreeStateUpdateDto;
 import org.eclipse.che.api.project.shared.dto.event.ProjectTreeTrackingOperationDto;
 import org.eclipse.che.api.project.shared.dto.event.ProjectTreeTrackingOperationDto.Type;
+import org.eclipse.che.api.search.server.excludes.HiddenItemPathMatcher;
 import org.eclipse.che.api.watcher.server.FileWatcherManager;
 import org.slf4j.Logger;
 
@@ -49,11 +55,19 @@ public class ProjectTreeTracker {
 
   private final RequestTransmitter transmitter;
   private final FileWatcherManager fileWatcherManager;
+  private final HiddenItemPathMatcher hiddenItemPathMatcher;
+  private final RootDirPathProvider rootDirPathProvider;
 
   @Inject
-  public ProjectTreeTracker(FileWatcherManager fileWatcherManager, RequestTransmitter transmitter) {
-    this.fileWatcherManager = fileWatcherManager;
+  public ProjectTreeTracker(
+      RequestTransmitter transmitter,
+      FileWatcherManager fileWatcherManager,
+      HiddenItemPathMatcher hiddenItemPathMatcher,
+      RootDirPathProvider rootDirPathProvider) {
     this.transmitter = transmitter;
+    this.fileWatcherManager = fileWatcherManager;
+    this.hiddenItemPathMatcher = hiddenItemPathMatcher;
+    this.rootDirPathProvider = rootDirPathProvider;
   }
 
   @Inject
@@ -129,11 +143,18 @@ public class ProjectTreeTracker {
 
   private Consumer<String> getCreateOperation(String endpointId) {
     return it -> {
+      if (isExcluded(it)) {
+        return;
+      }
+
       if (timers.contains(it)) {
         timers.remove(it);
       } else {
         ProjectTreeStateUpdateDto params =
-            newDto(ProjectTreeStateUpdateDto.class).withPath(it).withType(CREATED);
+            newDto(ProjectTreeStateUpdateDto.class)
+                .withPath(it)
+                .withFile(isFile(it))
+                .withType(CREATED);
         transmitter
             .newRequest()
             .endpointId(endpointId)
@@ -150,6 +171,10 @@ public class ProjectTreeTracker {
 
   private Consumer<String> getDeleteOperation(String endpointId) {
     return it -> {
+      if (isExcluded(it)) {
+        return;
+      }
+
       timers.add(it);
       new Timer()
           .schedule(
@@ -171,5 +196,14 @@ public class ProjectTreeTracker {
               },
               1_000L);
     };
+  }
+
+  private boolean isFile(String path) {
+    return Paths.get(rootDirPathProvider.get(), path).toFile().isFile();
+  }
+
+  private boolean isExcluded(String path) {
+    String parentPath = parentOf(path);
+    return isRoot(parentPath) && hiddenItemPathMatcher.matches(Paths.get(path));
   }
 }

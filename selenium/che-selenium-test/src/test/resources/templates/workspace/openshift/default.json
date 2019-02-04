@@ -5,7 +5,9 @@
         "dev-machine":{
           "installers":[
             "org.eclipse.che.terminal",
-            "org.eclipse.che.ws-agent"
+            "org.eclipse.che.ws-agent",
+            "org.eclipse.che.exec",
+            "org.eclipse.che.ls.java"
           ],
           "attributes": {
             "memoryLimitBytes": "desired_memory_value"
@@ -27,7 +29,7 @@
         }
       },
       "recipe":{
-        "location":"eclipse/ubuntu_jdk8",
+        "content":"eclipse/ubuntu_jdk8",
         "type":"dockerimage"
       }
     }

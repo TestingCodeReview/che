@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2012-2017 Red Hat, Inc.
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
+// Copyright (c) 2012-2018 Red Hat, Inc.
+// This program and the accompanying materials are made
+// available under the terms of the Eclipse Public License 2.0
+// which is available at https://www.eclipse.org/legal/epl-2.0/
+//
+// SPDX-License-Identifier: EPL-2.0
 //
 // Contributors:
 //   Red Hat, Inc. - initial API and implementation
@@ -21,8 +22,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/eclipse/che/agents/go-agents/core/event"
-	"github.com/eclipse/che/agents/go-agents/core/jsonrpc"
+	"github.com/eclipse/che-go-jsonrpc/event"
+	"github.com/eclipse/che-go-jsonrpc"
 	"github.com/eclipse/che/agents/go-agents/core/process"
 )
 
@@ -101,7 +102,7 @@ func Start() error {
 		if err := installOne(installer); err != nil {
 			log.Printf("Installation of '%s' failed", installer.ID)
 			pubInstallationFailed(installer.ID, err.Error())
-			pubBootstrappingFailed()
+			pubBootstrappingFailed(err.Error())
 			closeConsumers()
 			killProcesses()
 			return err
@@ -113,7 +114,9 @@ func Start() error {
 	log.Printf("All installations successfully finished")
 	pubBootstrappingDone()
 
-	return waitStartedProcessesDie()
+	err := waitStartedProcessesDie()
+	closeConsumers()
+	return err
 }
 
 func installOne(installer Installer) error {
@@ -165,9 +168,10 @@ func killProcesses() {
 	}
 }
 
-func pubBootstrappingFailed() {
+func pubBootstrappingFailed(err string) {
 	bus.Pub(&StatusChangedEvent{
 		Status: StatusFailed,
+		Error:  err,
 		MachineEvent: MachineEvent{
 			MachineName: machineName,
 			RuntimeID:   runtimeID,

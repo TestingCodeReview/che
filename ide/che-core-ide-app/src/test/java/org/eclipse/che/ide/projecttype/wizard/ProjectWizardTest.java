@@ -1,15 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.projecttype.wizard;
 
+import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.FLOAT_MODE;
+import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
+import static org.eclipse.che.ide.api.notification.StatusNotification.Status.PROGRESS;
+import static org.eclipse.che.ide.api.notification.StatusNotification.Status.SUCCESS;
 import static org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode.CREATE;
 import static org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode.IMPORT;
 import static org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode.UPDATE;
@@ -26,9 +31,12 @@ import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.workspace.shared.dto.CommandDto;
+import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.command.CommandImpl;
 import org.eclipse.che.ide.api.command.CommandManager;
+import org.eclipse.che.ide.api.notification.NotificationManager;
+import org.eclipse.che.ide.api.notification.StatusNotification;
 import org.eclipse.che.ide.api.project.MutableProjectConfig;
 import org.eclipse.che.ide.api.project.type.wizard.ProjectWizardMode;
 import org.eclipse.che.ide.api.resources.Container;
@@ -69,6 +77,9 @@ public class ProjectWizardTest {
   @Mock private Promise<Optional<Container>> optionalContainerPromise;
   @Mock private Project projectToUpdate;
   @Mock private Folder folderToUpdate;
+  @Mock private NotificationManager notificationManager;
+  @Mock private StatusNotification statusNotification;
+  @Mock private CoreLocalizationConstant localizationConstant;
 
   @Mock private PromiseError promiseError;
   @Mock private Exception exception;
@@ -86,6 +97,8 @@ public class ProjectWizardTest {
     when(appContext.getProjectsRoot()).thenReturn(Path.valueOf("/projects"));
     when(dataObject.getPath()).thenReturn(Path.valueOf(PROJECT_NAME).toString());
     when(createdProject.getPath()).thenReturn(PROJECT_NAME);
+    when(notificationManager.notify(any(), any(), (StatusNotification.Status) any(), any()))
+        .thenReturn(statusNotification);
   }
 
   @Test
@@ -107,7 +120,14 @@ public class ProjectWizardTest {
   }
 
   private void prepareWizard(ProjectWizardMode mode) {
-    wizard = new ProjectWizard(dataObject, mode, appContext, commandManager);
+    wizard =
+        new ProjectWizard(
+            dataObject,
+            mode,
+            appContext,
+            commandManager,
+            notificationManager,
+            localizationConstant);
   }
 
   @Test
@@ -128,6 +148,7 @@ public class ProjectWizardTest {
 
     verify(promiseError).getCause();
     verify(completeCallback).onFailure(eq(exception));
+    verify(notificationManager).notify(any(), any(), eq(FAIL), eq(FLOAT_MODE));
   }
 
   @Test
@@ -198,6 +219,7 @@ public class ProjectWizardTest {
 
     verify(promiseError).getCause();
     verify(completeCallback).onFailure(eq(exception));
+    verify(notificationManager).notify(any(), any(), eq(FAIL), eq(FLOAT_MODE));
   }
 
   @Test
@@ -221,6 +243,8 @@ public class ProjectWizardTest {
     completeOperationCaptor.getValue().apply(createdProject);
 
     verify(completeCallback).onCompleted();
+    verify(notificationManager).notify(any(), any(), eq(PROGRESS), eq(FLOAT_MODE));
+    verify(statusNotification).setStatus(eq(SUCCESS));
   }
 
   @Test
@@ -246,6 +270,8 @@ public class ProjectWizardTest {
 
     verify(promiseError).getCause();
     verify(completeCallback).onFailure(eq(exception));
+    verify(notificationManager).notify(any(), any(), eq(PROGRESS), eq(FLOAT_MODE));
+    verify(statusNotification).setStatus(eq(FAIL));
   }
 
   @Test

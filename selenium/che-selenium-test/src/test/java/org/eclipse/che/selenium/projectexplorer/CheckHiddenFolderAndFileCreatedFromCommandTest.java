@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.projectexplorer;
+
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuCommandGoals.COMMON_GOAL;
 
 import com.google.inject.Inject;
 import java.net.URL;
@@ -20,6 +23,7 @@ import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -47,6 +51,7 @@ public class CheckHiddenFolderAndFileCreatedFromCommandTest {
   @Inject private Loader loader;
   @Inject private Menu menu;
   @Inject private CodenvyEditor editor;
+  @Inject private Consoles consoles;
   @Inject private TestCommandServiceClient testCommandServiceClient;
   @Inject private TestProjectServiceClient testProjectServiceClient;
 
@@ -71,6 +76,8 @@ public class CheckHiddenFolderAndFileCreatedFromCommandTest {
         TestCommandsConstants.CUSTOM,
         testWorkspace.getId());
     ide.open(testWorkspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   /**
@@ -82,7 +89,7 @@ public class CheckHiddenFolderAndFileCreatedFromCommandTest {
   @Test
   public void checkHiddenFolderAndFile() throws Exception {
     projectExplorer.waitProjectExplorer();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     projectExplorer.openItemByPath(PROJECT_NAME);
 
     menu.runCommand(
@@ -90,12 +97,12 @@ public class CheckHiddenFolderAndFileCreatedFromCommandTest {
         TestMenuCommandsConstants.Project
             .SHOW_HIDE_HIDDEN_FILES); // all hidden files and folders are visible
     projectExplorer.invokeCommandWithContextMenu(
-        ProjectExplorer.CommandsGoal.COMMON, PROJECT_NAME, COMMAND_CREATE_FOLDER_NAME);
+        COMMON_GOAL, PROJECT_NAME, COMMAND_CREATE_FOLDER_NAME);
     loader.waitOnClosed();
     projectExplorer.waitItem(PATH_TO_FOLDER);
     projectExplorer.openItemByPath(PATH_TO_FOLDER); // the created hidden folder is visible
     projectExplorer.invokeCommandWithContextMenu(
-        ProjectExplorer.CommandsGoal.COMMON, PROJECT_NAME, COMMAND_CREATE_FILE_NAME);
+        COMMON_GOAL, PROJECT_NAME, COMMAND_CREATE_FILE_NAME);
     loader.waitOnClosed();
     projectExplorer.waitItem(PATH_TO_FILE);
     projectExplorer.openItemByPath(PATH_TO_FILE); // the created hidden file is visible

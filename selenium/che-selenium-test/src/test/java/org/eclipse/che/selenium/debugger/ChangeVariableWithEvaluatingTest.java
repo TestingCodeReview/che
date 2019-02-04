@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,12 +12,16 @@
 package org.eclipse.che.selenium.debugger;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED;
+import static org.eclipse.che.selenium.core.TestGroup.FLAKY;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOADER_TIMEOUT_SEC;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.inject.Inject;
 import java.net.URL;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.eclipse.che.commons.lang.NameGenerator;
@@ -28,6 +33,7 @@ import org.eclipse.che.selenium.core.constant.TestCommandsConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
+import org.eclipse.che.selenium.pageobject.CheTerminal;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
@@ -37,14 +43,17 @@ import org.eclipse.che.selenium.pageobject.ToastLoader;
 import org.eclipse.che.selenium.pageobject.debug.DebugPanel;
 import org.eclipse.che.selenium.pageobject.debug.JavaDebugConfig;
 import org.eclipse.che.selenium.pageobject.intelligent.CommandsPalette;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Musienko Maxim */
+@Test(groups = FLAKY)
 public class ChangeVariableWithEvaluatingTest {
   private static final String PROJECT_NAME_CHANGE_VARIABLE =
       NameGenerator.generate(ChangeVariableWithEvaluatingTest.class.getSimpleName(), 2);
-
+  private static final Logger LOG = LoggerFactory.getLogger(ChangeVariableWithEvaluatingTest.class);
   private static final String START_DEBUG_COMMAND_NAME = "startDebug";
   private static final String CLEAN_TOMCAT_COMMAND_NAME = "cleanTomcat";
   private static final String BUILD_COMMAND_NAME = "build";
@@ -63,7 +72,6 @@ public class ChangeVariableWithEvaluatingTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Consoles consoles;
   @Inject private CodenvyEditor editor;
@@ -75,6 +83,7 @@ public class ChangeVariableWithEvaluatingTest {
   @Inject private TestWorkspaceServiceClient workspaceServiceClient;
   @Inject private TestProjectServiceClient testProjectServiceClient;
   @Inject private CommandsPalette commandsPalette;
+  @Inject private CheTerminal machineTerminal;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -102,6 +111,7 @@ public class ChangeVariableWithEvaluatingTest {
         TestCommandsConstants.CUSTOM,
         ws.getId());
     ide.open(ws);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME_CHANGE_VARIABLE);
   }
 
   @Test
@@ -110,8 +120,8 @@ public class ChangeVariableWithEvaluatingTest {
     commandsPalette.openCommandPalette();
     commandsPalette.startCommandByDoubleClick(START_DEBUG_COMMAND_NAME);
     consoles.waitExpectedTextIntoConsole(" Server startup in");
-    editor.setCursorToLine(34);
-    editor.setInactiveBreakpoint(34);
+    editor.setCursorToLine(35);
+    editor.setInactiveBreakpoint(35);
     menu.runCommand(
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.EDIT_DEBUG_CONFIGURATION);
@@ -127,8 +137,8 @@ public class ChangeVariableWithEvaluatingTest {
                 .replace("tcp", "http")
             + "/spring/guess";
     String requestMess = "numGuess=11&submit=Ok";
-    editor.waitActiveBreakpoint(34);
-    CompletableFuture<String> instToRequestThread =
+    editor.waitActiveBreakpoint(35);
+    CompletableFuture<String> requestToApplication =
         debuggerUtils.gotoDebugAppAndSendRequest(
             appUrl, requestMess, APPLICATION_FORM_URLENCODED, 200);
     debugPanel.openDebugPanel();
@@ -148,7 +158,21 @@ public class ChangeVariableWithEvaluatingTest {
     debugPanel.waitExpectedResultInEvaluateExpression("false");
     debugPanel.clickCloseEvaluateBtn();
     debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.RESUME_BTN_ID);
-    assertTrue(instToRequestThread.get().contains("Sorry, you failed. Try again later!"));
+
+    String applicationResponse = requestToApplication.get(LOADER_TIMEOUT_SEC, TimeUnit.SECONDS);
+    // remove try-catch block after issue has been resolved
+    try {
+      assertTrue(
+          applicationResponse.contains("Sorry, you failed. Try again later!"),
+          "Actual application response content was: " + applicationResponse);
+    } catch (AssertionError ex) {
+      machineTerminal.logApplicationInfo(PROJECT_NAME_CHANGE_VARIABLE, ws);
+      if (applicationResponse != null && applicationResponse.contains("504 Gateway Time-out")) {
+        fail("Known random failure https://github.com/eclipse/che/issues/9251", ex);
+      } else {
+        throw ex;
+      }
+    }
   }
 
   private void buildProjectAndOpenMainClass() {

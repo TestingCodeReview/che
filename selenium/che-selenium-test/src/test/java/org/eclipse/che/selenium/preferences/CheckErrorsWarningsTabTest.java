@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,16 +12,17 @@
 package org.eclipse.che.selenium.preferences;
 
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Profile.PREFERENCES;
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.ERROR_MARKER;
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.ERROR_MARKER_OVERVIEW;
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.WARNING_MARKER;
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.WARNING_MARKER_OVERVIEW;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.DEFAULT_TIMEOUT;
+import static org.eclipse.che.selenium.core.utils.FileUtil.readFile;
+import static org.eclipse.che.selenium.core.utils.FileUtil.readFileToString;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.ERROR;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.ERROR_OVERVIEW;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.WARNING;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.WARNING_OVERVIEW;
+import static org.testng.Assert.assertEquals;
 
-import com.google.common.base.Joiner;
 import com.google.inject.Inject;
 import java.net.URL;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
 import org.eclipse.che.commons.lang.NameGenerator;
@@ -38,11 +40,9 @@ import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.Preferences;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.openqa.selenium.Keys;
-import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/** @author Andrey Chizhikov */
 public class CheckErrorsWarningsTabTest {
   private static final String PROJECT_NAME =
       NameGenerator.generate(CheckErrorsWarningsTabTest.class.getSimpleName(), 4);
@@ -61,55 +61,85 @@ public class CheckErrorsWarningsTabTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    URL resource = getClass().getResource("/projects/default-spring-project");
+    final URL resource = getClass().getResource("/projects/prefs-spring-project");
+    final URL embedCodeFilePath = getClass().getResource("embed-code");
+    final String embedCode = readFileToString(embedCodeFilePath);
+
+    // import project
     testProjectServiceClient.importProject(
         workspace.getId(),
         Paths.get(resource.toURI()),
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
+
+    // open workspace
     ide.open(workspace);
+    projectExplorer.waitItem(PROJECT_NAME);
+    notificationsPopupPanel.waitProgressPopupPanelClose();
+
+    // prepare file for testing
+    testProjectServiceClient.updateFile(
+        workspace.getId(), PATH_TO_CLASS_IN_SPRING_PACKAGE, embedCode);
+
+    // expand project explorer tree and wait LS init
+    projectExplorer.quickExpandWithJavaScript();
+    loader.waitOnClosed();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
   public void errorsWarningTest() throws Exception {
-    List<String> expectedErrorsWarningsList = getTextInListFromFile("errors-warnings");
-    String embedCode = getTextInStringFromFile("embed-code");
-    projectExplorer.waitItem(PROJECT_NAME);
-    notificationsPopupPanel.waitProgressPopupPanelClose();
-    projectExplorer.quickExpandWithJavaScript();
-    projectExplorer.openItemByVisibleNameInExplorer("AppController.java");
-    editor.waitActive();
-    loader.waitOnClosed();
-    editor.waitActive();
-    editor.deleteAllContent();
-    editor.typeTextIntoEditorWithoutDelayForSaving(embedCode);
-    loader.waitOnClosed();
-    editor.removeLineAndAllAfterIt(104);
+    final String expectedTabTitle = "AppController";
+    final URL errorsWarningFilePath = getClass().getResource("errors-warnings");
+    final List<String> expectedErrorsWarningsList = readFile(errorsWarningFilePath);
 
+    // open file
+    projectExplorer.openItemByVisibleNameInExplorer(expectedTabTitle + ".java");
+    editor.waitTabIsPresent(expectedTabTitle);
+    editor.waitTabSelection(0, expectedTabTitle);
+    editor.waitActive();
+
+    // check markers default settings
     menu.runCommand(TestMenuCommandsConstants.Profile.PROFILE_MENU, PREFERENCES);
     preferences.waitPreferencesForm();
     preferences.waitMenuInCollapsedDropdown(Preferences.DropDownJavaCompilerMenu.ERRORS_WARNINGS);
     preferences.selectDroppedMenuByName(Preferences.DropDownJavaCompilerMenu.ERRORS_WARNINGS);
-    preferences.getItemsFromErrorWarningsWidget();
-    Assert.assertEquals(preferences.getItemsFromErrorWarningsWidget(), expectedErrorsWarningsList);
-
-    preferences.clickOnCloseBtn();
+    assertEquals(preferences.getItemsFromErrorWarningsWidget(), expectedErrorsWarningsList);
+    preferences.close();
     consoles.closeProcessesArea();
+
+    // change and check markers settings for displaying warnings
     menu.runCommand(TestMenuCommandsConstants.Profile.PROFILE_MENU, PREFERENCES);
     changeAllSettingsInErrorsWarningsTab(Preferences.DropDownValueForErrorWaitingWidget.WARNING);
-    Assert.assertEquals(editor.getQuantityMarkers(WARNING_MARKER_OVERVIEW), 13);
-    Assert.assertEquals(editor.getQuantityMarkers(WARNING_MARKER), 22);
+    editor.waitAnnotationsAreNotPresent(ERROR_OVERVIEW);
+    waitWarningMarkersQuantity();
 
-    editor.waitAnnotationsAreNotPresent(ERROR_MARKER_OVERVIEW);
+    // change and check markers settings for displaying errors
+    editor.waitAnnotationsAreNotPresent(ERROR_OVERVIEW);
     menu.runCommand(TestMenuCommandsConstants.Profile.PROFILE_MENU, PREFERENCES);
     changeAllSettingsInErrorsWarningsTab(Preferences.DropDownValueForErrorWaitingWidget.ERROR);
-    Assert.assertEquals(editor.getQuantityMarkers(ERROR_MARKER_OVERVIEW), 13);
-    Assert.assertEquals(editor.getQuantityMarkers(ERROR_MARKER), 22);
-    editor.waitAnnotationsAreNotPresent(WARNING_MARKER_OVERVIEW);
+    waitErrorMarkersQuantity();
+
+    // change and check markers settings for ignoring all markers
+    editor.waitAnnotationsAreNotPresent(WARNING_OVERVIEW);
     menu.runCommand(TestMenuCommandsConstants.Profile.PROFILE_MENU, PREFERENCES);
     changeAllSettingsInErrorsWarningsTab(Preferences.DropDownValueForErrorWaitingWidget.IGNORE);
-    editor.waitAnnotationsAreNotPresent(ERROR_MARKER_OVERVIEW);
-    editor.waitAnnotationsAreNotPresent(WARNING_MARKER_OVERVIEW);
+    editor.waitAnnotationsAreNotPresent(ERROR_OVERVIEW);
+    editor.waitAnnotationsAreNotPresent(WARNING_OVERVIEW);
+  }
+
+  private void waitWarningMarkersQuantity() {
+    // browser window resolution a bit different on local mode and on CI
+    // according to this different count of markers are displayed
+    editor.waitMarkersQuantityBetween(WARNING_OVERVIEW, 12, 13);
+    editor.waitMarkersQuantityBetween(WARNING, 22, 24);
+  }
+
+  private void waitErrorMarkersQuantity() {
+    // browser window resolution a bit different on local mode and on CI
+    // according to this different count of markers are displayed
+    editor.waitMarkersQuantityBetween(ERROR_OVERVIEW, 12, 13);
+    editor.waitMarkersQuantityBetween(ERROR, 22, 24);
   }
 
   private void changeAllSettingsInErrorsWarningsTab(
@@ -119,30 +149,18 @@ public class CheckErrorsWarningsTabTest {
     preferences.selectDroppedMenuByName(Preferences.DropDownJavaCompilerMenu.ERRORS_WARNINGS);
     preferences.setAllSettingsInErrorWaitingWidget(valueOfRadioButton);
     preferences.clickOnOkBtn();
-    preferences.clickOnCloseBtn();
+    preferences.close();
     loader.waitOnClosed();
     projectExplorer.waitItem(PATH_TO_CLASS_IN_SPRING_PACKAGE);
     projectExplorer.openItemByPath(PATH_TO_CLASS_IN_SPRING_PACKAGE);
     loader.waitOnClosed();
-    editor.setCursorToLine(84);
+    editor.setCursorToLine(85);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.typeTextIntoEditorWithoutDelayForSaving(Keys.ARROW_LEFT.toString());
     editor.typeTextIntoEditorWithoutDelayForSaving(Keys.ENTER.toString());
     editor.typeTextIntoEditor(Keys.DELETE.toString());
     editor.typeTextIntoEditor(Keys.DELETE.toString());
-    WaitUtils.sleepQuietly(3);
-  }
-
-  private String getTextInStringFromFile(String path) throws Exception {
-    URL pathInUrl = CheckErrorsWarningsTabTest.class.getResource(path);
-    List<String> textFromFile =
-        Files.readAllLines(Paths.get(pathInUrl.toURI()), Charset.forName("UTF-8"));
-    return Joiner.on('\n').join(textFromFile);
-  }
-
-  private List<String> getTextInListFromFile(String path) throws Exception {
-    URL pathInUrl = CheckErrorsWarningsTabTest.class.getResource(path);
-    return Files.readAllLines(Paths.get(pathInUrl.toURI()), Charset.forName("UTF-8"));
+    WaitUtils.sleepQuietly(DEFAULT_TIMEOUT);
   }
 }

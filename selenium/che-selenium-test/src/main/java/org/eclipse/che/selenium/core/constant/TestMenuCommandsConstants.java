@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,7 @@ public interface TestMenuCommandsConstants {
     String STOP_WORKSPACE = WORKSPACE_MENU_PREFIX + "stopWorkspace";
     String CREATE_FACTORY = WORKSPACE_MENU_PREFIX + "configureFactoryAction";
     String STOP = WORKSPACE_MENU_PREFIX + "stopWorkspace";
+    String DOWNLOAD_AS_ZIP = WORKSPACE_MENU_PREFIX + "downloadWsAsZipAction";
   }
 
   interface Project {
@@ -32,6 +34,8 @@ public interface TestMenuCommandsConstants {
     String CONFIGURATION = PROJECT_MENU_PREFIX + "projectConfiguration";
     String CONFIGURE_CLASSPATH = PROJECT_MENU_PREFIX + "projectProperties";
     String SHOW_HIDE_HIDDEN_FILES = PROJECT_MENU_PREFIX + "showHideHiddenFiles";
+    String UPDATE_PROJECT_CONFIGURATION = PROJECT_MENU_PREFIX + "projectConfiguration";
+    String DOWNLOAD_AS_ZIP = PROJECT_MENU_PREFIX + "downloadAsZipAction";
 
     interface New {
       String NEW = PROJECT_MENU_PREFIX + "newGroup";
@@ -83,11 +87,22 @@ public interface TestMenuCommandsConstants {
     String ORGANIZE_IMPORTS = ASSISTANT_MENU_PREFIX + "organizeImports";
     String GENERATE_EFFECTIVE_POM = ASSISTANT_MENU_PREFIX + "getEffectivePom";
     String QUICK_FIX = ASSISTANT_MENU_PREFIX + "quickFix";
+    String FIND_DEFINITION = ASSISTANT_MENU_PREFIX + "LSFindDefinitionAction";
+    String FIND_REFERENCES = ASSISTANT_MENU_PREFIX + "LSFindReferencesAction";
+    String GO_TO_SYMBOL = ASSISTANT_MENU_PREFIX + "LSGoToSymbolAction";
+    String FIND_PROJECT_SYMBOL = ASSISTANT_MENU_PREFIX + "LSFindSymbolAction";
+
+    interface ToolWindows {
+      String TOOL_WINDOWS = ASSISTANT_MENU_PREFIX + "toolWindows";
+      String CONTRIBUTE_TOOL_WIDOWS =
+          ASSISTANT_MENU_PREFIX + "Tool Windows/contributePartDisplayingMode";
+    }
 
     interface Refactoring {
       String REFACTORING = ASSISTANT_MENU_PREFIX + "assistantRefactoringGroup";
       String MOVE = ASSISTANT_MENU_PREFIX + "Refactoring/javaMoveRefactoring";
       String RENAME = ASSISTANT_MENU_PREFIX + "Refactoring/javaRenameRefactoring";
+      String LS_RENAME = ASSISTANT_MENU_PREFIX + "Refactoring/LS.rename";
     }
   }
 
@@ -167,9 +182,8 @@ public interface TestMenuCommandsConstants {
     String COMMAND_LIST_XPATH = "//div[@id='gwt-debug-dropDownHeader'][2]";
   }
 
-  public static final String TEST_NG_TEST_DROP_DAWN_ITEM = "topmenu/Run/Test/Run Test";
-  public static final String JUNIT_TEST_DROP_DAWN_ITEM =
-      "gwt-debug-topmenu/Run/Test/TestJUnitActionRun";
+  String TEST_NG_TEST_DROP_DAWN_ITEM = "topmenu/Run/Test/Run Test";
+  String JUNIT_TEST_DROP_DAWN_ITEM = "gwt-debug-topmenu/Run/Test/TestJUnitActionRun";
 
-  public static final String TEST_DROP_DAWN_ITEM = "gwt-debug-topmenu/Run/Test/RunTest";
+  String TEST_DROP_DAWN_ITEM = "gwt-debug-topmenu/Run/Test/RunTest";
 }

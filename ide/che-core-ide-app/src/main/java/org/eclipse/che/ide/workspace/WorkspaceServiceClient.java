@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,7 @@ import org.eclipse.che.api.promises.client.Function;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.workspace.shared.dto.CommandDto;
 import org.eclipse.che.api.workspace.shared.dto.WorkspaceDto;
+import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.command.CommandImpl;
 import org.eclipse.che.ide.api.workspace.model.WorkspaceImpl;
@@ -87,8 +89,11 @@ public class WorkspaceServiceClient {
    * @param envName the name of the workspace environment that should be used for start
    * @return a promise that resolves to the {@link WorkspaceImpl}, or rejects with an error
    */
-  Promise<WorkspaceImpl> startById(String id, String envName) {
-    String url = baseHttpUrl + "/" + id + "/runtime" + "?environment=" + envName;
+  Promise<WorkspaceImpl> startById(String id, @Nullable String envName) {
+    String url = baseHttpUrl + "/" + id + "/runtime";
+    if (envName != null) {
+      url += "?environment=" + envName;
+    }
 
     return asyncRequestFactory
         .createPostRequest(url, null)

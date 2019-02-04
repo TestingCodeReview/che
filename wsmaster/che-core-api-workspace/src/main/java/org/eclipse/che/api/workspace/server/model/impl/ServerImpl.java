@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -24,6 +25,16 @@ public class ServerImpl implements Server {
   private Map<String, String> attributes;
 
   public ServerImpl() {}
+
+  public ServerImpl(String url, ServerStatus status, Map<String, String> attributes) {
+    this.url = url;
+    this.status = status;
+    if (attributes != null) {
+      this.attributes = new HashMap<>(attributes);
+    } else {
+      this.attributes = new HashMap<>();
+    }
+  }
 
   public ServerImpl(Server server) {
     this.url = server.getUrl();

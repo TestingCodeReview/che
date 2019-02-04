@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,7 +13,6 @@ package org.eclipse.che.ide.editor;
 
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.NOT_EMERGE_MODE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.SUCCESS;
-import static org.eclipse.che.ide.api.resources.ResourceDelta.REMOVED;
 
 import com.google.web.bindery.event.shared.EventBus;
 import java.util.List;
@@ -29,7 +29,6 @@ import org.eclipse.che.ide.api.editor.EditorAgent;
 import org.eclipse.che.ide.api.editor.EditorPartPresenter;
 import org.eclipse.che.ide.api.editor.events.FileContentUpdateEvent;
 import org.eclipse.che.ide.api.notification.NotificationManager;
-import org.eclipse.che.ide.api.resources.ExternalResourceDelta;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.util.loging.Log;
 
@@ -110,12 +109,10 @@ public class EditorFileStatusNotificationOperation
         {
           Log.debug(getClass(), "Received removed file event status: " + stringPath);
 
-          final Path path = Path.valueOf(stringPath);
-          appContext.getWorkspaceRoot().synchronize(new ExternalResourceDelta(path, path, REMOVED));
           if (notificationManager != null && !deletedFilesController.remove(stringPath)) {
             notificationManager.notify(
                 "External operation", "File '" + name + "' is removed", SUCCESS, NOT_EMERGE_MODE);
-            closeOpenedEditor(path);
+            closeOpenedEditor(Path.valueOf(stringPath));
           }
 
           break;

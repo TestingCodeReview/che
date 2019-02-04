@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,14 +29,13 @@ import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.app.CurrentUser;
+import org.eclipse.che.ide.api.preferences.PreferencesManager;
 import org.eclipse.che.ide.api.theme.ThemeAgent;
 import org.eclipse.che.ide.api.workspace.model.WorkspaceImpl;
 import org.eclipse.che.ide.context.AppContextImpl;
 import org.eclipse.che.ide.context.BrowserAddress;
 import org.eclipse.che.ide.core.StandardComponentInitializer;
 import org.eclipse.che.ide.preferences.StyleInjector;
-import org.eclipse.che.ide.statepersistance.AppStateManager;
-import org.eclipse.che.ide.theme.ThemeAgentImpl;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
 import org.eclipse.che.ide.workspace.WorkspacePresenter;
 import org.eclipse.che.ide.workspace.WorkspaceServiceClient;
@@ -60,10 +60,10 @@ class DefaultIdeInitializationStrategy implements IdeInitializationStrategy {
   protected final ThemeAgent themeAgent;
   protected final StyleInjector styleInjector;
   protected final Provider<StandardComponentInitializer> standardComponentsInitializerProvider;
-  protected final AppStateManager appStateManager;
   protected final Provider<WorkspacePresenter> workspacePresenterProvider;
   protected final EventBus eventBus;
   protected final DialogFactory dialogFactory;
+  protected final PreferencesManager preferencesManager;
 
   @Inject
   DefaultIdeInitializationStrategy(
@@ -74,10 +74,10 @@ class DefaultIdeInitializationStrategy implements IdeInitializationStrategy {
       ThemeAgent themeAgent,
       StyleInjector styleInjector,
       Provider<StandardComponentInitializer> standardComponentsInitializerProvider,
-      AppStateManager appStateManager,
       Provider<WorkspacePresenter> workspacePresenterProvider,
       EventBus eventBus,
-      DialogFactory dialogFactory) {
+      DialogFactory dialogFactory,
+      PreferencesManager preferencesManager) {
     this.workspaceServiceClient = workspaceServiceClient;
     this.appContext = appContext;
     this.browserAddress = browserAddress;
@@ -85,10 +85,10 @@ class DefaultIdeInitializationStrategy implements IdeInitializationStrategy {
     this.themeAgent = themeAgent;
     this.styleInjector = styleInjector;
     this.standardComponentsInitializerProvider = standardComponentsInitializerProvider;
-    this.appStateManager = appStateManager;
     this.workspacePresenterProvider = workspacePresenterProvider;
     this.eventBus = eventBus;
     this.dialogFactory = dialogFactory;
+    this.preferencesManager = preferencesManager;
   }
 
   @Override
@@ -124,7 +124,7 @@ class DefaultIdeInitializationStrategy implements IdeInitializationStrategy {
 
   private Operation<Void> initUI() {
     return aVoid -> {
-      ((ThemeAgentImpl) themeAgent).applyUserTheme();
+      themeAgent.setTheme(preferencesManager.getValue(ThemeAgent.PREFERENCE_KEY));
       styleInjector.inject();
     };
   }
@@ -149,7 +149,6 @@ class DefaultIdeInitializationStrategy implements IdeInitializationStrategy {
   private Operation<Void> showUI() {
     return aVoid -> {
       standardComponentsInitializerProvider.get().initialize();
-      appStateManager.readStateFromPreferences();
       showRootPresenter();
 
       // Bind browser's window events

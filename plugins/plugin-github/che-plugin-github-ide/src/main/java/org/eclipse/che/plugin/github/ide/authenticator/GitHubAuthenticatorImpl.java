@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,25 +17,16 @@ import static org.eclipse.che.ide.api.notification.StatusNotification.Status.SUC
 import com.google.common.collect.Lists;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.inject.Inject;
-import java.util.List;
 import javax.validation.constraints.NotNull;
-import org.eclipse.che.api.promises.client.Operation;
-import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
-import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper;
-import org.eclipse.che.api.ssh.shared.dto.SshPairDto;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.oauth.OAuth2Authenticator;
 import org.eclipse.che.ide.api.oauth.OAuth2AuthenticatorUrlProvider;
-import org.eclipse.che.ide.api.ssh.SshServiceClient;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
-import org.eclipse.che.ide.util.loging.Log;
 import org.eclipse.che.plugin.github.ide.GitHubLocalizationConstant;
-import org.eclipse.che.plugin.ssh.key.client.SshKeyUploader;
-import org.eclipse.che.plugin.ssh.key.client.SshKeyUploaderRegistry;
-import org.eclipse.che.plugin.ssh.key.client.manage.SshKeyManagerPresenter;
+import org.eclipse.che.plugin.ssh.key.client.SshKeyManager;
 import org.eclipse.che.security.oauth.JsOAuthWindow;
 import org.eclipse.che.security.oauth.OAuthCallback;
 import org.eclipse.che.security.oauth.OAuthStatus;
@@ -48,8 +40,7 @@ public class GitHubAuthenticatorImpl
 
   AsyncCallback<OAuthStatus> callback;
 
-  private final SshKeyUploaderRegistry registry;
-  private final SshServiceClient sshServiceClient;
+  private final SshKeyManager sshKeyManager;
   private final DialogFactory dialogFactory;
   private final GitHubAuthenticatorView view;
   private final NotificationManager notificationManager;
@@ -61,16 +52,14 @@ public class GitHubAuthenticatorImpl
 
   @Inject
   public GitHubAuthenticatorImpl(
-      SshKeyUploaderRegistry registry,
-      SshServiceClient sshServiceClient,
+      SshKeyManager sshKeyManager,
       GitHubAuthenticatorView view,
       DialogFactory dialogFactory,
       GitHubLocalizationConstant locale,
       NotificationManager notificationManager,
       AppContext appContext,
       SecurityTokenProvider securityTokenProvider) {
-    this.registry = registry;
-    this.sshServiceClient = sshServiceClient;
+    this.sshKeyManager = sshKeyManager;
     this.view = view;
     this.securityTokenProvider = securityTokenProvider;
     this.view.setDelegate(this);
@@ -147,20 +136,15 @@ public class GitHubAuthenticatorImpl
   }
 
   private void generateSshKeys(final OAuthStatus authStatus) {
-    final SshKeyUploader githubKeyUploader = registry.getUploader(GITHUB_HOST);
-    if (githubKeyUploader != null) {
-      String userId = appContext.getCurrentUser().getId();
-      githubKeyUploader.uploadKey(
-          userId,
-          new AsyncCallback<Void>() {
-            @Override
-            public void onSuccess(Void result) {
+    sshKeyManager
+        .generateSshKey(appContext.getCurrentUser().getId(), GITHUB_HOST)
+        .then(
+            arg -> {
               callback.onSuccess(authStatus);
               notificationManager.notify(locale.authMessageKeyUploadSuccess(), SUCCESS, FLOAT_MODE);
-            }
-
-            @Override
-            public void onFailure(Throwable exception) {
+            })
+        .catchError(
+            arg -> {
               dialogFactory
                   .createMessageDialog(
                       locale.authorizationDialogTitle(),
@@ -168,57 +152,6 @@ public class GitHubAuthenticatorImpl
                       null)
                   .show();
               callback.onFailure(new Exception(locale.authMessageUnableCreateSshKey()));
-              getFailedKey();
-            }
-          });
-    } else {
-      dialogFactory
-          .createMessageDialog(
-              locale.authorizationDialogTitle(), locale.authMessageUnableCreateSshKey(), null)
-          .show();
-      callback.onFailure(new Exception(locale.authMessageUnableCreateSshKey()));
-    }
-  }
-
-  /** Need to remove failed uploaded pair from local storage if they can't be uploaded to github */
-  private void getFailedKey() {
-    sshServiceClient
-        .getPairs(SshKeyManagerPresenter.VCS_SSH_SERVICE)
-        .then(
-            new Operation<List<SshPairDto>>() {
-              @Override
-              public void apply(List<SshPairDto> result) throws OperationException {
-                for (SshPairDto key : result) {
-                  if (key.getName().equals(GITHUB_HOST)) {
-                    removeFailedKey(key);
-                    return;
-                  }
-                }
-              }
-            })
-        .catchError(
-            new Operation<PromiseError>() {
-              @Override
-              public void apply(PromiseError arg) throws OperationException {
-                Log.error(OAuth2Authenticator.class, arg.getCause());
-              }
-            });
-  }
-
-  /**
-   * Remove failed pair.
-   *
-   * @param pair failed pair
-   */
-  private void removeFailedKey(@NotNull final SshPairDto pair) {
-    sshServiceClient
-        .deletePair(pair.getService(), pair.getName())
-        .catchError(
-            new Operation<PromiseError>() {
-              @Override
-              public void apply(PromiseError arg) throws OperationException {
-                Log.error(OAuth2Authenticator.class, arg.getCause());
-              }
             });
   }
 }

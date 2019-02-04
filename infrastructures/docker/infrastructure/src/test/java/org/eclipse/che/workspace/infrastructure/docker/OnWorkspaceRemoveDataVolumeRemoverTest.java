@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,8 +15,8 @@ import static java.util.Arrays.asList;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -84,7 +85,7 @@ public class OnWorkspaceRemoveDataVolumeRemoverTest {
     Volume volume2 = new Volume().withName(volume2Name);
     Volume volume3 = new Volume().withName(volume3Name);
     when(volumes.getVolumes()).thenReturn(asList(volume1, volume2, volume3));
-    doThrow(new IOException("test exc")).when(docker).removeVolume(eq(volume2Name));
+    lenient().doThrow(new IOException("test exc")).when(docker).removeVolume(eq(volume2Name));
 
     // when
     remover.onEvent(event);

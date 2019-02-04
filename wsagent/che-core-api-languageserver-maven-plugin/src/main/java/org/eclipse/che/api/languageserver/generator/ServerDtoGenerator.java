@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -30,7 +31,14 @@ public class ServerDtoGenerator extends DtoGenerator {
 
   public static void main(String[] args) throws IOException {
     new ServerDtoGenerator()
-        .generate(new File(args[0]), "Dtos", args[1], args[2].split(","), new String[] {});
+        .generate(
+            new File(args[0]),
+            "Dtos",
+            args[1],
+            args[2].split(","),
+            new String[] {},
+            new String[] {},
+            new String[] {});
   }
 
   @Override
@@ -66,9 +74,12 @@ public class ServerDtoGenerator extends DtoGenerator {
       String targetName,
       String targetPackage,
       String[] sourcePackages,
-      String[] classes)
+      String[] classes,
+      String[] excludes,
+      String[] imports)
       throws IOException {
-    super.generate(targetFolder, targetName, targetPackage, sourcePackages, classes);
+    super.generate(
+        targetFolder, targetName, targetPackage, sourcePackages, classes, excludes, imports);
     // Create file in META-INF/services/
     File outServiceFile =
         new File(targetFolder, "META-INF/services/org.eclipse.che.dto.server.DtoFactoryVisitor");

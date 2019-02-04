@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,6 +14,9 @@ package org.eclipse.che.multiuser.integration.jpa.cascaderemoval;
 import static java.util.Arrays.asList;
 
 import com.google.common.collect.ImmutableMap;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,8 +31,8 @@ import org.eclipse.che.api.workspace.server.model.impl.WorkspaceConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
 import org.eclipse.che.api.workspace.server.model.impl.stack.StackComponentImpl;
 import org.eclipse.che.api.workspace.server.model.impl.stack.StackImpl;
-import org.eclipse.che.api.workspace.server.model.impl.stack.StackSourceImpl;
 import org.eclipse.che.api.workspace.server.stack.image.StackIcon;
+import org.eclipse.che.multiuser.machine.authentication.server.signature.model.impl.SignatureKeyPairImpl;
 import org.eclipse.che.multiuser.permission.workspace.server.model.impl.WorkerImpl;
 import org.eclipse.che.multiuser.resource.spi.impl.FreeResourcesLimitImpl;
 import org.eclipse.che.multiuser.resource.spi.impl.ResourceImpl;
@@ -69,7 +73,7 @@ public final class TestObjectsFactory {
 
   public static WorkspaceConfigImpl createWorkspaceConfig(String id) {
     return new WorkspaceConfigImpl(
-        id + "_name", id + "description", "default-env", null, null, null);
+        id + "_name", id + "description", "default-env", null, null, null, null);
   }
 
   public static WorkspaceImpl createWorkspace(String id, Account account) {
@@ -105,7 +109,6 @@ public final class TestObjectsFactory {
             asList(
                 new StackComponentImpl(id + "-component1", id + "-component1-version"),
                 new StackComponentImpl(id + "-component2", id + "-component2-version")))
-        .setSource(new StackSourceImpl(id + "-type", id + "-origin"))
         .setStackIcon(
             new StackIcon(id + "-icon", id + "-media-type", "0x1234567890abcdef".getBytes()))
         .build();
@@ -119,6 +122,15 @@ public final class TestObjectsFactory {
     return new FreeResourcesLimitImpl(
         accountId,
         Arrays.asList(new ResourceImpl("test1", 123, "mb"), new ResourceImpl("test2", 234, "h")));
+  }
+
+  public static SignatureKeyPairImpl createSignatureKeyPair(String workspaceId)
+      throws NoSuchAlgorithmException {
+    final KeyPairGenerator kpg;
+    kpg = KeyPairGenerator.getInstance("RSA");
+    kpg.initialize(512);
+    final KeyPair pair = kpg.generateKeyPair();
+    return new SignatureKeyPairImpl(workspaceId, pair.getPublic(), pair.getPrivate());
   }
 
   private TestObjectsFactory() {}

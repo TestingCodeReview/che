@@ -12,12 +12,12 @@
                          che-form="editMachineForm"
                          che-name="name"
                          che-place-holder="enter machine's name"
-                         che-on-change="editMachineDialogController.onNameChange($value)"
+                         che-on-change="editMachineDialogController.onNameChange($value, editMachineForm.$valid)"
                          custom-validator="editMachineDialogController.isUnique($value)"
                          ng-model-options="{ updateOn: 'default blur', debounce: { 'default': 500, 'blur': 0 } }"
                          ng-model="editMachineDialogController.machineName"
                          ng-maxlength="128"
-                         ng-pattern="/^[A-Za-z0-9_\-\.]+$/"
+                         ng-pattern="/^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/"
                          required>
             <che-error-messages che-message-scope="workspace-details-environment" che-message-name="Machine name">
               <div ng-message></div>
@@ -48,6 +48,7 @@
                       editor-state="editorState"
                       validator="editMachineDialogController.isRecipeValid()"
                       on-content-change="editMachineDialogController.parseMachineRecipe()"
+                      editor-read-only="editMachineDialogController.isEditorReadOnly"
                       editor-mode="{{editMachineDialogController.editorMode}}"></che-editor>
         </div>
       </div>
@@ -55,7 +56,8 @@
     <che-button-notice che-button-title="Close"
                        ng-click="editMachineDialogController.cancel()">
     </che-button-notice>
-    <che-button-primary che-button-title="{{editMachineDialogController.isAdd ? 'Add' : 'Edit'}}"
+    <che-button-primary che-button-title="{{editMachineDialogController.isAdd ? 'Add' : 'Save'}}"
+                        id="save-machine-button"
                         ng-click="editMachineDialogController.updateMachine()"
                         ng-disabled="editMachineForm.$invalid || !editMachineDialogController.isChange() || !editorState.isValid">
     </che-button-primary>

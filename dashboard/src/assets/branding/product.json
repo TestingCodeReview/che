@@ -9,7 +9,7 @@
   "websocketContext": "/api/websocket",
   "helpPath": "https://www.eclipse.org/che/",
   "helpTitle": "Community",
-  "supportEmail": "wish@codenvy.com",
+  "supportEmail": "che-dev@eclipse.org",
   "oauthDocs": "Configure OAuth in the che.properties file.",
   "workspace": {
     "priorityStacks": ["Java", "Java-MySQL", "Blank"],
@@ -20,7 +20,10 @@
     "name" : "CHE"
   },
   "docs" : {
-    "stack" : "/docs/devops/runtime-stacks/index.html",
-    "workspace" : "/docs/devops/intro/index.html"
+    "stack" : "/docs/creating-starting-workspaces.html",
+    "workspace" : "/docs/what-are-workspaces.html",
+    "factory" : "/docs/factories-getting-started.html",
+    "organization": "/docs/organizations.html",
+    "general": "/docs"
   }
 }

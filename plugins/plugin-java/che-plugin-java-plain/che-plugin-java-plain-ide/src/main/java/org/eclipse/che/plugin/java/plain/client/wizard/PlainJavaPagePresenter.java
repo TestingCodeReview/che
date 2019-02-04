@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -69,7 +70,7 @@ class PlainJavaPagePresenter extends AbstractWizardPage<MutableProjectConfig>
 
   @Override
   public boolean isCompleted() {
-    return isCoordinatesCompleted();
+    return true;
   }
 
   @Override
@@ -84,7 +85,6 @@ class PlainJavaPagePresenter extends AbstractWizardPage<MutableProjectConfig>
     }
 
     updateView();
-    validateCoordinates();
   }
 
   @Override
@@ -94,7 +94,6 @@ class PlainJavaPagePresenter extends AbstractWizardPage<MutableProjectConfig>
     setAttribute(
         LIBRARY_FOLDER, Arrays.asList(view.getLibraryFolder().split(ATTRIBUTE_VALUE_SEPARATOR)));
 
-    validateCoordinates();
     updateDelegate.updateControls();
   }
 
@@ -144,10 +143,6 @@ class PlainJavaPagePresenter extends AbstractWizardPage<MutableProjectConfig>
     attributes.put(attrId, value);
   }
 
-  private boolean isCoordinatesCompleted() {
-    return !getAttribute(SOURCE_FOLDER).isEmpty();
-  }
-
   private void updateView() {
     ProjectWizardMode wizardMode = ProjectWizardMode.parse(context.get(WIZARD_MODE_KEY));
     boolean isCreateWizard = wizardMode == CREATE;
@@ -174,9 +169,5 @@ class PlainJavaPagePresenter extends AbstractWizardPage<MutableProjectConfig>
     return result.toString().isEmpty()
         ? result.toString()
         : result.delete(result.lastIndexOf(ATTRIBUTE_VALUE_SEPARATOR), result.length()).toString();
-  }
-
-  private void validateCoordinates() {
-    view.showSourceFolderMissingIndicator(view.getSourceFolder().isEmpty());
   }
 }

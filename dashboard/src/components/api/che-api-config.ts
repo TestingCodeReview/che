@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -26,6 +27,7 @@ import {CheAPIBuilder} from './builder/che-api-builder.factory';
 import {CheRemote} from './remote/che-remote.factory';
 import {CheOAuthProvider} from './che-o-auth-provider.factory';
 import {CheEnvironmentRegistry} from './environment/che-environment-registry.factory';
+import {CheEnvironmentManager} from './environment/che-environment-manager.factory';
 import {CheAgent} from './che-agent.factory';
 import {CheSsh} from './che-ssh.factory';
 import {CheNamespaceRegistry} from './namespace/che-namespace-registry.factory';
@@ -39,6 +41,8 @@ import {CheResourcesDistribution} from './che-resources-distribution.factory';
 import {CheTeam} from './che-team.factory';
 import {CheTeamEventsManager} from './che-team-events-manager.factory';
 import {CheInvite} from './che-invite.factory';
+import {NpmRegistry} from './npm-registry.factory';
+import {PluginRegistry} from './plugin-registry.factory';
 
 export class ApiConfig {
 
@@ -59,6 +63,7 @@ export class ApiConfig {
     register.factory('cheRemote', CheRemote);
     register.factory('cheOAuthProvider', CheOAuthProvider);
     register.factory('cheEnvironmentRegistry', CheEnvironmentRegistry);
+    register.factory('cheEnvironmentManager', CheEnvironmentManager);
     register.factory('cheAgent', CheAgent);
     register.factory('cheSsh', CheSsh);
     register.factory('cheNamespaceRegistry', CheNamespaceRegistry);
@@ -72,5 +77,7 @@ export class ApiConfig {
     register.factory('cheTeam', CheTeam);
     register.factory('cheTeamEventsManager', CheTeamEventsManager);
     register.factory('cheInvite', CheInvite);
+    register.factory('npmRegistry', NpmRegistry);
+    register.factory('pluginRegistry', PluginRegistry);
   }
 }

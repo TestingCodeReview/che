@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,7 @@ import org.eclipse.che.selenium.core.utils.WaitUtils;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -44,6 +46,7 @@ public class EditorMemberActiveLineForOpenedTabTest {
   @Inject private Menu menu;
   @Inject private AskDialog askDialog;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -54,6 +57,7 @@ public class EditorMemberActiveLineForOpenedTabTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -101,7 +105,8 @@ public class EditorMemberActiveLineForOpenedTabTest {
     editor.selectTabByName("sqlFile.sql");
     editor.waitActive();
     editor.expectedNumberOfActiveLine(3);
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/sqlFile.sql");
+    projectExplorer.waitAndSelectItem(
+        PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/sqlFile.sql");
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     loader.waitOnClosed();
     askDialog.acceptDialogWithText(DELETE_TEXT_FOR_SQL);
@@ -111,7 +116,7 @@ public class EditorMemberActiveLineForOpenedTabTest {
         PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/sqlFile.sql");
     editor.selectTabByName("another");
     editor.expectedNumberOfActiveLine(5);
-    projectExplorer.selectItem(
+    projectExplorer.waitAndSelectItem(
         PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/LessFile.less");
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     loader.waitOnClosed();
@@ -123,7 +128,8 @@ public class EditorMemberActiveLineForOpenedTabTest {
     editor.selectTabByName("another");
     loader.waitOnClosed();
     editor.expectedNumberOfActiveLine(5);
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/another");
+    projectExplorer.waitAndSelectItem(
+        PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/another");
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     loader.waitOnClosed();
     askDialog.acceptDialogWithText(DELETE_TEXT_FOR_TEXT_FILE);

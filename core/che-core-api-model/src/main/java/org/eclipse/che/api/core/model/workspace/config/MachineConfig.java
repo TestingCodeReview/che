@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,11 +22,20 @@ import java.util.Map;
 public interface MachineConfig {
 
   /**
-   * Name of the attribute from {@link #getAttributes()} which if present sets memory limit of the
-   * machine in bytes. If memory limit is set in environment specific recipe this attribute should
-   * override value from recipe.
+   * Name of the attribute from {@link #getAttributes()} which if present defines memory limit of
+   * the machine in bytes. If memory limit is set in environment specific recipe this attribute used
+   * in {@code MachineConfig} should override value from recipe.
    */
   String MEMORY_LIMIT_ATTRIBUTE = "memoryLimitBytes";
+
+  /**
+   * Name of the attribute from {@link #getAttributes()} which if present defines requested memory
+   * allocation of the machine in bytes. If memory request is set in environment specific recipe
+   * this attribute used in {@code MachineConfig} should override value from recipe. If both request
+   * and limit are defined, and memory request is greater than the memory limit, this value is
+   * ignored and only limit is used
+   */
+  String MEMORY_REQUEST_ATTRIBUTE = "memoryRequestBytes";
 
   /**
    * Returns configured installers.

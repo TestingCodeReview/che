@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,9 @@ import {CheWorkspace} from '../../../../../components/api/workspace/che-workspac
  * @author Florent Benoit
  */
 export class ProjectItemCtrl {
+
+  static $inject = ['$location', 'cheWorkspace'];
+
   private $location: ng.ILocationService;
   private cheWorkspace: CheWorkspace;
 
@@ -26,16 +30,10 @@ export class ProjectItemCtrl {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($location: ng.ILocationService,
               cheWorkspace: CheWorkspace) {
     this.$location = $location;
     this.cheWorkspace = cheWorkspace;
   }
-
-  redirectToProjectDetails(): void {
-    this.$location.path('/workspace/' + this.workspace.namespace + '/' + this.workspace.config.name + '/' + this.project.name);
-  }
-
 }

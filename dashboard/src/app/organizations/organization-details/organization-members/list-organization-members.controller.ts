@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -26,6 +27,10 @@ interface IOrganizationMember extends che.IUser {
  * @author Oleksii Orel
  */
 export class ListOrganizationMembersController {
+
+  static $inject = ['chePermissions', 'cheUser', 'cheProfile', 'cheOrganization', 'confirmDialogService', '$mdDialog',
+'$q', 'cheNotification', 'lodash', '$location', 'organizationsPermissionService', '$scope', 'cheListHelperFactory', 'resourcesService', '$log'];
+
   /**
    * Location service.
    */
@@ -113,7 +118,6 @@ export class ListOrganizationMembersController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor(chePermissions: che.api.IChePermissions, cheUser: CheUser, cheProfile: CheProfile, cheOrganization: che.api.ICheOrganization,
               confirmDialogService: ConfirmDialogService, $mdDialog: angular.material.IDialogService, $q: ng.IQService, cheNotification: CheNotification,

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -97,13 +98,12 @@ public class RevertCommitViewImpl extends Window implements RevertCommitView {
 
   @Override
   public void close() {
-    onClose();
+    hide();
   }
 
   @Override
-  protected void onClose() {
+  protected void onHide() {
     selectionModel.clear();
-    super.onClose();
   }
 
   @Override
@@ -163,22 +163,12 @@ public class RevertCommitViewImpl extends Window implements RevertCommitView {
 
   private void createButtons() {
     btnCancel =
-        createButton(
-            locale.buttonCancel(),
-            "git-revert-cancel",
-            event -> {
-              delegate.onCancelClicked();
-            });
-    addButtonToFooter(btnCancel);
+        addFooterButton(
+            locale.buttonCancel(), "git-revert-cancel", event -> delegate.onCancelClicked());
 
     btnRevert =
-        createButton(
-            locale.buttonRevert(),
-            "git-revert",
-            event -> {
-              delegate.onRevertClicked();
-            });
-    addButtonToFooter(btnRevert);
+        addFooterButton(
+            locale.buttonRevert(), "git-revert", event -> delegate.onRevertClicked(), true);
   }
 
   @UiHandler("revisionsPanel")

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -76,7 +78,7 @@ public class SetPermissionsFilterTest {
 
   @BeforeMethod
   public void setUp() {
-    when(subject.getUserId()).thenReturn("user123");
+    lenient().when(subject.getUserId()).thenReturn("user123");
   }
 
   @Test
@@ -204,7 +206,6 @@ public class SetPermissionsFilterTest {
   public void shouldDoChainIfUserDoesNotHavePermissionToSetPermissionsButHasSuperPrivileges()
       throws Exception {
     when(superPrivilegesChecker.isPrivilegedToManagePermissions(anyString())).thenReturn(true);
-    when(subject.hasPermission("test", "test123", SET_PERMISSIONS)).thenReturn(false);
 
     final Response response =
         given()

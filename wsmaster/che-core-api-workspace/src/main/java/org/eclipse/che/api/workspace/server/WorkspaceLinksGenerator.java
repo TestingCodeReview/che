@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -82,19 +83,22 @@ public class WorkspaceLinksGenerator {
   private void addRuntimeLinks(
       Map<String, String> links, String workspaceId, ServiceContext serviceContext)
       throws ServerException {
+    URI uri = serviceContext.getServiceUriBuilder().build();
+    links.put(
+        LINK_REL_ENVIRONMENT_STATUS_CHANNEL,
+        UriBuilder.fromUri(cheWebsocketEndpoint)
+            .scheme(uri.getScheme().equals("https") ? "wss" : "ws")
+            .host(uri.getHost())
+            .port(uri.getPort())
+            .build()
+            .toString());
+
     Optional<RuntimeContext> ctxOpt = workspaceRuntimes.getRuntimeContext(workspaceId);
     if (ctxOpt.isPresent()) {
-      URI uri = serviceContext.getServiceUriBuilder().build();
       try {
         links.put(LINK_REL_ENVIRONMENT_OUTPUT_CHANNEL, ctxOpt.get().getOutputChannel().toString());
-        links.put(
-            LINK_REL_ENVIRONMENT_STATUS_CHANNEL,
-            UriBuilder.fromUri(cheWebsocketEndpoint)
-                .scheme(uri.getScheme().equals("https") ? "wss" : "ws")
-                .host(uri.getHost())
-                .port(uri.getPort())
-                .build()
-                .toString());
+      } catch (UnsupportedOperationException e) {
+        // Do not include output channel to links since it is not supported by context
       } catch (InfrastructureException x) {
         throw new ServerException(x.getMessage(), x);
       }

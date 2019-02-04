@@ -1,38 +1,36 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.plugin.java.plain.server.projecttype;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.lang.String.format;
 import static java.util.Collections.singletonList;
-import static java.util.stream.Stream.concat;
+import static java.util.stream.Collectors.toList;
 import static org.eclipse.che.ide.ext.java.shared.Constants.OUTPUT_FOLDER;
 import static org.eclipse.che.ide.ext.java.shared.Constants.SOURCE_FOLDER;
-import static org.eclipse.che.plugin.java.plain.shared.PlainJavaProjectConstants.DEFAULT_SOURCE_FOLDER_VALUE;
-import static org.eclipse.jdt.core.IClasspathEntry.CPE_SOURCE;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
+import org.eclipse.che.api.core.notification.EventService;
+import org.eclipse.che.api.fs.server.PathTransformer;
 import org.eclipse.che.api.project.server.ProjectManager;
-import org.eclipse.che.api.project.server.type.SettableValueProvider;
+import org.eclipse.che.api.project.server.type.ReadonlyValueProvider;
 import org.eclipse.che.api.project.server.type.ValueProvider;
 import org.eclipse.che.api.project.server.type.ValueProviderFactory;
 import org.eclipse.che.api.project.server.type.ValueStorageException;
-import org.eclipse.jdt.core.IClasspathEntry;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.internal.core.JavaModel;
-import org.eclipse.jdt.internal.core.JavaModelManager;
+import org.eclipse.che.ide.ext.java.shared.Constants;
+import org.eclipse.che.plugin.java.languageserver.JavaLanguageServerExtensionService;
+import org.eclipse.che.plugin.java.languageserver.NotifyJsonRpcTransmitter;
 
 /**
  * {@link ValueProviderFactory} for Plain Java project type. Factory crates a class which provides
@@ -43,11 +41,18 @@ import org.eclipse.jdt.internal.core.JavaModelManager;
 @Singleton
 public class PlainJavaValueProviderFactory implements ValueProviderFactory {
 
-  private final ProjectManager projectManager;
+  private final PathTransformer transformer;
+  private final JavaLanguageServerExtensionService extensionService;
 
   @Inject
-  public PlainJavaValueProviderFactory(ProjectManager projectManager) {
-    this.projectManager = projectManager;
+  public PlainJavaValueProviderFactory(
+      PathTransformer transformer,
+      JavaLanguageServerExtensionService extensionService,
+      NotifyJsonRpcTransmitter notifyTransmitter,
+      ProjectManager projectManager,
+      EventService eventService) {
+    this.transformer = transformer;
+    this.extensionService = extensionService;
   }
 
   @Override
@@ -55,7 +60,7 @@ public class PlainJavaValueProviderFactory implements ValueProviderFactory {
     return new PlainJavaValueProvider(wsPath);
   }
 
-  private class PlainJavaValueProvider extends SettableValueProvider {
+  private class PlainJavaValueProvider extends ReadonlyValueProvider {
 
     private String wsPath;
 
@@ -73,64 +78,37 @@ public class PlainJavaValueProviderFactory implements ValueProviderFactory {
       return null;
     }
 
-    @Override
-    public void setValues(String attributeName, List<String> values) throws ValueStorageException {
-      Map<String, List<String>> attributes =
-          projectManager
-              .get(wsPath)
-              .orElseThrow(() -> new ValueStorageException("Can't get project"))
-              .getAttributes();
-
-      if (attributes.containsKey(attributeName)) {
-        attributes.put(
-            attributeName,
-            concat(values.stream(), attributes.get(attributeName).stream())
-                .collect(Collectors.toList()));
-      } else {
-        attributes.put(attributeName, values);
-      }
-    }
-
     private List<String> getOutputFolder() throws ValueStorageException {
-      JavaModel model = JavaModelManager.getJavaModelManager().getJavaModel();
-      IJavaProject project = model.getJavaProject(wsPath);
-
+      String outputDir;
       try {
-        String outputDirPath = project.getOutputLocation().toOSString();
-        return outputDirPath.startsWith(wsPath)
-            ? singletonList(outputDirPath.substring(wsPath.length() + 1))
-            : singletonList(outputDirPath);
-      } catch (JavaModelException e) {
-        throw new ValueStorageException("Can't get output location: " + e.getMessage());
+        outputDir = extensionService.getOutputDir(wsPath);
+        if (isNullOrEmpty(outputDir)) {
+          outputDir = Constants.DEFAULT_OUTPUT_FOLDER_VALUE;
+        }
+      } catch (Exception e) {
+        // can't read output dir
+        outputDir = Constants.DEFAULT_OUTPUT_FOLDER_VALUE;
       }
+
+      String fsPath = transformer.transform(wsPath).toString();
+      return outputDir.startsWith(fsPath)
+          ? singletonList(outputDir.substring(fsPath.length() + 1))
+          : singletonList(outputDir);
     }
 
     private List<String> getSourceFolders() throws ValueStorageException {
-      List<String> sourceFolders = new ArrayList<>();
-
-      JavaModel model = JavaModelManager.getJavaModelManager().getJavaModel();
-      IJavaProject project = model.getJavaProject(wsPath);
-
+      List<String> sourceFolders;
       try {
-        IClasspathEntry[] classpath = project.getRawClasspath();
-
-        for (IClasspathEntry entry : classpath) {
-          String entryPath = entry.getPath().toOSString();
-          if (CPE_SOURCE == entry.getEntryKind() && !entryPath.equals(wsPath)) {
-            if (entryPath.startsWith(wsPath)) {
-              sourceFolders.add(entryPath.substring(wsPath.length() + 1));
-            } else {
-              sourceFolders.add(entryPath);
-            }
-          }
-        }
-      } catch (JavaModelException e) {
+        sourceFolders = extensionService.getSourceFolders(wsPath);
+      } catch (Exception e) {
         throw new ValueStorageException(
-            "Classpath does not exist or an exception occurs while accessing its corresponding resource : "
-                + e.getMessage());
+            format("Failed to get '%s'. ", SOURCE_FOLDER), e.getCause());
       }
 
-      return sourceFolders.isEmpty() ? singletonList(DEFAULT_SOURCE_FOLDER_VALUE) : sourceFolders;
+      return sourceFolders
+          .stream()
+          .map(it -> it.startsWith(wsPath) ? it.substring(wsPath.length() + 1) : it)
+          .collect(toList());
     }
   }
 }

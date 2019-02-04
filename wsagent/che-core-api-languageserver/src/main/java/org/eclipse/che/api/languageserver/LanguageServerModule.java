@@ -1,54 +1,58 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.languageserver;
 
+import static com.google.inject.multibindings.MapBinder.newMapBinder;
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
+
 import com.google.inject.AbstractModule;
+import com.google.inject.TypeLiteral;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
-import com.google.inject.multibindings.Multibinder;
-import org.eclipse.che.api.languageserver.launcher.LanguageServerLauncher;
-import org.eclipse.che.api.languageserver.messager.PublishDiagnosticsParamsJsonRpcTransmitter;
-import org.eclipse.che.api.languageserver.messager.ShowMessageJsonRpcTransmitter;
-import org.eclipse.che.api.languageserver.registry.CheLanguageClientFactory;
-import org.eclipse.che.api.languageserver.registry.LanguageServerFileWatcher;
-import org.eclipse.che.api.languageserver.registry.LanguageServerRegistry;
-import org.eclipse.che.api.languageserver.registry.LanguageServerRegistryImpl;
-import org.eclipse.che.api.languageserver.registry.ServerInitializer;
-import org.eclipse.che.api.languageserver.registry.ServerInitializerImpl;
-import org.eclipse.che.api.languageserver.remote.LsRemoteModule;
-import org.eclipse.che.api.languageserver.service.LanguageRegistryService;
-import org.eclipse.che.api.languageserver.service.LanguageServerInitializationHandler;
-import org.eclipse.che.api.languageserver.service.TextDocumentService;
-import org.eclipse.che.api.languageserver.service.WorkspaceService;
-import org.eclipse.che.api.languageserver.shared.model.LanguageDescription;
+import com.google.inject.name.Names;
+import java.nio.file.Path;
+import java.util.function.Consumer;
 
 public class LanguageServerModule extends AbstractModule {
 
   @Override
   protected void configure() {
-    install(new LsRemoteModule());
-
-    bind(LanguageServerRegistry.class).to(LanguageServerRegistryImpl.class);
-    bind(ServerInitializer.class).to(ServerInitializerImpl.class);
-    bind(LanguageRegistryService.class);
-    Multibinder.newSetBinder(binder(), LanguageServerLauncher.class);
-
+    bind(RegistryContainer.class).asEagerSingleton();
     bind(WorkspaceService.class).asEagerSingleton();
     bind(TextDocumentService.class).asEagerSingleton();
     bind(PublishDiagnosticsParamsJsonRpcTransmitter.class).asEagerSingleton();
     bind(ShowMessageJsonRpcTransmitter.class).asEagerSingleton();
-    Multibinder.newSetBinder(binder(), LanguageDescription.class);
+    bind(LanguageServerConfigInitializer.class).asEagerSingleton();
+    bind(LanguageServerService.class).asEagerSingleton();
+    bind(LanguageServerInitializer.class).asEagerSingleton();
 
-    bind(LanguageServerInitializationHandler.class).asEagerSingleton();
-    bind(LanguageServerFileWatcher.class).asEagerSingleton();
-    bind(LanguageServerInitializationHandler.class).asEagerSingleton();
     install(new FactoryModuleBuilder().build(CheLanguageClientFactory.class));
+
+    newMapBinder(binder(), String.class, LanguageServerConfig.class);
+
+    newSetBinder(binder(), LanguageServerConfigProvider.class)
+        .addBinding()
+        .to(WorkspaceConfigProvider.class);
+    newSetBinder(binder(), LanguageServerConfigProvider.class)
+        .addBinding()
+        .to(GuiceConfigProvider.class);
+
+    newSetBinder(binder(), new TypeLiteral<Consumer<Path>>() {}, Names.named("che.fs.file.create"))
+        .addBinding()
+        .to(LanguageServerCreateFileWatcher.class);
+    newSetBinder(binder(), new TypeLiteral<Consumer<Path>>() {}, Names.named("che.fs.file.update"))
+        .addBinding()
+        .to(LanguageServerUpdateFileWatcher.class);
+    newSetBinder(binder(), new TypeLiteral<Consumer<Path>>() {}, Names.named("che.fs.file.delete"))
+        .addBinding()
+        .to(LanguageServerDeleteFileWatcher.class);
   }
 }

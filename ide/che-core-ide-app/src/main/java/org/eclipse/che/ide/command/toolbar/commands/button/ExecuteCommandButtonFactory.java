@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,6 +17,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.FontAwesome;
+import org.eclipse.che.ide.Resources;
 import org.eclipse.che.ide.api.action.ActionManager;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.command.CommandGoal;
@@ -33,6 +35,7 @@ import org.eclipse.che.ide.util.input.CharCodeWithModifiers;
 public class ExecuteCommandButtonFactory {
 
   private final CommandResources resources;
+  private final Resources ideResources;
   private final AppContext appContext;
   private final MenuItemsFactory menuItemsFactory;
   private final ActionManager actionManager;
@@ -50,7 +53,8 @@ public class ExecuteCommandButtonFactory {
       RunGoal runGoal,
       DebugGoal debugGoal,
       ActionManager actionManager,
-      KeyBindingAgent keyBindingAgent) {
+      KeyBindingAgent keyBindingAgent,
+      Resources ideResources) {
     this.resources = resources;
     this.appContext = appContext;
     this.menuItemsFactory = menuItemsFactory;
@@ -59,6 +63,7 @@ public class ExecuteCommandButtonFactory {
     this.debugGoal = debugGoal;
     this.actionManager = actionManager;
     this.keyBindingAgent = keyBindingAgent;
+    this.ideResources = ideResources;
   }
 
   /**
@@ -114,9 +119,11 @@ public class ExecuteCommandButtonFactory {
     final SafeHtmlBuilder safeHtmlBuilder = new SafeHtmlBuilder();
 
     if (goal.equals(runGoal)) {
-      safeHtmlBuilder.appendHtmlConstant(FontAwesome.PLAY);
+      safeHtmlBuilder.appendHtmlConstant(
+          "<img src=\"" + ideResources.run().getSafeUri().asString() + "\">");
     } else if (goal.equals(debugGoal)) {
-      safeHtmlBuilder.appendHtmlConstant(FontAwesome.BUG);
+      safeHtmlBuilder.appendHtmlConstant(
+          "<img src=\"" + ideResources.debug().getSafeUri().asString() + "\">");
     }
 
     return safeHtmlBuilder.toSafeHtml();

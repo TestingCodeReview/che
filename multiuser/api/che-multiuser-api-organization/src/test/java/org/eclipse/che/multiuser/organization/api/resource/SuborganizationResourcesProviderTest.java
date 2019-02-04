@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,6 +16,7 @@ import static java.util.Collections.emptyList;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -28,7 +30,7 @@ import org.eclipse.che.account.shared.model.Account;
 import org.eclipse.che.multiuser.organization.api.OrganizationManager;
 import org.eclipse.che.multiuser.organization.shared.model.Organization;
 import org.eclipse.che.multiuser.organization.spi.impl.OrganizationImpl;
-import org.eclipse.che.multiuser.resource.api.usage.ResourceUsageManager;
+import org.eclipse.che.multiuser.resource.api.usage.ResourceManager;
 import org.eclipse.che.multiuser.resource.model.ProvidedResources;
 import org.eclipse.che.multiuser.resource.spi.impl.ProvidedResourcesImpl;
 import org.eclipse.che.multiuser.resource.spi.impl.ResourceImpl;
@@ -53,23 +55,23 @@ public class SuborganizationResourcesProviderTest {
   @Mock private OrganizationManager organizationManager;
   @Mock private OrganizationResourcesDistributor resourcesDistributor;
   @Mock private Provider<OrganizationResourcesDistributor> distributorProvider;
-  @Mock private Provider<ResourceUsageManager> usageManagerProvider;
-  @Mock private ResourceUsageManager resourceUsageManager;
+  @Mock private Provider<ResourceManager> resourceManagerProvider;
+  @Mock private ResourceManager resourceManager;
 
   private SuborganizationResourcesProvider suborganizationResourcesProvider;
 
   @BeforeMethod
   public void setUp() throws Exception {
     when(accountManager.getById(any())).thenReturn(account);
-    when(organizationManager.getById(any())).thenReturn(organization);
+    lenient().when(organizationManager.getById(any())).thenReturn(organization);
 
-    when(distributorProvider.get()).thenReturn(resourcesDistributor);
+    lenient().when(distributorProvider.get()).thenReturn(resourcesDistributor);
 
-    when(usageManagerProvider.get()).thenReturn(resourceUsageManager);
+    lenient().when(resourceManagerProvider.get()).thenReturn(resourceManager);
 
     suborganizationResourcesProvider =
         new SuborganizationResourcesProvider(
-            accountManager, organizationManager, distributorProvider, usageManagerProvider);
+            accountManager, organizationManager, distributorProvider, resourceManagerProvider);
   }
 
   @Test
@@ -111,7 +113,7 @@ public class SuborganizationResourcesProviderTest {
     final ResourceImpl parentCapedResource = new ResourceImpl("caped", 20, "unit");
     final ResourceImpl parentUnlimitedCapedResource = new ResourceImpl("unlimited", -1, "unit");
     doReturn(asList(parentNotCapedResource, parentCapedResource, parentUnlimitedCapedResource))
-        .when(resourceUsageManager)
+        .when(resourceManager)
         .getTotalResources(anyString());
 
     final ResourceImpl capedResourceCap = new ResourceImpl("caped", 10, "unit");
@@ -138,7 +140,7 @@ public class SuborganizationResourcesProviderTest {
     verify(accountManager).getById("organization123");
     verify(organizationManager).getById("organization123");
     verify(resourcesDistributor).getResourcesCaps("organization123");
-    verify(resourceUsageManager).getTotalResources("parentOrg");
+    verify(resourceManager).getTotalResources("parentOrg");
   }
 
   @Test
@@ -148,7 +150,7 @@ public class SuborganizationResourcesProviderTest {
     when(account.getType()).thenReturn(OrganizationImpl.ORGANIZATIONAL_ACCOUNT);
     when(organization.getParent()).thenReturn("parentOrg");
     doReturn(emptyList()).when(resourcesDistributor).getResourcesCaps(any());
-    doReturn(emptyList()).when(resourceUsageManager).getAvailableResources(anyString());
+    doReturn(emptyList()).when(resourceManager).getAvailableResources(anyString());
 
     // when
     final List<ProvidedResources> providedResources =
@@ -159,6 +161,6 @@ public class SuborganizationResourcesProviderTest {
     verify(accountManager).getById("organization123");
     verify(organizationManager).getById("organization123");
     verify(resourcesDistributor, never()).getResourcesCaps("organization123");
-    verify(resourceUsageManager).getTotalResources("parentOrg");
+    verify(resourceManager).getTotalResources("parentOrg");
   }
 }

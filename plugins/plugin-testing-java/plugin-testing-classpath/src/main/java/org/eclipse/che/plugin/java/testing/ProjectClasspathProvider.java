@@ -1,21 +1,22 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.plugin.java.testing;
 
-import com.google.inject.name.Named;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.core.IClasspathEntry;
 import org.eclipse.jdt.core.IJavaProject;
@@ -34,8 +35,8 @@ public class ProjectClasspathProvider {
   private final String workspacePath;
 
   @Inject
-  public ProjectClasspathProvider(@Named("che.user.workspaces.storage") String workspacePath) {
-    this.workspacePath = workspacePath;
+  public ProjectClasspathProvider(RootDirPathProvider pathProvider) {
+    this.workspacePath = pathProvider.get();
   }
 
   /**

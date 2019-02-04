@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,6 +13,8 @@
 
 import {EnvironmentManager} from './environment-manager';
 import {IEnvironmentManagerMachine} from './environment-manager-machine';
+import {DockerimageParser, IDockerimage} from './docker-image-parser';
+import {CheRecipeTypes} from '../recipe/che-recipe-types';
 
 /**
  * This is the implementation of environment manager that handles the docker image format of environment.
@@ -30,35 +33,52 @@ import {IEnvironmentManagerMachine} from './environment-manager-machine';
  */
 export class DockerImageEnvironmentManager extends EnvironmentManager {
 
+  parser: DockerimageParser;
+
   constructor($log: ng.ILogService) {
     super($log);
+
+    this.parser = new DockerimageParser();
+  }
+
+  get type(): string {
+    return CheRecipeTypes.DOCKERIMAGE;
   }
 
   /**
-   * Parses a dockerimages and returns an array of objects
+   * Parses a dockerimages and returns an object which contains repo and tag.
    *
-   * @param content {string} content of dockerfile
-   * @returns {Array<string>} a list of arguments
+   * @param image {string}
+   * @returns {IDockerimage}
    * @private
    */
-  parseRecipe(content: string): Array<string> {
-    if (/\s/.test(content)) {
-      throw new TypeError('Cannot parse recipe image location');
+  parseRecipe(image: string): IDockerimage {
+    let imageObj = null;
+    try {
+      imageObj = this.parser.parse(image);
+    } catch (e) {
+      this.$log.error(e);
     }
-
-    return [content];
+    return imageObj;
   }
 
   /**
-   * Dumps a list of arguments into dockerimages
+   * Dumps an object with repo and tag into dockerimage.
    *
-   * @param instructions {Array<string>} array of objects
+   * @param imageObj {IDockerimage} array of objects
    * @returns {string} dockerfile
    * @private
    */
-  stringifyRecipe(instructions: Array<string>): string {
+  stringifyRecipe(imageObj: IDockerimage): string {
+    let image = '';
 
-    return instructions[0];
+    try {
+      image = this.parser.dump(imageObj);
+    } catch (e) {
+      this.$log.log(e);
+    }
+
+    return image;
   }
 
   /**
@@ -67,7 +87,7 @@ export class DockerImageEnvironmentManager extends EnvironmentManager {
    * @param {string} image
    * @return {IEnvironmentManagerMachine}
    */
-  createNewDefaultMachine(environment: che.IWorkspaceEnvironment, image?: string): IEnvironmentManagerMachine {
+  createMachine(environment: che.IWorkspaceEnvironment, image?: string): IEnvironmentManagerMachine {
     this.$log.error('EnvironmentManager: cannot create a new machine.');
     return null;
   }
@@ -101,10 +121,10 @@ export class DockerImageEnvironmentManager extends EnvironmentManager {
       });
 
       if (!machine) {
-        machine = {name: machineName, recipe: this.parseRecipe(environment.recipe.location)};
+        machine = {name: machineName, recipe: this.parseRecipe(environment.recipe.content)};
         machines.push(machine);
       } else {
-        machine.recipe = this.parseRecipe(environment.recipe.location);
+        machine.recipe = this.parseRecipe(environment.recipe.content);
       }
       angular.merge(machine, environment.machines[machineName]);
     });
@@ -121,7 +141,7 @@ export class DockerImageEnvironmentManager extends EnvironmentManager {
    */
   getEnvironment(environment: che.IWorkspaceEnvironment, machines: IEnvironmentManagerMachine[]): che.IWorkspaceEnvironment {
     let newEnvironment = super.getEnvironment(environment, machines);
-    newEnvironment.recipe.location = this.stringifyRecipe(machines[0].recipe);
+    newEnvironment.recipe.content = this.stringifyRecipe(machines[0].recipe);
 
     return newEnvironment;
   }

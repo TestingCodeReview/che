@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,9 +20,11 @@ import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
+import org.openqa.selenium.TimeoutException;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -43,6 +46,7 @@ public class DeletePackageWithOpenedFilesTabTest {
   @Inject private ProjectExplorer projectExplorer;
   @Inject private CodenvyEditor editor;
   @Inject private AskDialog askDialog;
+  @Inject private Consoles consoles;
   @Inject private Menu menu;
   @Inject private TestProjectServiceClient testProjectServiceClient;
 
@@ -55,6 +59,8 @@ public class DeletePackageWithOpenedFilesTabTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(testWorkspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -72,7 +78,7 @@ public class DeletePackageWithOpenedFilesTabTest {
     editor.waitActive();
     editor.selectTabByName("AppController");
 
-    projectExplorer.selectItem(PATH_TO_PACKAGE1);
+    projectExplorer.waitAndSelectItem(PATH_TO_PACKAGE1);
     deletePackage();
     projectExplorer.waitRemoveItemsByPath(PATH_TO_PACKAGE1);
     projectExplorer.waitRemoveItemsByPath(PATH_TO_PACKAGE1 + "/AppController.java");
@@ -90,7 +96,7 @@ public class DeletePackageWithOpenedFilesTabTest {
     editor.waitActive();
     editor.selectTabByName("web.xml");
 
-    projectExplorer.selectItem(PATH_TO_PACKAGE2);
+    projectExplorer.waitAndSelectItem(PATH_TO_PACKAGE2);
     deletePackage();
     projectExplorer.waitRemoveItemsByPath(PATH_TO_PACKAGE2);
     projectExplorer.waitRemoveItemsByPath(PATH_TO_PACKAGE2 + "/index.jsp");
@@ -105,7 +111,7 @@ public class DeletePackageWithOpenedFilesTabTest {
     openJavaFile(PATH_TO_PACKAGE3 + "/Test3.java", "Test3");
     openJavaFile(PATH_TO_PACKAGE3 + "/Test4.java", "Test4");
 
-    projectExplorer.selectItem(PATH_TO_PACKAGE3);
+    projectExplorer.waitAndSelectItem(PATH_TO_PACKAGE3);
     deletePackage();
     projectExplorer.waitRemoveItemsByPath(PATH_TO_PACKAGE3);
     projectExplorer.waitRemoveItemsByPath(PATH_TO_PACKAGE3 + "/Test1.java");
@@ -116,8 +122,7 @@ public class DeletePackageWithOpenedFilesTabTest {
 
   /** delete package for menu File */
   private void deletePackage() {
-    menu.runAndWaitCommand(
-        TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
+    menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     askDialog.waitFormToOpen();
     askDialog.clickOkBtn();
     askDialog.waitFormToClose();
@@ -131,7 +136,13 @@ public class DeletePackageWithOpenedFilesTabTest {
 
   private void openJavaFile(String path, String fileName) {
     projectExplorer.openItemByPath(path);
-    editor.waitTabIsPresent(fileName);
+    try {
+      editor.waitTabIsPresent(fileName);
+    } catch (TimeoutException ex) {
+      projectExplorer.openItemByPath(path);
+      editor.waitTabIsPresent(fileName);
+    }
+
     editor.waitActive();
   }
 }

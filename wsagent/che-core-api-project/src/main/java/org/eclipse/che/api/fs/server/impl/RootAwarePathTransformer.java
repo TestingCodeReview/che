@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,12 +13,12 @@ package org.eclipse.che.api.fs.server.impl;
 
 import static org.eclipse.che.api.fs.server.WsPathUtils.ROOT;
 
-import java.io.File;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.inject.Singleton;
 import org.eclipse.che.api.fs.server.PathTransformer;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 
 @Singleton
 public class RootAwarePathTransformer implements PathTransformer {
@@ -25,8 +26,8 @@ public class RootAwarePathTransformer implements PathTransformer {
   private final Path root;
 
   @Inject
-  public RootAwarePathTransformer(@Named("che.user.workspaces.storage") File root) {
-    this.root = root.toPath().normalize().toAbsolutePath();
+  public RootAwarePathTransformer(RootDirPathProvider rootProvider) {
+    this.root = Paths.get(rootProvider.get());
   }
 
   @Override

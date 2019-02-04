@@ -1,16 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.git.client.compare.branchlist;
 
+import static com.google.gwt.event.dom.client.KeyCodes.KEY_BACKSPACE;
+
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.safehtml.shared.SafeHtmlBuilder;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -132,7 +136,8 @@ public class BranchListViewImpl extends Window implements BranchListView {
             listBranchesDelegate,
             this::onFilterChanged);
     branchesPanel.add(branchesList);
-    searchFilterLabel.addClickHandler(event -> branchesList.setFocus(true));
+
+    setCloseOnEscape(false);
 
     createButtons();
   }
@@ -164,14 +169,31 @@ public class BranchListViewImpl extends Window implements BranchListView {
   }
 
   @Override
-  public void close() {
-    this.hide();
+  public void closeDialogIfShowing() {
+    hide();
   }
 
   @Override
   public void showDialog() {
-    this.show();
-    branchesList.setFocus(true);
+    show();
+  }
+
+  @Override
+  public void onKeyPress(NativeEvent evt) {
+    if (evt.getKeyCode() == KEY_BACKSPACE) {
+      branchesList.removeLastCharacter();
+    } else {
+      branchesList.addCharacterToFilter(String.valueOf(evt.getCharCode()));
+    }
+  }
+
+  @Override
+  public void onEscPress(NativeEvent evt) {
+    if (branchesList.getFilter().isEmpty()) {
+      hide();
+    } else {
+      branchesList.resetFilter();
+    }
   }
 
   @Override
@@ -185,21 +207,14 @@ public class BranchListViewImpl extends Window implements BranchListView {
     searchFilterLabel.setText(locale.branchSearchFilterLabel());
   }
 
-  @Override
-  public void onClose() {
-    delegate.onClose();
-  }
-
   private void createButtons() {
     btnClose =
-        createButton(locale.buttonClose(), "git-compare-branch-close", event -> delegate.onClose());
-    addButtonToFooter(btnClose);
-
+        addFooterButton(
+            locale.buttonClose(), "git-compare-branch-close", event -> delegate.onClose());
     btnCompare =
-        createButton(
+        addFooterButton(
             locale.buttonCompare(),
             "git-compare-branch-compare",
             event -> delegate.onCompareClicked());
-    addButtonToFooter(btnCompare);
   }
 }

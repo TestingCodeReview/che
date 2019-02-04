@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,8 +19,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.function.Consumer;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -47,7 +50,7 @@ public class FileWatcherEventHandlerTest {
   public void setUp() throws Exception {
     root = rootFolder.getRoot().toPath();
 
-    handler = new FileWatcherEventHandler(rootFolder.getRoot());
+    handler = new FileWatcherEventHandler(new DummyRootProvider(rootFolder.getRoot()));
   }
 
   @Test
@@ -124,5 +127,12 @@ public class FileWatcherEventHandlerTest {
     handler.handle(path, ENTRY_CREATE);
 
     verify(create).accept(toInternalPath(root, path));
+  }
+
+  private static class DummyRootProvider extends RootDirPathProvider {
+
+    public DummyRootProvider(File folder) {
+      this.rootFile = folder;
+    }
   }
 }

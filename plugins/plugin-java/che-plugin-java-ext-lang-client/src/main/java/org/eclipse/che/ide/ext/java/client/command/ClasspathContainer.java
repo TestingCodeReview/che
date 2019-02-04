@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,10 +18,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.che.api.promises.client.Promise;
-import org.eclipse.che.api.promises.client.js.Promises;
-import org.eclipse.che.ide.ext.java.client.project.classpath.ClasspathChangedEvent;
-import org.eclipse.che.ide.ext.java.client.project.classpath.service.ClasspathServiceClient;
-import org.eclipse.che.ide.ext.java.shared.dto.classpath.ClasspathEntryDto;
+import org.eclipse.che.api.promises.client.PromiseProvider;
+import org.eclipse.che.ide.ext.java.client.project.classpath.ProjectClasspathChangedEvent;
+import org.eclipse.che.ide.ext.java.client.service.JavaLanguageExtensionServiceClient;
+import org.eclipse.che.jdt.ls.extension.api.dto.ClasspathEntry;
 
 /**
  * Storage of the classpath entries.
@@ -28,20 +29,24 @@ import org.eclipse.che.ide.ext.java.shared.dto.classpath.ClasspathEntryDto;
  * @author Valeriy Svydenko
  */
 @Singleton
-public class ClasspathContainer implements ClasspathChangedEvent.ClasspathChangedHandler {
+public class ClasspathContainer
+    implements ProjectClasspathChangedEvent.ProjectClasspathChangedHandler {
   public static String JRE_CONTAINER = "org.eclipse.jdt.launching.JRE_CONTAINER";
 
-  private final ClasspathServiceClient classpathServiceClient;
-
-  private Map<String, Promise<List<ClasspathEntryDto>>> classpathes;
+  private final JavaLanguageExtensionServiceClient extensionService;
+  private final PromiseProvider promiseProvider;
+  private Map<String, Promise<List<ClasspathEntry>>> classpath;
 
   @Inject
-  public ClasspathContainer(ClasspathServiceClient classpathServiceClient, EventBus eventBus) {
-    this.classpathServiceClient = classpathServiceClient;
+  public ClasspathContainer(
+      JavaLanguageExtensionServiceClient extensionService,
+      EventBus eventBus,
+      PromiseProvider promiseProvider) {
+    this.extensionService = extensionService;
+    this.promiseProvider = promiseProvider;
+    classpath = new HashMap<>();
 
-    classpathes = new HashMap<>();
-
-    eventBus.addHandler(ClasspathChangedEvent.TYPE, this);
+    eventBus.addHandler(ProjectClasspathChangedEvent.TYPE, this);
   }
 
   /**
@@ -51,18 +56,25 @@ public class ClasspathContainer implements ClasspathChangedEvent.ClasspathChange
    * @param projectPath path to the project
    * @return list of the classpath entries
    */
-  public Promise<List<ClasspathEntryDto>> getClasspathEntries(String projectPath) {
-    if (classpathes.containsKey(projectPath)) {
-      return classpathes.get(projectPath);
+  public Promise<List<ClasspathEntry>> getClasspathEntries(String projectPath) {
+    if (classpath.containsKey(projectPath)) {
+      return classpath.get(projectPath);
     } else {
-      Promise<List<ClasspathEntryDto>> result = classpathServiceClient.getClasspath(projectPath);
-      classpathes.put(projectPath, result);
+      Promise<List<ClasspathEntry>> result =
+          extensionService
+              .classpathTree(projectPath)
+              .catchErrorPromise(
+                  error -> {
+                    classpath.remove(projectPath);
+                    return promiseProvider.reject(error);
+                  });
+      classpath.put(projectPath, result);
       return result;
     }
   }
 
   @Override
-  public void onClasspathChanged(ClasspathChangedEvent event) {
-    classpathes.put(event.getPath(), Promises.resolve(event.getEntries()));
+  public void onProjectClasspathChanged(ProjectClasspathChangedEvent event) {
+    classpath.remove(event.getProject());
   }
 }

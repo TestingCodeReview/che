@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -47,7 +49,6 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.lib.RepositoryState;
 import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.transport.SshTransport;
-import org.eclipse.jgit.transport.Transport;
 import org.eclipse.jgit.transport.TransportHttp;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.mockito.ArgumentCaptor;
@@ -86,14 +87,14 @@ public class JGitConnectionTest {
 
     RepositoryState repositoryState = mock(RepositoryState.class);
     GitUser gitUser = mock(GitUser.class);
-    when(repositoryState.canAmend()).thenReturn(true);
-    when(repositoryState.canCommit()).thenReturn(true);
-    when(repository.getRepositoryState()).thenReturn(repositoryState);
-    when(gitUser.getName()).thenReturn("username");
-    when(gitUser.getEmail()).thenReturn("email");
-    when(userResolver.getUser()).thenReturn(gitUser);
-    when(repository.getDirectory()).thenReturn(directory);
-    when(directory.getPath()).thenReturn("path");
+    lenient().when(repositoryState.canAmend()).thenReturn(true);
+    lenient().when(repositoryState.canCommit()).thenReturn(true);
+    lenient().when(repository.getRepositoryState()).thenReturn(repositoryState);
+    lenient().when(gitUser.getName()).thenReturn("username");
+    lenient().when(gitUser.getEmail()).thenReturn("email");
+    lenient().when(userResolver.getUser()).thenReturn(gitUser);
+    lenient().when(repository.getDirectory()).thenReturn(directory);
+    lenient().when(directory.getPath()).thenReturn("path");
   }
 
   @DataProvider(name = "gitUrlsWithCredentialsProvider")
@@ -191,7 +192,8 @@ public class JGitConnectionTest {
      * with  help real children {@link TransportHttp}, which returns real not null
      * value. And then we can create mock {@link TransportHttp}.
      */
-    mock(Transport.class);
+    org.eclipse.jgit.transport.Transport transport =
+        mock(org.eclipse.jgit.transport.Transport.class);
     TransportHttp transportHttp = mock(TransportHttp.class);
     when(sshKeyProvider.getPrivateKey(anyString())).thenReturn(new byte[0]);
     doAnswer(
@@ -223,17 +225,16 @@ public class JGitConnectionTest {
     when(repository.exactRef(Constants.HEAD)).thenReturn(ref);
     when(ref.getLeaf()).thenReturn(ref);
     when(ref.getName()).thenReturn(branchTest);
-    String branchName = jGitConnection.getCurrentBranch();
+    String branchName = jGitConnection.getCurrentReference().getName();
 
     assertEquals(branchName, branchTest);
   }
 
   /** Test for workaround related to https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685. */
   @Test(
-    expectedExceptions = GitException.class,
-    expectedExceptionsMessageRegExp =
-        "Changes are present but not changed path was specified for commit."
-  )
+      expectedExceptions = GitException.class,
+      expectedExceptionsMessageRegExp =
+          "Changes are present but not changed path was specified for commit.")
   public void testCommitNotChangedSpecifiedPathsWithAmendWhenOtherStagedChangesArePresent()
       throws Exception {
     // given
@@ -250,10 +251,9 @@ public class JGitConnectionTest {
 
   /** Test for workaround related to https://bugs.eclipse.org/bugs/show_bug.cgi?id=510685. */
   @Test(
-    expectedExceptions = GitException.class,
-    expectedExceptionsMessageRegExp =
-        "Changes are present but not changed path was specified for commit."
-  )
+      expectedExceptions = GitException.class,
+      expectedExceptionsMessageRegExp =
+          "Changes are present but not changed path was specified for commit.")
   public void
       testCommitNotChangedSpecifiedPathsWithAmendAndWithAllWhenOtherUnstagedChangesArePresent()
           throws Exception {

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -23,7 +24,6 @@ import javax.validation.constraints.NotNull;
 import org.eclipse.che.api.core.ErrorCodes;
 import org.eclipse.che.api.git.shared.ResetRequest;
 import org.eclipse.che.api.git.shared.Revision;
-import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.ext.git.client.GitLocalizationConstant;
@@ -49,7 +49,6 @@ public class ResetToCommitPresenter implements ResetToCommitView.ActionDelegate 
   private final DialogFactory dialogFactory;
   private final ProcessesPanelPresenter consolesPanelPresenter;
   private final GitServiceClient service;
-  private final AppContext appContext;
   private final GitLocalizationConstant constant;
   private final NotificationManager notificationManager;
 
@@ -64,7 +63,6 @@ public class ResetToCommitPresenter implements ResetToCommitView.ActionDelegate 
       GitServiceClient service,
       GitLocalizationConstant constant,
       DialogFactory dialogFactory,
-      AppContext appContext,
       NotificationManager notificationManager,
       GitOutputConsoleFactory gitOutputConsoleFactory,
       ProcessesPanelPresenter processesPanelPresenter) {
@@ -75,7 +73,6 @@ public class ResetToCommitPresenter implements ResetToCommitView.ActionDelegate 
     this.view.setDelegate(this);
     this.service = service;
     this.constant = constant;
-    this.appContext = appContext;
     this.notificationManager = notificationManager;
   }
 
@@ -127,8 +124,6 @@ public class ResetToCommitPresenter implements ResetToCommitView.ActionDelegate 
                 view.setRevisions(revisions);
                 view.setMixMode(true);
                 view.showDialog();
-
-                project.synchronize();
               }
             })
         .catchError(
@@ -164,8 +159,6 @@ public class ResetToCommitPresenter implements ResetToCommitView.ActionDelegate 
               console.print(constant.resetSuccessfully());
               consolesPanelPresenter.addCommandOutput(console);
               notificationManager.notify(constant.resetSuccessfully());
-
-              project.synchronize();
             })
         .catchError(
             error -> {

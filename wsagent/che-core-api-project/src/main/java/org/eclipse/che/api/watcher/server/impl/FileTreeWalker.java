@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,20 +18,22 @@ import static java.nio.file.Files.walkFileTree;
 import static java.util.stream.Collectors.toSet;
 
 import com.google.inject.Inject;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import javax.annotation.PostConstruct;
 import javax.inject.Named;
 import javax.inject.Singleton;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 import org.eclipse.che.commons.schedule.ScheduleRate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +46,7 @@ import org.slf4j.LoggerFactory;
 public class FileTreeWalker {
   private static final Logger LOG = LoggerFactory.getLogger(FileTreeWalker.class);
 
-  private final File root;
+  private final Path root;
 
   private final Set<Consumer<Path>> directoryUpdateConsumers;
   private final Set<Consumer<Path>> directoryCreateConsumers;
@@ -58,9 +61,11 @@ public class FileTreeWalker {
   private final Map<Path, Long> files = new HashMap<>();
   private final Map<Path, Long> directories = new HashMap<>();
 
+  private boolean initialized;
+
   @Inject
   public FileTreeWalker(
-      @Named("che.user.workspaces.storage") File root,
+      RootDirPathProvider pathProvider,
       @Named("che.fs.directory.update") Set<Consumer<Path>> directoryUpdateConsumers,
       @Named("che.fs.directory.create") Set<Consumer<Path>> directoryCreateConsumers,
       @Named("che.fs.directory.delete") Set<Consumer<Path>> directoryDeleteConsumers,
@@ -69,7 +74,7 @@ public class FileTreeWalker {
       @Named("che.fs.file.create") Set<Consumer<Path>> fileCreateConsumers,
       @Named("che.fs.file.delete") Set<Consumer<Path>> fileDeleteConsumers,
       @Named("che.fs.file.excludes") Set<PathMatcher> fileExcludes) {
-    this.root = root;
+    this.root = Paths.get(pathProvider.get());
 
     this.directoryUpdateConsumers = directoryUpdateConsumers;
     this.directoryCreateConsumers = directoryCreateConsumers;
@@ -83,8 +88,51 @@ public class FileTreeWalker {
     this.fileExcludes = fileExcludes;
   }
 
+  @PostConstruct
+  void initialize() {
+    try {
+      walkFileTree(
+          root,
+          new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+              for (PathMatcher matcher : directoryExcludes) {
+                if (matcher.matches(dir)) {
+                  return SKIP_SUBTREE;
+                }
+              }
+
+              directories.put(dir, attrs.lastModifiedTime().toMillis());
+
+              return CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+              for (PathMatcher matcher : fileExcludes) {
+                if (matcher.matches(file)) {
+                  return CONTINUE;
+                }
+              }
+
+              files.put(file, attrs.lastModifiedTime().toMillis());
+
+              return CONTINUE;
+            }
+          });
+    } catch (IOException e) {
+      LOG.error("Error while walking file tree", e);
+    }
+
+    initialized = true;
+  }
+
   @ScheduleRate(period = 10)
   void walk() {
+    if (!initialized) {
+      return;
+    }
+
     try {
       LOG.debug("Tree walk started");
 
@@ -98,7 +146,7 @@ public class FileTreeWalker {
       directories.keySet().removeAll(deletedDirectories);
 
       walkFileTree(
-          root.toPath(),
+          root,
           new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)

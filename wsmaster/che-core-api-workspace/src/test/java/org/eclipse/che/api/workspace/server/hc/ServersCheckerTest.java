@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,7 +22,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 
 import com.google.common.collect.ImmutableMap;
@@ -45,10 +45,19 @@ import org.testng.annotations.Test;
 /** @author Alexander Garagatyi */
 @Listeners(MockitoTestNGListener.class)
 public class ServersCheckerTest {
+  private static final String WSAGENT_HTTP_SERVER = "wsagent/http";
+  private static final String EXEC_AGENT_HTTP_SERVER = "exec-agent/http";
+  private static final String TERMINAL_SERVER = "terminal";
+
+  private static final String[] CONFIGURED_SERVERS =
+      new String[] {WSAGENT_HTTP_SERVER, EXEC_AGENT_HTTP_SERVER, TERMINAL_SERVER};
 
   private static final String MACHINE_NAME = "mach1";
   private static final String MACHINE_TOKEN = "machineToken";
   private static final String WORKSPACE_ID = "ws123";
+  private static final String USER_ID = "0000-0000-0007";
+  private static final int SERVER_PING_SUCCESS_THRESHOLD = 1;
+  private static final long SERVER_PING_INTERVAL_MILLIS = 3000;
 
   @Mock private Consumer<String> readinessHandler;
   @Mock private MachineTokenProvider machineTokenProvider;
@@ -64,19 +73,30 @@ public class ServersCheckerTest {
     servers = new HashMap<>();
     servers.putAll(
         ImmutableMap.of(
-            "wsagent/http", new ServerImpl().withUrl("http://localhost"),
-            "exec-agent/http", new ServerImpl().withUrl("http://localhost"),
-            "terminal", new ServerImpl().withUrl("http://localhost")));
+            WSAGENT_HTTP_SERVER, new ServerImpl().withUrl("http://localhost/api"),
+            EXEC_AGENT_HTTP_SERVER, new ServerImpl().withUrl("http://localhost/exec-agent/process"),
+            TERMINAL_SERVER, new ServerImpl().withUrl("http://localhost/terminal/pty")));
 
     compFuture = new CompletableFuture<>();
 
     when(connectionChecker.getReportCompFuture()).thenReturn(compFuture);
 
     when(runtimeIdentity.getWorkspaceId()).thenReturn(WORKSPACE_ID);
+    when(runtimeIdentity.getOwnerId()).thenReturn(USER_ID);
 
-    checker = spy(new ServersChecker(runtimeIdentity, MACHINE_NAME, servers, machineTokenProvider));
-    when(checker.doCreateChecker(any(URL.class), anyString())).thenReturn(connectionChecker);
-    when(machineTokenProvider.getToken(anyString())).thenReturn(MACHINE_TOKEN);
+    checker =
+        spy(
+            new ServersChecker(
+                runtimeIdentity,
+                MACHINE_NAME,
+                servers,
+                machineTokenProvider,
+                SERVER_PING_SUCCESS_THRESHOLD,
+                SERVER_PING_INTERVAL_MILLIS,
+                CONFIGURED_SERVERS));
+    when(checker.doCreateChecker(any(URL.class), anyString(), anyString()))
+        .thenReturn(connectionChecker);
+    when(machineTokenProvider.getToken(anyString(), anyString())).thenReturn(MACHINE_TOKEN);
   }
 
   @AfterMethod(timeOut = 1000)
@@ -88,18 +108,19 @@ public class ServersCheckerTest {
   }
 
   @Test(timeOut = 1000)
-  public void shouldUseMachineTokenWhenConstructionUrlToCheck() throws Exception {
+  public void shouldUseMachineTokenWhenCallChecker() throws Exception {
     servers.clear();
     servers.put("wsagent/http", new ServerImpl().withUrl("http://localhost"));
 
     checker.startAsync(readinessHandler);
     connectionChecker.getReportCompFuture().complete("wsagent/http");
 
-    verify(machineTokenProvider).getToken(WORKSPACE_ID);
-    ArgumentCaptor<URL> urlCaptor = ArgumentCaptor.forClass(URL.class);
-    verify(checker).doCreateChecker(urlCaptor.capture(), eq("wsagent/http"));
-    URL urlToCheck = urlCaptor.getValue();
-    assertNotEquals(urlToCheck.getQuery().indexOf("token=" + MACHINE_TOKEN), -1);
+    verify(machineTokenProvider).getToken(USER_ID, WORKSPACE_ID);
+    ArgumentCaptor<String> tokenCaptor = ArgumentCaptor.forClass(String.class);
+    verify(checker)
+        .doCreateChecker(
+            eq(new URL("http://localhost/")), eq("wsagent/http"), tokenCaptor.capture());
+    assertEquals(tokenCaptor.getValue(), MACHINE_TOKEN);
   }
 
   @Test(timeOut = 1000)
@@ -129,12 +150,12 @@ public class ServersCheckerTest {
   }
 
   @Test(timeOut = 1000)
-  public void shouldNotCheckNotHardcodedServers() throws Exception {
+  public void shouldNotCheckNotConfiguredServers() throws Exception {
     servers.clear();
     servers.putAll(
         ImmutableMap.of(
             "wsagent/http", new ServerImpl().withUrl("http://localhost"),
-            "not-hardcoded", new ServerImpl().withUrl("http://localhost")));
+            "not-configured", new ServerImpl().withUrl("http://localhost")));
 
     checker.startAsync(readinessHandler);
     connectionChecker.getReportCompFuture().complete("test_ref");
@@ -171,9 +192,8 @@ public class ServersCheckerTest {
   }
 
   @Test(
-    expectedExceptions = InfrastructureException.class,
-    expectedExceptionsMessageRegExp = "oops!"
-  )
+      expectedExceptions = InfrastructureException.class,
+      expectedExceptionsMessageRegExp = "oops!")
   public void throwsExceptionIfAnyServerIsNotAvailable() throws InfrastructureException {
     doThrow(new InfrastructureException("oops!")).when(connectionChecker).checkOnce(any());
 

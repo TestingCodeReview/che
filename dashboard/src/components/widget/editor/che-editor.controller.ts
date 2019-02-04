@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,6 +15,13 @@ interface IEditor {
   refresh: Function;
   on(name: string, listener: (...args: any[]) => any);
   getDoc(): any;
+  getCursor(): ICursorPos;
+  setCursor(cursorPos: ICursorPos): void;
+}
+
+interface ICursorPos {
+  line: number;
+  ch: number;
 }
 
 interface IEditorState {
@@ -28,13 +36,24 @@ interface IEditorState {
  * @author Oleksii Orel
  */
 export class CheEditorController {
+
+  static $inject = ['$timeout'];
+
+  setEditorValue: (content: string) => void;
   /**
    * Editor options object.
    */
   private editorOptions: {
     mode?: string;
+    readOnly?: boolean;
+    lineWrapping?: boolean;
+    lineNumbers?: boolean;
     onLoad: Function;
   };
+  /**
+   * Editor form controller.
+   */
+  private editorForm: ng.IFormController;
   /**
    * Editor state object.
    */
@@ -48,23 +67,45 @@ export class CheEditorController {
    */
   private onContentChange: Function;
   /**
+   * Is editor read only.
+   */
+  private editorReadOnly: boolean;
+  /**
    * Editor mode.
    */
   private editorMode: string;
+  /**
+   * Cursor position.
+   */
+  private cursorPos: ICursorPos = {line: 0, ch: 0};
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
   constructor($timeout: ng.ITimeoutService) {
     this.editorOptions = {
       mode: angular.isString(this.editorMode) ? this.editorMode : 'application/json',
+      readOnly: this.editorReadOnly ? this.editorReadOnly : false,
+      lineWrapping: true,
+      lineNumbers: true,
       onLoad: (editor: IEditor) => {
         $timeout(() => {
+          //to avoid Ctrl+Z clear the content
+          editor.getDoc().clearHistory();
           editor.refresh();
-        }, 500);
+        }, 2500);
         const doc = editor.getDoc();
+        this.setEditorValue = (content: string) => {
+          doc.setValue(content);
+        };
         editor.on('change', () => {
+          const {line, ch} = editor.getCursor();
+          if (line === 0 && ch === 0) {
+            editor.setCursor(this.cursorPos);
+          } else {
+            this.cursorPos.ch = ch;
+            this.cursorPos.line = line;
+          }
           $timeout(() => {
             this.editorState.errors.length = 0;
             let editorErrors: Array<{ id: string; message: string }> = doc.getAllMarks().filter((mark: any) => {
@@ -81,22 +122,31 @@ export class CheEditorController {
               }
               return {id: mark.id, message: message};
             });
-            if (angular.isFunction(this.validator)) {
-              const customValidatorState: IEditorState = this.validator();
-              if (customValidatorState && angular.isArray(customValidatorState.errors)) {
-                customValidatorState.errors.forEach((error: string) => {
-                  this.editorState.errors.push(error);
-                });
-              }
-            }
             editorErrors.forEach((editorError: { id: string; message: string }) => {
+              if (!editorError || !editorError.message) {
+                return;
+              }
               this.editorState.errors.push(editorError.message);
             });
+            if (angular.isFunction(this.validator)) {
+              try {
+                const customValidatorState: IEditorState = this.validator();
+                if (customValidatorState && angular.isArray(customValidatorState.errors)) {
+                  customValidatorState.errors.forEach((error: string) => {
+                    this.editorState.errors.push(error);
+                  });
+                }
+              } catch (error) {
+                this.editorState.errors.push(error.toString());
+              }
+            }
             this.editorState.isValid = this.editorState.errors.length === 0;
             if (angular.isFunction(this.onContentChange)) {
               this.onContentChange({editorState: this.editorState});
             }
-          }, 1500);
+
+            this.editorForm.$setValidity('custom-validator', this.editorState.isValid, null);
+          }, 500);
         });
       }
     };

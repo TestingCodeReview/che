@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,6 +18,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -46,6 +48,7 @@ import org.eclipse.che.ide.command.editor.page.project.ProjectsPage;
 import org.eclipse.che.ide.command.node.CommandFileNode;
 import org.eclipse.che.ide.command.node.NodeFactory;
 import org.eclipse.che.ide.ui.dialogs.DialogFactory;
+import org.eclipse.che.ide.ui.dialogs.confirm.ConfirmCallback;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -107,15 +110,7 @@ public class CommandEditorTest {
     verify(view).setDelegate(editor);
     verify(eventBus).addHandler(CommandRemovedEvent.getType(), editor);
 
-    verify(commandLinePage).setDirtyStateListener(any(DirtyStateListener.class));
-    verify(goalPage).setDirtyStateListener(any(DirtyStateListener.class));
-    verify(projectsPage).setDirtyStateListener(any(DirtyStateListener.class));
-    verify(previewUrlPage).setDirtyStateListener(any(DirtyStateListener.class));
-
-    verify(commandLinePage).edit(editor.editedCommand);
-    verify(goalPage).edit(editor.editedCommand);
-    verify(projectsPage).edit(editor.editedCommand);
-    verify(previewUrlPage).edit(editor.editedCommand);
+    verifyPagesInitialized();
   }
 
   @Test
@@ -154,10 +149,7 @@ public class CommandEditorTest {
     editor.doSave();
 
     verify(commandManager).updateCommand(anyString(), eq(editor.editedCommand));
-    verify(commandPromise).then(operationCaptor.capture());
-    operationCaptor.getValue().apply(editedCommand);
-
-    verify(view).setSaveEnabled(false);
+    verifyPagesInitialized();
   }
 
   @Test(expected = OperationException.class)
@@ -172,6 +164,16 @@ public class CommandEditorTest {
     errorOperationCaptor.getValue().apply(mock(PromiseError.class));
     verify(editorMessages).editorMessageUnableToSave();
     verify(notificationManager).notify(anyString(), anyString(), WARNING, EMERGE_MODE);
+  }
+
+  @Test()
+  public void shouldNotSaveCommandWhenInvalidData() throws Exception {
+    when(namePage.hasInvalidData()).thenReturn(true);
+
+    editor.doSave();
+
+    verify(dialogFactory).createMessageDialog(anyString(), anyString(), any(ConfirmCallback.class));
+    verify(commandManager, never()).updateCommand(anyString(), eq(editor.editedCommand));
   }
 
   @Test
@@ -210,5 +212,17 @@ public class CommandEditorTest {
 
     verify(editorAgent).closeEditor(editor);
     verify(handlerRegistration).removeHandler();
+  }
+
+  private void verifyPagesInitialized() throws Exception {
+    verify(commandLinePage).setDirtyStateListener(any(DirtyStateListener.class));
+    verify(goalPage).setDirtyStateListener(any(DirtyStateListener.class));
+    verify(projectsPage).setDirtyStateListener(any(DirtyStateListener.class));
+    verify(previewUrlPage).setDirtyStateListener(any(DirtyStateListener.class));
+
+    verify(commandLinePage).edit(editor.editedCommand);
+    verify(goalPage).edit(editor.editedCommand);
+    verify(projectsPage).edit(editor.editedCommand);
+    verify(previewUrlPage).edit(editor.editedCommand);
   }
 }

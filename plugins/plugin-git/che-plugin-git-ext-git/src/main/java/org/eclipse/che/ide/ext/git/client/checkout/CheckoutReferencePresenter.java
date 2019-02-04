@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,7 +17,6 @@ import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAI
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.eclipse.che.api.git.shared.CheckoutRequest;
-import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.dto.DtoFactory;
@@ -38,7 +38,6 @@ public class CheckoutReferencePresenter implements CheckoutReferenceView.ActionD
 
   private final NotificationManager notificationManager;
   private final GitServiceClient service;
-  private final AppContext appContext;
   private final GitLocalizationConstant constant;
   private final CheckoutReferenceView view;
   private final DtoFactory dtoFactory;
@@ -51,7 +50,6 @@ public class CheckoutReferencePresenter implements CheckoutReferenceView.ActionD
   public CheckoutReferencePresenter(
       CheckoutReferenceView view,
       GitServiceClient service,
-      AppContext appContext,
       GitLocalizationConstant constant,
       NotificationManager notificationManager,
       GitOutputConsoleFactory gitOutputConsoleFactory,
@@ -61,7 +59,6 @@ public class CheckoutReferencePresenter implements CheckoutReferenceView.ActionD
     this.dtoFactory = dtoFactory;
     this.view.setDelegate(this);
     this.service = service;
-    this.appContext = appContext;
     this.constant = constant;
     this.notificationManager = notificationManager;
     this.gitOutputConsoleFactory = gitOutputConsoleFactory;
@@ -82,19 +79,12 @@ public class CheckoutReferencePresenter implements CheckoutReferenceView.ActionD
 
   @Override
   public void onCheckoutClicked(final String reference) {
-
     service
         .checkout(
             project.getLocation(), dtoFactory.createDto(CheckoutRequest.class).withName(reference))
         .then(
             branchName -> {
-              appContext
-                  .getRootProject()
-                  .synchronize()
-                  .then(
-                      arg -> {
-                        view.close();
-                      });
+              view.close();
             })
         .catchError(
             error -> {

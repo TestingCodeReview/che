@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2012-2017 Red Hat, Inc.
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
+// Copyright (c) 2012-2018 Red Hat, Inc.
+// This program and the accompanying materials are made
+// available under the terms of the Eclipse Public License 2.0
+// which is available at https://www.eclipse.org/legal/epl-2.0/
+//
+// SPDX-License-Identifier: EPL-2.0
 //
 // Contributors:
 //   Red Hat, Inc. - initial API and implementation
@@ -17,16 +18,16 @@ import (
 	"time"
 	"sync"
 
-	"github.com/eclipse/che/agents/go-agents/core/event"
-	"github.com/eclipse/che/agents/go-agents/core/jsonrpc"
-	"github.com/eclipse/che/agents/go-agents/core/jsonrpc/jsonrpctest"
+	"github.com/eclipse/che-go-jsonrpc/event"
+	"github.com/eclipse/che-go-jsonrpc"
+	"github.com/eclipse/che-go-jsonrpc/jsonrpctest"
 )
 
 var (
 	testRuntimeID = RuntimeID{
 		Workspace:   "my-workspace",
 		Environment: "my-env",
-		Owner:       "me",
+		OwnerId:     "id",
 	}
 	testMachineName = "my-machine"
 
@@ -41,6 +42,12 @@ var (
 		Description: "Installer for testing",
 		Version:     "1.0",
 		Script:      "echo test",
+	}
+	print3numbersAndFailInst = Installer{
+		ID:          "test-installer-3",
+		Description: "Installer for testing",
+		Version:     "1.0",
+		Script:      "printf \"1\n\" && sleep 1 && printf \"error\" >&2 && exit 1",
 	}
 )
 
@@ -83,9 +90,41 @@ func TestBootstrap(t *testing.T) {
 		&StatusChangedEvent{Status: StatusDone},
 	}
 
-	if err := cr.WaitUntil(jsonrpctest.WriteCalledAtLeast(len(expectedEvents))); err != nil {
+	requests, err := cr.GetAllRequests()
+	if err != nil {
 		t.Fatal(err)
 	}
+	checkEvents(t, requests, expectedEvents...)
+}
+
+func TestBootstrapWhenItFails(t *testing.T) {
+	// configuring bootstrapper
+	runtimeID = testRuntimeID
+	machineName = testMachineName
+	installerTimeout = time.Second * 2
+	installers = []Installer{print3numbersAndFailInst}
+
+	// configuring jsonrpc endpoint
+	tunnel, cr, rr := jsonrpctest.NewTmpTunnel(2 * time.Second)
+	defer tunnel.Close()
+	defer rr.Close()
+	PushStatuses(tunnel)
+	PushLogs(tunnel, nil)
+
+	startAndWaitInstallations(t)
+
+	expectedEvents := []event.E{
+		&StatusChangedEvent{Status: StatusStarting},
+
+		&InstallerStatusChangedEvent{Status: InstallerStatusStarting, Installer: print3numbersAndFailInst.ID},
+		&InstallerLogEvent{Stream: StdoutStream, Text: "1", Installer: print3numbersAndFailInst.ID},
+		&InstallerLogEvent{Stream: StderrStream, Text: "error", Installer: print3numbersAndFailInst.ID},
+
+		&InstallerStatusChangedEvent{Status: InstallerStatusFailed, Installer: print3numbersAndFailInst.ID, Error: "error"},
+
+		&StatusChangedEvent{Status: InstallerStatusFailed, Error: "error"},
+	}
+
 	requests, err := cr.GetAllRequests()
 	if err != nil {
 		t.Fatal(err)

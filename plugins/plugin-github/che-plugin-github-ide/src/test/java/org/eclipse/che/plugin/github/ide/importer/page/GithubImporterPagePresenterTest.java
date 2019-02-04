@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -44,10 +45,12 @@ import org.eclipse.che.ide.api.project.MutableProjectConfig;
 import org.eclipse.che.ide.api.wizard.Wizard;
 import org.eclipse.che.ide.commons.exception.UnauthorizedException;
 import org.eclipse.che.ide.dto.DtoFactory;
+import org.eclipse.che.ide.ui.dialogs.DialogFactory;
 import org.eclipse.che.plugin.github.ide.GitHubLocalizationConstant;
 import org.eclipse.che.plugin.github.ide.GitHubServiceClient;
 import org.eclipse.che.plugin.github.ide.load.ProjectData;
 import org.eclipse.che.plugin.github.shared.GitHubUser;
+import org.eclipse.che.plugin.ssh.key.client.SshKeyManager;
 import org.eclipse.che.security.oauth.OAuthStatus;
 import org.junit.Before;
 import org.junit.Test;
@@ -81,6 +84,8 @@ public class GithubImporterPagePresenterTest {
   @Mock private AppContext appContext;
   @Mock private OAuthServiceClient oAuthServiceClient;
   @Mock private NotificationManager notificationManager;
+  @Mock private DialogFactory dialogFactory;
+  @Mock private SshKeyManager sshKeyManager;
 
   private GithubImporterPagePresenter presenter;
 
@@ -99,8 +104,10 @@ public class GithubImporterPagePresenterTest {
                 gitHubAuthenticatorRegistry,
                 gitHubClientService,
                 dtoFactory,
+                dialogFactory,
                 appContext,
                 locale,
+                sshKeyManager,
                 oAuthServiceClient,
                 notificationManager));
     doReturn(Collections.singletonList(gitHubUser))
@@ -172,7 +179,14 @@ public class GithubImporterPagePresenterTest {
   public void onRepositorySelectedTest() {
     ProjectData projectData =
         new ProjectData(
-            "name", "description", "type", Collections.emptyList(), "repoUrl", "readOnlyUrl");
+            "name",
+            "description",
+            "type",
+            Collections.emptyList(),
+            "repoUrl",
+            "readOnlyUrl",
+            "httpTransportUrl",
+            false);
 
     presenter.onRepositorySelected(projectData);
 

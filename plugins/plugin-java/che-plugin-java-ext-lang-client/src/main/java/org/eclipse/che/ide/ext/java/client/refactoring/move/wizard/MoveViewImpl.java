@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,10 +15,6 @@ import static org.eclipse.che.ide.ext.java.client.refactoring.move.MoveType.REFA
 import static org.eclipse.che.ide.ext.java.client.refactoring.move.RefactoredItemType.COMPILATION_UNIT;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
-import com.google.gwt.event.logical.shared.ValueChangeEvent;
-import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.cellview.client.CellTree;
@@ -29,7 +26,6 @@ import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.SimplePanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.view.client.SelectionChangeEvent;
 import com.google.gwt.view.client.SingleSelectionModel;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -41,13 +37,13 @@ import org.eclipse.che.ide.ext.java.client.JavaResources;
 import org.eclipse.che.ide.ext.java.client.refactoring.RefactorInfo;
 import org.eclipse.che.ide.ext.java.client.refactoring.move.MoveType;
 import org.eclipse.che.ide.ext.java.client.refactoring.move.RefactoredItemType;
-import org.eclipse.che.ide.ext.java.shared.dto.model.JavaProject;
-import org.eclipse.che.ide.ext.java.shared.dto.model.PackageFragment;
-import org.eclipse.che.ide.ext.java.shared.dto.model.PackageFragmentRoot;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus;
-import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatusEntry;
 import org.eclipse.che.ide.ui.cellview.CellTreeResources;
 import org.eclipse.che.ide.ui.window.Window;
+import org.eclipse.che.jdt.ls.extension.api.dto.JavaProjectStructure;
+import org.eclipse.che.jdt.ls.extension.api.dto.PackageFragment;
+import org.eclipse.che.jdt.ls.extension.api.dto.PackageFragmentRoot;
+import org.eclipse.che.jdt.ls.extension.api.dto.RefactoringStatus;
+import org.eclipse.che.jdt.ls.extension.api.dto.RefactoringStatusEntry;
 
 /**
  * @author Dmitry Shnurenko
@@ -95,53 +91,29 @@ final class MoveViewImpl extends Window implements MoveView {
 
     createButtons(locale);
 
-    updateFullNames.addValueChangeHandler(
-        new ValueChangeHandler<Boolean>() {
-          @Override
-          public void onValueChange(ValueChangeEvent<Boolean> event) {
-            patternField.setEnabled(event.getValue());
-          }
-        });
+    updateFullNames.addValueChangeHandler(event -> patternField.setEnabled(event.getValue()));
   }
 
   private void createButtons(JavaLocalizationConstant locale) {
     preview =
-        createButton(
+        addFooterButton(
             locale.moveDialogButtonPreview(),
             "move-preview-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onPreviewButtonClicked();
-              }
-            });
+            event -> delegate.onPreviewButtonClicked());
 
-    Button cancel =
-        createButton(
-            locale.moveDialogButtonCancel(),
-            "move-cancel-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                hide();
-                delegate.onCancelButtonClicked();
-              }
-            });
+    addFooterButton(
+        locale.moveDialogButtonCancel(),
+        "move-cancel-button",
+        event -> {
+          hide();
+          delegate.onCancelButtonClicked();
+        });
 
     accept =
-        createButton(
+        addFooterButton(
             locale.moveDialogButtonOk(),
             "move-accept-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onAcceptButtonClicked();
-              }
-            });
-
-    addButtonToFooter(accept);
-    addButtonToFooter(cancel);
-    addButtonToFooter(preview);
+            event -> delegate.onAcceptButtonClicked());
   }
 
   /** {@inheritDoc} */
@@ -177,6 +149,11 @@ final class MoveViewImpl extends Window implements MoveView {
     show();
   }
 
+  @Override
+  public void close() {
+    hide();
+  }
+
   /** {@inheritDoc} */
   @Override
   public void clearErrorLabel() {
@@ -185,28 +162,21 @@ final class MoveViewImpl extends Window implements MoveView {
 
   /** {@inheritDoc} */
   @Override
-  public void setTreeOfDestinations(RefactorInfo refactorInfo, List<JavaProject> projects) {
+  public void setTreeOfDestinations(
+      RefactorInfo refactorInfo, List<JavaProjectStructure> projects) {
     final SingleSelectionModel<Object> selectionModel = new SingleSelectionModel<>();
     selectionModel.addSelectionChangeHandler(
-        new SelectionChangeEvent.Handler() {
-          @Override
-          public void onSelectionChange(SelectionChangeEvent event) {
-            Object object = selectionModel.getSelectedObject();
+        event -> {
+          Object object = selectionModel.getSelectedObject();
 
-            if (object instanceof JavaProject) {
-              JavaProject project = (JavaProject) object;
-              delegate.setMoveDestinationPath(project.getPath(), project.getPath());
-            }
-            if (object instanceof PackageFragmentRoot) {
-              PackageFragmentRoot fragmentRoot = (PackageFragmentRoot) object;
-              delegate.setMoveDestinationPath(
-                  fragmentRoot.getPath(), fragmentRoot.getProjectPath());
-            }
+          if (object instanceof PackageFragmentRoot) {
+            PackageFragmentRoot fragmentRoot = (PackageFragmentRoot) object;
+            delegate.setMoveDestinationPath(fragmentRoot.getUri(), fragmentRoot.getProjectUri());
+          }
 
-            if (object instanceof PackageFragment) {
-              PackageFragment fragment = (PackageFragment) object;
-              delegate.setMoveDestinationPath(fragment.getPath(), fragment.getProjectPath());
-            }
+          if (object instanceof PackageFragment) {
+            PackageFragment fragment = (PackageFragment) object;
+            delegate.setMoveDestinationPath(fragment.getUri(), fragment.getProjectUri());
           }
         });
     CellTree tree =
@@ -249,7 +219,8 @@ final class MoveViewImpl extends Window implements MoveView {
 
   private void showMessage(RefactoringStatus status) {
     RefactoringStatusEntry statusEntry =
-        getEntryMatchingSeverity(status.getSeverity(), status.getEntries());
+        getEntryMatchingSeverity(
+            status.getRefactoringSeverity().getValue(), status.getRefactoringStatusEntries());
     if (statusEntry != null) {
       errorLabel.setText(statusEntry.getMessage());
     } else {
@@ -294,7 +265,7 @@ final class MoveViewImpl extends Window implements MoveView {
   private RefactoringStatusEntry getEntryMatchingSeverity(
       int severity, List<RefactoringStatusEntry> entries) {
     for (RefactoringStatusEntry entry : entries) {
-      if (entry.getSeverity() >= severity) return entry;
+      if (entry.getRefactoringSeverity().getValue() >= severity) return entry;
     }
     return null;
   }

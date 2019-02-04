@@ -1,67 +1,63 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.workspace.infrastructure.openshift.environment;
 
-import static java.lang.String.format;
-
-import com.google.common.base.Joiner;
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.Pod;
-import java.util.HashSet;
+import io.fabric8.openshift.api.model.Route;
 import java.util.Set;
+import java.util.stream.Collectors;
+import javax.inject.Inject;
 import org.eclipse.che.api.core.ValidationException;
-import org.eclipse.che.workspace.infrastructure.openshift.Names;
+import org.eclipse.che.workspace.infrastructure.kubernetes.environment.KubernetesEnvironmentPodsValidator;
+import org.eclipse.che.workspace.infrastructure.kubernetes.environment.KubernetesEnvironmentValidator;
 
 /**
- * Validates {@link OpenShiftEnvironment}.
+ * Adds additional OpenShift-specific validation to {@link KubernetesEnvironmentValidator}
  *
- * @author Sergii Leshchenko
+ * @author Angel Misevski
  */
-class OpenShiftEnvironmentValidator {
+public class OpenShiftEnvironmentValidator extends KubernetesEnvironmentValidator {
 
-  /**
-   * Validates {@link OpenShiftEnvironment}.
-   *
-   * @param env environment to perform validation
-   * @throws ValidationException if the specified {@link OpenShiftEnvironment} is invalid
-   */
-  void validate(OpenShiftEnvironment env) throws ValidationException {
-    checkArgument(!env.getPods().isEmpty(), "Environment should contain at least 1 pod");
+  private static final String SERVICE_KIND = "Service";
 
-    Set<String> missingMachines = new HashSet<>(env.getMachines().keySet());
-    for (Pod pod : env.getPods().values()) {
-      if (pod.getSpec() != null && pod.getSpec().getContainers() != null) {
-        for (Container container : pod.getSpec().getContainers()) {
-          missingMachines.remove(Names.machineName(pod, container));
-        }
+  @Inject
+  public OpenShiftEnvironmentValidator(KubernetesEnvironmentPodsValidator podsValidator) {
+    super(podsValidator);
+  }
+
+  public void validate(OpenShiftEnvironment env) throws ValidationException {
+    super.validate(env);
+    validateRoutesMatchServices(env);
+  }
+
+  private void validateRoutesMatchServices(OpenShiftEnvironment env) throws ValidationException {
+    Set<String> recipeServices =
+        env.getServices()
+            .values()
+            .stream()
+            .map(s -> s.getMetadata().getName())
+            .collect(Collectors.toSet());
+    for (Route route : env.getRoutes().values()) {
+      if (route.getSpec() == null
+          || route.getSpec().getTo() == null
+          || !route.getSpec().getTo().getKind().equals(SERVICE_KIND)) {
+        continue;
       }
-    }
-    checkArgument(
-        missingMachines.isEmpty(),
-        "Environment contains machines that are missing in recipe: %s",
-        Joiner.on(", ").join(missingMachines));
-    // TODO Implement validation OpenShift objects https://github.com/eclipse/che/issues/7381
-  }
-
-  private static void checkArgument(boolean expression, String error) throws ValidationException {
-    if (!expression) {
-      throw new ValidationException(error);
-    }
-  }
-
-  private static void checkArgument(
-      boolean expression, String errorMessageTemplate, Object... errorMessageParams)
-      throws ValidationException {
-    if (!expression) {
-      throw new ValidationException(format(errorMessageTemplate, errorMessageParams));
+      String serviceName = route.getSpec().getTo().getName();
+      if (!recipeServices.contains(serviceName)) {
+        throw new ValidationException(
+            String.format(
+                "Route '%s' refers to Service '%s'. Routes must refer to Services included in recipe",
+                route.getMetadata().getName(), serviceName));
+      }
     }
   }
 }

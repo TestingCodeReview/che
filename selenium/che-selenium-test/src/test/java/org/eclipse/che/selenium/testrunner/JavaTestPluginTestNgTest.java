@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.testrunner;
 
+import static org.eclipse.che.selenium.core.TestGroup.FLAKY;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Run.RUN_MENU;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Run.TEST;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.TEST_NG_TEST_DROP_DAWN_ITEM;
@@ -26,7 +28,7 @@ import org.eclipse.che.selenium.core.client.TestCommandServiceClient;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.constant.TestBuildConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.workspace.InjectTestWorkspace;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.core.workspace.WorkspaceTemplate;
@@ -44,6 +46,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Dmytro Nochevnov */
+@Test(groups = FLAKY)
 public class JavaTestPluginTestNgTest {
 
   private static final String PROJECT = "testng-tests";
@@ -60,7 +63,7 @@ public class JavaTestPluginTestNgTest {
           + " at org.testng.Assert.failNotEquals(Assert.java:494)\n"
           + " at org.testng.Assert.assertFalse(Assert.java:63)\n"
           + " at org.testng.Assert.assertFalse(Assert.java:73)\n"
-          + " at org.eclipse.che.examples.AppOneTest.shouldFailOfAppOne(AppOneTest.java:31)";
+          + " at org.eclipse.che.examples.AppOneTest.shouldFailOfAppOne(AppOneTest.java:32)";
 
   public static final String APP_TEST_ANOTHER_FAIL_OUTPUT_TEMPLATE =
       "[TestNG] Running:  /home/user/che/ws-agent/temp/che-testng-suite.xmlexpected [false] but found [true]\n"
@@ -77,7 +80,7 @@ public class JavaTestPluginTestNgTest {
   private TestWorkspace ws;
 
   @Inject private Ide ide;
-  @Inject private TestUser user;
+  @Inject private DefaultTestUser user;
 
   @Inject private JavaTestRunnerPluginConsole pluginConsole;
   @Inject private ProjectExplorer projectExplorer;
@@ -103,7 +106,13 @@ public class JavaTestPluginTestNgTest {
     loader.waitOnClosed();
     projectExplorer.waitItem(PROJECT);
     notifications.waitProgressPopupPanelClose();
-    runCompileCommandByPallete(compileCommand);
+
+    try {
+      runCompileCommandByPallete(compileCommand);
+    } catch (TimeoutException ex) {
+      // remove try-catch block after issue has been resolved
+      fail("Known random failure https://github.com/eclipse/che/issues/12220");
+    }
   }
 
   @Test
@@ -117,7 +126,13 @@ public class JavaTestPluginTestNgTest {
     menu.runCommand(RUN_MENU, TEST, TEST_NG_TEST_DROP_DAWN_ITEM);
 
     // then
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Test runner executed successfully.");
+    try {
+      notifications.waitExpectedMessageOnProgressPanelAndClose(
+          "Test runner executed successfully.");
+    } catch (TimeoutException ex) {
+      // remove try-catch block after issue has been resolved
+      fail("Known random failure https://github.com/eclipse/che/issues/10728");
+    }
     pluginConsole.waitMethodMarkedAsPassed("shouldSuccessOfAppOne");
     pluginConsole.waitMethodMarkedAsFailed("shouldFailOfAppOne");
     assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(PASSED).size() == 1);
@@ -135,19 +150,23 @@ public class JavaTestPluginTestNgTest {
 
     // then
     editor.waitActive();
-    editor.goToCursorPositionVisible(25, 17);
+    editor.goToCursorPositionVisible(26, 17);
     menu.runCommand(RUN_MENU, TEST, TEST_NG_TEST_DROP_DAWN_ITEM);
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Test runner executed successfully.");
-    pluginConsole.waitMethodMarkedAsPassed("shouldSuccessOfAppAnother");
-    assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(PASSED).size() == 1);
-    editor.goToCursorPositionVisible(30, 17);
-    menu.runCommand(RUN_MENU, TEST, TEST_NG_TEST_DROP_DAWN_ITEM);
+
     try {
-      pluginConsole.waitMethodMarkedAsFailed("shouldFailOfAppAnother");
+      notifications.waitExpectedMessageOnProgressPanelAndClose(
+          "Test runner executed successfully.");
     } catch (TimeoutException ex) {
       // remove try-catch block after issue has been resolved
-      fail("Known issue https://github.com/eclipse/che/issues/7338", ex);
+      fail("Known random failure https://github.com/eclipse/che/issues/10728");
     }
+
+    pluginConsole.waitMethodMarkedAsPassed("shouldSuccessOfAppAnother");
+    assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(PASSED).size() == 1);
+    editor.goToCursorPositionVisible(31, 17);
+    menu.runCommand(RUN_MENU, TEST, TEST_NG_TEST_DROP_DAWN_ITEM);
+    pluginConsole.waitMethodMarkedAsFailed("shouldFailOfAppAnother");
+
     assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(FAILED).size() == 1);
     String testErrorMessage = pluginConsole.getTestErrorMessage();
     assertTrue(
@@ -158,23 +177,26 @@ public class JavaTestPluginTestNgTest {
   }
 
   @Test(priority = 2)
-  public void shouldExecuteAlltests() {
+  public void shouldExecuteAllTests() {
     // given
     projectExplorer.openItemByPath(PATH_TO_ANOTHER_TEST_CLASS);
 
     // then
     editor.waitActive();
-    editor.goToCursorPositionVisible(25, 17);
+    editor.goToCursorPositionVisible(26, 17);
     menu.runCommand(RUN_MENU, TEST, TEST_NG_TEST_DROP_DAWN_ITEM);
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Test runner executed successfully.");
+
     try {
-      pluginConsole.waitMethodMarkedAsPassed("shouldSuccessOfAppAnother");
+      notifications.waitExpectedMessageOnProgressPanelAndClose(
+          "Test runner executed successfully.");
     } catch (TimeoutException ex) {
       // remove try-catch block after issue has been resolved
-      fail("Known issue https://github.com/eclipse/che/issues/7338", ex);
+      fail("Known random failure https://github.com/eclipse/che/issues/10728");
     }
+
+    pluginConsole.waitMethodMarkedAsPassed("shouldSuccessOfAppAnother");
     assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(PASSED).size() == 1);
-    editor.goToCursorPositionVisible(30, 17);
+    editor.goToCursorPositionVisible(31, 17);
     menu.runCommand(RUN_MENU, TEST, TEST_NG_TEST_DROP_DAWN_ITEM);
     pluginConsole.waitMethodMarkedAsFailed("shouldFailOfAppAnother");
     assertTrue(pluginConsole.getAllNamesOfMethodsMarkedDefinedStatus(FAILED).size() == 1);

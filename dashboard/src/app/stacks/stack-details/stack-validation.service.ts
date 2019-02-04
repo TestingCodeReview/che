@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
 import {CheRecipeTypes} from '../../../components/api/recipe/che-recipe-types';
+import {CheWorkspace} from '../../../components/api/workspace/che-workspace.factory';
 
 
 /**
@@ -18,6 +20,16 @@ import {CheRecipeTypes} from '../../../components/api/recipe/che-recipe-types';
  * @author Oleksii Orel
  */
 export class StackValidationService {
+  static $inject = ['cheWorkspace'];
+
+  private cheWorkspace: CheWorkspace;
+
+  /**
+   * Default constructor that is using resource
+   */
+  constructor(cheWorkspace: CheWorkspace) {
+    this.cheWorkspace = cheWorkspace;
+  }
 
   /**
    * Return result of recipe validation.
@@ -26,7 +38,7 @@ export class StackValidationService {
    */
   getStackValidation(stack: che.IStack | {}): che.IValidation {
     let mandatoryKeys: Array<string> = ['name', 'workspaceConfig'];
-    let additionalKeys: Array<string> = ['description', 'projects', 'tags', 'creator', 'scope', 'components', 'source'];
+    let additionalKeys: Array<string> = ['description', 'projects', 'tags', 'creator', 'scope', 'components'];
     let validKeys: Array<string> = mandatoryKeys.concat(additionalKeys);
     let errors: Array<string> = [];
     let isValid: boolean = true;
@@ -65,8 +77,8 @@ export class StackValidationService {
    * @returns {IValidation}
    */
   getWorkspaceConfigValidation(workspaceConfig: che.IWorkspaceConfig): che.IValidation {
-    let mandatoryKeys: Array<string> = ['name', 'environments', 'defaultEnv'];
-    let additionalKeys: Array<string> = ['commands', 'projects', 'description', 'links'];
+    let mandatoryKeys: Array<string> = ['name', 'environments'];
+    let additionalKeys: Array<string> = ['commands', 'projects', 'description', 'links', 'attributes', 'defaultEnv'];
     let validKeys: Array<string> = mandatoryKeys.concat(additionalKeys);
     let errors: Array<string> = [];
     let isValid: boolean = true;
@@ -101,7 +113,7 @@ export class StackValidationService {
           errors = errors.concat(environmentValidation.errors);
         }
       });
-      if (!workspaceEnvironments[workspaceConfig.defaultEnv]) {
+      if (keys && keys.length > 0 && !workspaceEnvironments[workspaceConfig.defaultEnv]) {
         isValid = false;
         errors.push('Can\'t find default environment in environments.');
       }
@@ -127,10 +139,6 @@ export class StackValidationService {
     // add machines validation
     let machines = environment.machines;
     let keys: Array<string> = machines ? Object.keys(machines) : [];
-    if (keys.length === 0) {
-      isValid = false;
-      errors.push('The machine is empty.');
-    }
     keys.forEach((key: string) => {
       let machine: che.IEnvironmentMachine = environment.machines[key];
       let machineValidation: che.IValidation = this.getMachineValidation(machine);
@@ -148,11 +156,8 @@ export class StackValidationService {
         devMachines.push(key);
       }
     });
-    if (devMachines.length !== 1) {
-      let error = `Exactly one of machines should contain '${wsAgent}' in agent's list.`;
-      if (devMachines.length === 0) {
-        error = 'Can\'t find development machine. ' + error;
-      }
+    if (devMachines.length > 1) {
+      let error = `Only one of the machines can contain '${wsAgent}' in agent's list.`;
       isValid = false;
       errors.push(error);
     }
@@ -237,9 +242,9 @@ export class StackValidationService {
     }
 
     if (CheRecipeTypes.DOCKERFILE === recipe.type) {
-      if (angular.isDefined(recipe.location) && !recipe.location) {
+      if (angular.isDefined(recipe.content) && !recipe.content) {
         isValid = false;
-        errors.push('Unknown recipe location.');
+        errors.push('Unknown recipe content.');
       }
       if (!recipe.contentType) {
         errors.push('Unknown recipe contentType.');
@@ -253,12 +258,12 @@ export class StackValidationService {
         errors.push('Unknown recipe contentType.');
       }
     } else if (CheRecipeTypes.DOCKERIMAGE === recipe.type) {
-      if (!recipe.location) {
+      if (!recipe.content) {
         isValid = false;
-        errors.push('Unknown recipe location.');
-      } else if (recipe.location.length > 256) {
+        errors.push('Unknown recipe content.');
+      } else if (recipe.content.length > 256) {
         isValid = false;
-        errors.push('Location length is invalid.');
+        errors.push('Content length is invalid.');
       }
     } else if (CheRecipeTypes.OPENSHIFT === recipe.type) {
       if (angular.isDefined(recipe.location) && !recipe.location) {
@@ -268,7 +273,7 @@ export class StackValidationService {
       if (!recipe.contentType) {
         errors.push('Unknown recipe contentType.');
       }
-    } else {
+    } else if (this.cheWorkspace.getSupportedRecipeTypes().indexOf(recipe.type) === -1) {
       isValid = false;
       errors.push('Unknown recipe type.');
     }

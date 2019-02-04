@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,18 +18,23 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.fasterxml.jackson.dataformat.yaml.snakeyaml.reader.ReaderException;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.che.api.core.ValidationException;
+import org.eclipse.che.api.installer.server.InstallerRegistry;
+import org.eclipse.che.api.workspace.server.spi.environment.MachineConfigsValidator;
+import org.eclipse.che.api.workspace.server.spi.environment.MemoryAttributeProvisioner;
+import org.eclipse.che.api.workspace.server.spi.environment.RecipeRetriever;
 import org.eclipse.che.workspace.infrastructure.docker.environment.compose.deserializer.CommandDeserializer;
 import org.eclipse.che.workspace.infrastructure.docker.environment.compose.model.ComposeRecipe;
 import org.eclipse.che.workspace.infrastructure.docker.environment.compose.model.ComposeService;
-import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.testng.MockitoTestNGListener;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
+import org.yaml.snakeyaml.error.YAMLException;
 
 /**
  * Test deserialization field {@link ComposeService#command} by {@link CommandDeserializer} in the
@@ -39,7 +45,26 @@ import org.testng.annotations.Test;
 @Listeners(MockitoTestNGListener.class)
 public class CommandDeserializerTest {
 
-  @InjectMocks private ComposeEnvironmentFactory composeEnvFactory;
+  @Mock InstallerRegistry installerRegistry;
+  @Mock RecipeRetriever recipeRetriever;
+  @Mock MachineConfigsValidator machinesValidator;
+  @Mock ComposeEnvironmentValidator composeValidator;
+  @Mock ComposeServicesStartStrategy startStrategy;
+  @Mock MemoryAttributeProvisioner memoryProvisioner;
+
+  private ComposeEnvironmentFactory factory;
+
+  @BeforeMethod
+  public void setup() {
+    factory =
+        new ComposeEnvironmentFactory(
+            installerRegistry,
+            recipeRetriever,
+            machinesValidator,
+            composeValidator,
+            startStrategy,
+            memoryProvisioner);
+  }
 
   private static final String RECIPE_WITHOUT_COMMAND_VALUE =
       "services:\n"
@@ -57,7 +82,7 @@ public class CommandDeserializerTest {
   public void composeServiceCommandShouldBeParsedSuccessfully(
       String command, List<String> commandWords, int commandNumberOfWords) throws Exception {
     String content = format(RECIPE_WITHOUT_COMMAND_VALUE, command);
-    ComposeRecipe composeRecipe = composeEnvFactory.doParse(content);
+    ComposeRecipe composeRecipe = factory.doParse(content);
 
     assertEquals(composeRecipe.getServices().size(), 1);
     ComposeService service = composeRecipe.getServices().get("machine1");
@@ -134,7 +159,7 @@ public class CommandDeserializerTest {
     String content = format(RECIPE_WITHOUT_COMMAND_VALUE, command);
 
     try {
-      composeEnvFactory.doParse(content);
+      factory.doParse(content);
     } catch (Exception e) {
       System.out.println(e.getLocalizedMessage());
       throw e;
@@ -160,10 +185,10 @@ public class CommandDeserializerTest {
   public void symbolsShouldBeInvalidForYaml(InvalidSymbolCommand command) throws Exception {
     String content = format(RECIPE_WITHOUT_COMMAND_VALUE, command.getCommand());
     try {
-      composeEnvFactory.doParse(content);
+      factory.doParse(content);
       // it should fail.
       fail("The command " + command.getCommand() + " has invalid symbol and it should fail");
-    } catch (ReaderException e) {
+    } catch (YAMLException e) {
       // we're checking the exception there without throwing it, else it will print to
       // testng-results.xml file an invalid symbol, thus the xml will be invalid.
       assertEquals(e.getMessage(), "special characters are not allowed");

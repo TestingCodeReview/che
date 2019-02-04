@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,7 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import org.eclipse.che.ide.api.command.exec.dto.event.DtoWithPid;
+import org.eclipse.che.agent.exec.shared.dto.DtoWithPid;
 
 public abstract class AbstractExecAgentEventHandler<P extends DtoWithPid>
     implements BiConsumer<String, P> {
@@ -55,5 +56,9 @@ public abstract class AbstractExecAgentEventHandler<P extends DtoWithPid>
   public void unregisterConsumers(String endpointId, int pid) {
     String key = endpointId + '@' + pid;
     operationRegistry.remove(key);
+  }
+
+  public void unregisterAllConsumers() {
+    operationRegistry.clear();
   }
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,9 +22,14 @@ import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static java.util.stream.Collectors.toList;
+import static org.eclipse.che.api.git.ReferenceType.BRANCH;
+import static org.eclipse.che.api.git.ReferenceType.COMMIT;
+import static org.eclipse.che.api.git.ReferenceType.TAG;
+import static org.eclipse.che.api.git.params.CommitParams.create;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_ALL;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_LOCAL;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_REMOTE;
+import static org.eclipse.che.api.git.shared.Constants.CHECKOUT_IN_PROGRESS_ERROR;
 import static org.eclipse.che.api.git.shared.Constants.COMMIT_IN_PROGRESS_ERROR;
 import static org.eclipse.che.api.git.shared.Constants.NOT_A_GIT_REPOSITORY_ERROR;
 import static org.eclipse.che.api.git.shared.EditedRegionType.DELETION;
@@ -90,7 +96,9 @@ import org.eclipse.che.api.git.GitConnection;
 import org.eclipse.che.api.git.GitUrlUtils;
 import org.eclipse.che.api.git.GitUserResolver;
 import org.eclipse.che.api.git.LogPage;
+import org.eclipse.che.api.git.Reference;
 import org.eclipse.che.api.git.UserCredential;
+import org.eclipse.che.api.git.exception.GitCheckoutInProgressException;
 import org.eclipse.che.api.git.exception.GitCommitInProgressException;
 import org.eclipse.che.api.git.exception.GitConflictException;
 import org.eclipse.che.api.git.exception.GitException;
@@ -304,6 +312,7 @@ class JGitConnection implements GitConnection {
   private static final Logger LOG = LoggerFactory.getLogger(JGitConnection.class);
 
   private static final Set<String> COMMITTING_REPOSITORIES = new CopyOnWriteArraySet<>();
+  private static final Set<String> CHECKOUT_REPOSITORIES = new CopyOnWriteArraySet<>();
 
   private Git git;
   private JGitConfigImpl config;
@@ -403,15 +412,14 @@ class JGitConnection implements GitConnection {
                 .map(Branch::getDisplayName)
                 .collect(Collectors.toList());
         if (!localBranches.contains(name)) {
-          List<Branch> remoteBranchesWithGivenName =
-              branchList(LIST_REMOTE)
-                  .stream()
-                  .filter(
-                      branch -> {
-                        String branchName = branch.getName();
-                        return name.equals(branchName.substring(branchName.lastIndexOf("/") + 1));
-                      })
-                  .collect(Collectors.toList());
+          List<Branch> remoteBranchesWithGivenName = new ArrayList<>();
+          for (Branch branch : branchList(LIST_REMOTE)) {
+            String branchNameWithoutRefs = branch.getName().replaceFirst("refs/remotes/", "");
+            String branchNameWithoutRemote = cleanRemoteName(branchNameWithoutRefs);
+            if (name.equals(branchNameWithoutRemote)) {
+              remoteBranchesWithGivenName.add(branch);
+            }
+          }
           if (remoteBranchesWithGivenName.size() > 1) {
             throw new GitException(
                 String.format(ERROR_CHECKOUT_BRANCH_NAME_EXISTS_IN_SEVERAL_REMOTES, name));
@@ -431,6 +439,7 @@ class JGitConnection implements GitConnection {
       checkoutCommand.setUpstreamMode(SetupUpstreamMode.SET_UPSTREAM);
     }
     try {
+      CHECKOUT_REPOSITORIES.add(getRepositoryPath());
       checkoutCommand.call();
     } catch (CheckoutConflictException exception) {
       throw new GitConflictException(exception.getMessage(), exception.getConflictingPaths());
@@ -448,6 +457,8 @@ class JGitConnection implements GitConnection {
                 name != null ? name : cleanRemoteName(trackBranch)));
       }
       throw new GitException(exception.getMessage(), exception);
+    } finally {
+      CHECKOUT_REPOSITORIES.remove(getRepositoryPath());
     }
   }
 
@@ -783,7 +794,7 @@ class JGitConnection implements GitConnection {
       GitUser gitUser = newDto(GitUser.class).withName(committerName).withEmail(committerEmail);
 
       return newDto(Revision.class)
-          .withBranch(getCurrentBranch())
+          .withBranch(getCurrentReference().getName())
           .withId(result.getId().getName())
           .withMessage(result.getFullMessage())
           .withCommitTime(MILLISECONDS.convert(result.getCommitTime(), SECONDS))
@@ -1453,7 +1464,7 @@ class JGitConnection implements GitConnection {
   @Override
   public PushResponse push(PushParams params) throws GitException, UnauthorizedException {
     List<Map<String, String>> updates = new ArrayList<>();
-    String currentBranch = getCurrentBranch();
+    String currentRefName = getCurrentReference().getName();
     String remoteName = params.getRemote();
     String remoteUri =
         getRepository()
@@ -1493,8 +1504,8 @@ class JGitConnection implements GitConnection {
             remoteRefName.startsWith("refs/for/")
                 ? remoteRefName.substring("refs/for/".length())
                 : remoteRefName;
-        if (!currentBranch.equals(Repository.shortenRefName(remoteRefName))
-            && !currentBranch.equals(shortenRefFor)
+        if (!currentRefName.equals(Repository.shortenRefName(remoteRefName))
+            && !currentRefName.equals(shortenRefFor)
             && !remoteRefName.startsWith(R_TAGS)) {
           continue;
         }
@@ -1510,7 +1521,7 @@ class JGitConnection implements GitConnection {
             String errorMessage =
                 format(
                     ERROR_PUSH_CONFLICTS_PRESENT,
-                    currentBranch + BRANCH_REFSPEC_SEPERATOR + remoteBranch,
+                    currentRefName + BRANCH_REFSPEC_SEPERATOR + remoteBranch,
                     remoteUri);
             if (remoteRefUpdate.getMessage() != null) {
               errorMessage += "\nError errorMessage: " + remoteRefUpdate.getMessage() + ".";
@@ -1780,19 +1791,23 @@ class JGitConnection implements GitConnection {
 
   @Override
   public RevertResult revert(String commit) throws GitException {
-    RevCommit revCommit;
+    String newHead = null;
     RevertCommand revertCommand = getGit().revert();
     try {
       revertCommand.include(this.repository.resolve(commit));
-      revCommit = revertCommand.call();
+      RevCommit revCommit = revertCommand.call();
+      // JGit sets commit author of revert commit from OS preferences.
+      // Do amend commit to reset commit author.
+      if (revCommit != null && revCommit.getFullMessage() != null) {
+        newHead = commit(create(revCommit.getFullMessage()).withAmend(true)).getId();
+      }
     } catch (IOException | GitAPIException exception) {
       throw new GitException(exception.getMessage(), exception);
     }
-
     return newDto(RevertResult.class)
         .withRevertedCommits(getRevertedCommits(revertCommand))
         .withConflicts(getRevertConflicts(revertCommand))
-        .withNewHead(revCommit != null ? revCommit.getId().getName() : null);
+        .withNewHead(newHead);
   }
 
   private List<String> getRevertedCommits(RevertCommand revertCommand) {
@@ -1865,16 +1880,20 @@ class JGitConnection implements GitConnection {
     if (!isInsideWorkTree()) {
       throw new GitInvalidRepositoryException(NOT_A_GIT_REPOSITORY_ERROR);
     }
+    String repositoryPath = getRepositoryPath();
     // Status can be not actual, if commit is in progress.
-    if (COMMITTING_REPOSITORIES.contains(getRepository().getDirectory().getPath())) {
+    if (COMMITTING_REPOSITORIES.contains(repositoryPath)) {
       throw new GitCommitInProgressException(COMMIT_IN_PROGRESS_ERROR);
     }
-    String branchName = getCurrentBranch();
+    // Status can be not actual, if checkout is in progress.
+    if (CHECKOUT_REPOSITORIES.contains(repositoryPath)) {
+      throw new GitCheckoutInProgressException(CHECKOUT_IN_PROGRESS_ERROR);
+    }
     StatusCommand statusCommand = getGit().status();
     if (filter != null) {
       filter.forEach(statusCommand::addPath);
     }
-    return new JGitStatusImpl(branchName, statusCommand);
+    return new JGitStatusImpl(getCurrentReference(), statusCommand);
   }
 
   @Override
@@ -2228,15 +2247,41 @@ class JGitConnection implements GitConnection {
     return repository;
   }
 
-  /**
-   * Get the current branch on the current directory
-   *
-   * @return the name of the branch
-   * @throws GitException if any exception occurs
-   */
+  private String getRepositoryPath() {
+    return getRepository().getDirectory().getPath();
+  }
+
+  @Override
   public String getCurrentBranch() throws GitException {
     try {
       return Repository.shortenRefName(repository.exactRef(HEAD).getLeaf().getName());
+    } catch (IOException exception) {
+      throw new GitException(exception.getMessage(), exception);
+    }
+  }
+
+  /**
+   * Get the current reference on the current directory
+   *
+   * @return reference object with branch, tag or commit id
+   * @throws GitException if any exception occurs
+   */
+  public Reference getCurrentReference() throws GitException {
+    try {
+      String reference = Repository.shortenRefName(repository.exactRef(HEAD).getLeaf().getName());
+      if (HEAD.equals(reference)) {
+        reference = repository.resolve(HEAD).getName();
+        try (RevWalk revWalk = new RevWalk(repository)) {
+          for (Tag tag : tagList(null)) {
+            String tagName = tag.getName();
+            if (revWalk.parseCommit(repository.resolve(tagName)).getName().equals(reference)) {
+              return new Reference(tagName, TAG) {};
+            }
+          }
+        }
+        return new Reference(reference, COMMIT) {};
+      }
+      return new Reference(reference, BRANCH) {};
     } catch (IOException exception) {
       throw new GitException(exception.getMessage(), exception);
     }

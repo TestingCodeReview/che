@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -99,13 +101,13 @@ public class WorkspacePermissionsFilterTest {
 
   @BeforeMethod
   public void setUp() throws Exception {
-    when(subject.getUserName()).thenReturn(USERNAME);
-    when(workspaceManager.getWorkspace(any())).thenReturn(workspace);
-    when(workspace.getNamespace()).thenReturn("namespace");
-    when(workspace.getId()).thenReturn("workspace123");
+    lenient().when(subject.getUserName()).thenReturn(USERNAME);
+    lenient().when(workspaceManager.getWorkspace(any())).thenReturn(workspace);
+    lenient().when(workspace.getNamespace()).thenReturn("namespace");
+    lenient().when(workspace.getId()).thenReturn("workspace123");
 
-    when(accountManager.getByName(any())).thenReturn(account);
-    when(account.getType()).thenReturn(TEST_ACCOUNT_TYPE);
+    lenient().when(accountManager.getByName(any())).thenReturn(account);
+    lenient().when(account.getType()).thenReturn(TEST_ACCOUNT_TYPE);
 
     permissionsFilter =
         spy(
@@ -115,7 +117,8 @@ public class WorkspacePermissionsFilterTest {
                 ImmutableSet.of(accountPermissionsChecker),
                 superPrivilegesChecker));
 
-    doThrow(new ForbiddenException(""))
+    lenient()
+        .doThrow(new ForbiddenException(""))
         .when(permissionsFilter)
         .checkAccountPermissions(anyString(), any());
   }
@@ -225,7 +228,7 @@ public class WorkspacePermissionsFilterTest {
             .when()
             .get(SECURE_PATH + "/workspace");
 
-    assertEquals(response.getStatusCode(), 200);
+    assertEquals(response.getStatusCode(), 204);
     verify(workspaceService).getWorkspaces(any(), anyInt(), nullable(String.class));
     verify(permissionsFilter, never()).checkAccountPermissions(anyString(), any());
     verifyZeroInteractions(subject);
@@ -513,9 +516,9 @@ public class WorkspacePermissionsFilterTest {
   }
 
   @Test(
-    expectedExceptions = ForbiddenException.class,
-    expectedExceptionsMessageRegExp = "The user does not have permission to perform this operation"
-  )
+      expectedExceptions = ForbiddenException.class,
+      expectedExceptionsMessageRegExp =
+          "The user does not have permission to perform this operation")
   public void shouldThrowForbiddenExceptionWhenRequestedUnknownMethod() throws Exception {
     final GenericResourceMethod mock = mock(GenericResourceMethod.class);
     Method injectLinks = WorkspaceService.class.getMethod("getServiceDescriptor");

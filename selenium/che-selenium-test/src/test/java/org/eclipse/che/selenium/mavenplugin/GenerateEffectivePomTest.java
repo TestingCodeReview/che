@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,7 @@ import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -43,6 +45,7 @@ public class GenerateEffectivePomTest {
   @Inject private Ide ide;
   @Inject private Menu menu;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -55,11 +58,11 @@ public class GenerateEffectivePomTest {
   }
 
   @Test(
-    description =
-        "add additional try/catch block for workaround problem in https://github.com/eclipse/che/issues/2877"
-  )
+      description =
+          "add additional try/catch block for workaround problem in https://github.com/eclipse/che/issues/2877")
   public void generateEffectivePomTest() throws Exception {
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     URL mainEffectivePomPath = GenerateEffectivePomTest.class.getResource("main");
     URL jarModuleEffectivePomPath = GenerateEffectivePomTest.class.getResource("jar-module");
     URL warModuleEffectivePomPath = GenerateEffectivePomTest.class.getResource("war-module");
@@ -85,7 +88,7 @@ public class GenerateEffectivePomTest {
     editor.closeAllTabsByContextMenu();
     Assert.assertTrue(
         checkCurrentEffectivePom(
-            WAR_MODULE_PATH, expectedWarEffectivePom, "qa-multimodule [effective pom]"),
+            WAR_MODULE_PATH, expectedWarEffectivePom, "my-webapp [effective pom]"),
         "Check Effective Pom for war maven module");
   }
 
@@ -93,7 +96,7 @@ public class GenerateEffectivePomTest {
       String modulePath, List<String> expectedText, String nameOfTab) {
     projectExplorer.openItemByPath(modulePath);
     loader.waitOnClosed();
-    projectExplorer.selectItem(modulePath);
+    projectExplorer.waitAndSelectItem(modulePath);
     menu.runCommand(
         TestMenuCommandsConstants.Assistant.ASSISTANT,
         TestMenuCommandsConstants.Assistant.GENERATE_EFFECTIVE_POM);

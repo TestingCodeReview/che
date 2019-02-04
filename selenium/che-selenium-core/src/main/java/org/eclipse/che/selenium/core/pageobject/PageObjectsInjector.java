@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,7 +15,6 @@ import static java.lang.String.format;
 
 import com.google.inject.Inject;
 import com.google.inject.Injector;
-import com.google.inject.name.Named;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -25,7 +25,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
-import org.eclipse.che.selenium.core.constant.TestBrowser;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,29 +39,14 @@ public abstract class PageObjectsInjector {
 
   private static final Logger LOG = LoggerFactory.getLogger(PageObjectsInjector.class);
 
-  @Inject
-  @Named("sys.browser")
-  private TestBrowser browser;
-
-  @Inject
-  @Named("sys.driver.port")
-  private String webDriverPort;
-
-  @Inject
-  @Named("sys.grid.mode")
-  private boolean gridMode;
-
-  @Inject
-  @Named("sys.driver.version")
-  private String webDriverVersion;
+  @Inject private SeleniumWebDriverFactory seleniumWebDriverFactory;
 
   public void injectMembers(Object testInstance, Injector injector) throws Exception {
     Map<Integer, Set<Field>> toInject = collectFieldsToInject(testInstance);
 
     for (Integer poIndex : toInject.keySet()) {
       Map<Class<?>, Object> container = new HashMap<>();
-      SeleniumWebDriver seleniumWebDriver =
-          new SeleniumWebDriver(browser, webDriverPort, gridMode, webDriverVersion);
+      SeleniumWebDriver seleniumWebDriver = seleniumWebDriverFactory.create();
 
       container.put(SeleniumWebDriver.class, seleniumWebDriver);
       container.putAll(getDependenciesWithWebdriver(seleniumWebDriver));

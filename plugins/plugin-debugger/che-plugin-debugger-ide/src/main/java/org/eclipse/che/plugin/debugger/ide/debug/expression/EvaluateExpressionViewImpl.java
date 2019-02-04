@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,11 +12,8 @@
 package org.eclipse.che.plugin.debugger.ide.debug.expression;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyUpEvent;
-import com.google.gwt.event.dom.client.KeyUpHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
@@ -62,40 +60,24 @@ public class EvaluateExpressionViewImpl extends Window implements EvaluateExpres
     this.setTitle(this.locale.evaluateExpressionViewTitle());
     this.setWidget(widget);
 
-    Button closeButton =
-        createButton(
-            locale.evaluateExpressionViewCloseButtonTitle(),
-            "debugger-close-btn",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent clickEvent) {
-                delegate.onCloseClicked();
-              }
-            });
+    addFooterButton(
+        locale.evaluateExpressionViewCloseButtonTitle(),
+        "debugger-close-btn",
+        clickEvent -> delegate.onCloseClicked());
 
     evaluateButton =
-        createButton(
+        addFooterButton(
             locale.evaluateExpressionViewEvaluateButtonTitle(),
             "debugger-evaluate-btn",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent clickEvent) {
-                delegate.onEvaluateClicked();
-              }
-            });
+            clickEvent -> delegate.onEvaluateClicked(),
+            true);
 
     expression.addKeyUpHandler(
-        new KeyUpHandler() {
-          @Override
-          public void onKeyUp(KeyUpEvent event) {
-            if (KeyCodes.KEY_ENTER == event.getNativeKeyCode()) {
-              delegate.onEvaluateClicked();
-            }
+        event -> {
+          if (KeyCodes.KEY_ENTER == event.getNativeKeyCode()) {
+            delegate.onEvaluateClicked();
           }
         });
-
-    addButtonToFooter(closeButton);
-    addButtonToFooter(evaluateButton);
   }
 
   /** {@inheritDoc} */
@@ -143,7 +125,11 @@ public class EvaluateExpressionViewImpl extends Window implements EvaluateExpres
   /** {@inheritDoc} */
   @Override
   public void showDialog() {
-    this.show();
+    show();
+  }
+
+  @Override
+  protected void onShow() {
     if (!expression.getText().isEmpty()) {
       expression.selectAll();
       evaluateButton.setEnabled(true);

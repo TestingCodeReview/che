@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,17 +14,19 @@ package org.eclipse.che.selenium.plainjava;
 import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsConstants.CommandsDefaultNames.JAVA_NAME;
 import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsConstants.CommandsGoals.RUN_GOAL;
 import static org.eclipse.che.selenium.core.constant.TestIntelligentCommandsConstants.CommandsTypes.JAVA_TYPE;
-import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.NEW;
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuFirstLevelItems.BUILD_PATH;
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuFirstLevelItems.NEW;
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.SubMenuBuildPath.USE_AS_SOURCE_FOLDER;
 import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.SubMenuNew.JAVA_CLASS;
 import static org.eclipse.che.selenium.pageobject.AskForValueDialog.JavaFiles.CLASS;
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.ERROR_MARKER;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.ERROR;
+import static org.eclipse.che.selenium.pageobject.ProjectExplorer.FolderTypes.JAVA_SOURCE_FOLDER;
 
 import com.google.inject.Inject;
 import java.net.URL;
 import java.nio.file.Paths;
 import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
-import org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
@@ -63,34 +66,35 @@ public class ConfigureSomeSourceFoldersTest {
     testProjectServiceClient.importProject(
         ws.getId(), Paths.get(resource.toURI()), PROJECT_NAME, ProjectTemplates.PLAIN_JAVA);
     ide.open(ws);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
   public void checkConfigureClasspathPlainJavaProject() {
+    String pathToNewJavaFile = PROJECT_NAME + "/source/NewClass.java";
+    String methodForChecking =
+        " public static String typeCheckMess(){\n"
+            + "  return \"Message from source folder\";\n"
+            + "    ";
+
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
     projectExplorer.openItemByPath(PROJECT_NAME);
     projectExplorer.openContextMenuByPathSelectedItem(PROJECT_NAME + "/source");
-    projectExplorer.clickOnItemInContextMenu(TestProjectExplorerContextMenuConstants.BUILD_PATH);
-    projectExplorer.clickOnItemInContextMenu(
-        TestProjectExplorerContextMenuConstants.SubMenuBuildPath.USE_AS_SOURCE_FOLDER);
-    projectExplorer.waitFolderDefinedTypeOfFolderByPath(
-        PROJECT_NAME + "/source", ProjectExplorer.FolderTypes.JAVA_SOURCE_FOLDER);
-    projectExplorer.waitFolderDefinedTypeOfFolderByPath(
-        PROJECT_NAME + "/src", ProjectExplorer.FolderTypes.JAVA_SOURCE_FOLDER);
+    projectExplorer.clickOnItemInContextMenu(BUILD_PATH);
+    projectExplorer.clickOnItemInContextMenu(USE_AS_SOURCE_FOLDER);
+    projectExplorer.waitDefinedTypeOfFolder(PROJECT_NAME + "/source", JAVA_SOURCE_FOLDER);
+    projectExplorer.waitDefinedTypeOfFolder(PROJECT_NAME + "/src", JAVA_SOURCE_FOLDER);
     projectExplorer.openContextMenuByPathSelectedItem(PROJECT_NAME + "/source");
     createNewJavaClass(newJavaClassName);
-    projectExplorer.waitItem(PROJECT_NAME + "/source/" + newJavaClassName + ".java");
+    projectExplorer.openItemByPath(pathToNewJavaFile);
+    codenvyEditor.waitActive();
     codenvyEditor.waitTextIntoEditor("public class NewClass {");
-    codenvyEditor.waitAllMarkersDisappear(ERROR_MARKER);
+    codenvyEditor.waitAllMarkersInvisibility(ERROR);
     codenvyEditor.goToCursorPositionVisible(2, 24);
     codenvyEditor.typeTextIntoEditor(Keys.ENTER.toString());
-    String methodForChecking =
-        " public static String typeCheckMess(){\n"
-            + "        return \"Message from source folder\";\n"
-            + "    ";
     codenvyEditor.typeTextIntoEditor(methodForChecking);
-    codenvyEditor.waitAllMarkersDisappear(ERROR_MARKER);
+    codenvyEditor.waitAllMarkersInvisibility(ERROR);
     projectExplorer.openItemByPath(PROJECT_NAME + "/src");
     projectExplorer.waitItem(PROJECT_NAME + "/src/Main.java");
     projectExplorer.openItemByPath(PROJECT_NAME + "/src/Main.java");
@@ -103,10 +107,10 @@ public class ConfigureSomeSourceFoldersTest {
     projectExplorer.clickOnItemInContextMenu(NEW);
     projectExplorer.clickOnNewContextMenuItem(JAVA_CLASS);
     askForValueDialog.createJavaFileByNameAndType(name, CLASS);
-    projectExplorer.waitItemInVisibleArea(name + ".java");
     codenvyEditor.waitActive();
     loader.waitOnClosed();
     codenvyEditor.waitTabIsPresent(name);
+    codenvyEditor.closeFileByNameWithSaving(name);
   }
 
   private void launchMainClassFromCommandWidget() {

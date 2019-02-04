@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,7 +16,6 @@ import static org.eclipse.che.multiuser.organization.shared.event.EventType.ORGA
 import java.util.List;
 import org.eclipse.che.multiuser.organization.shared.event.EventType;
 import org.eclipse.che.multiuser.organization.shared.event.OrganizationEvent;
-import org.eclipse.che.multiuser.organization.shared.model.Member;
 import org.eclipse.che.multiuser.organization.shared.model.Organization;
 
 /**
@@ -27,10 +27,10 @@ public class OrganizationRemovedEvent implements OrganizationEvent {
 
   private final String initiator;
   private final Organization organization;
-  private final List<? extends Member> members;
+  private final List<String> members;
 
   public OrganizationRemovedEvent(
-      String initiator, Organization organization, List<? extends Member> members) {
+      String initiator, Organization organization, List<String> members) {
     this.initiator = initiator;
     this.organization = organization;
     this.members = members;
@@ -46,7 +46,7 @@ public class OrganizationRemovedEvent implements OrganizationEvent {
     return organization;
   }
 
-  public List<? extends Member> getMembers() {
+  public List<String> getMembers() {
     return members;
   }
 

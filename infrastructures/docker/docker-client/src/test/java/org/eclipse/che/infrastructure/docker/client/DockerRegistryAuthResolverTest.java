@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.infrastructure.docker.client;
 
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -18,8 +20,8 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import org.eclipse.che.dto.server.DtoFactory;
-import org.eclipse.che.infrastructure.docker.client.dto.AuthConfig;
-import org.eclipse.che.infrastructure.docker.client.dto.AuthConfigs;
+import org.eclipse.che.infrastructure.docker.auth.dto.AuthConfig;
+import org.eclipse.che.infrastructure.docker.auth.dto.AuthConfigs;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.testng.MockitoTestNGListener;
@@ -176,7 +178,7 @@ public class DockerRegistryAuthResolverTest {
 
   @BeforeMethod
   private void setup() {
-    when(initialAuthConfig.getAuthConfigs()).thenReturn(initialAuthConfigs);
+    lenient().when(initialAuthConfig.getAuthConfigs()).thenReturn(initialAuthConfigs);
   }
 
   @Test
@@ -418,7 +420,7 @@ public class DockerRegistryAuthResolverTest {
 
   @Test
   public void shouldAcceptDockerHubAlias1WhenGetXRegistryAuthValueFromCustomConfig() {
-    when(initialAuthConfig.getAuthConfigs()).thenReturn(emptyAuthConfigs);
+    lenient().when(initialAuthConfig.getAuthConfigs()).thenReturn(emptyAuthConfigs);
 
     String base64HeaderValue =
         authResolver.getXRegistryAuthHeaderValue(DEFAULT_REGISTRY_URL_ALIAS1, dockerHubAuthConfigs);

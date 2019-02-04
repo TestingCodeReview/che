@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,10 +13,12 @@ package org.eclipse.che.plugin.languageserver.ide.location;
 
 import com.google.gwt.dom.client.Style;
 import com.google.gwt.user.client.ui.DockLayoutPanel;
+import com.google.inject.Inject;
 import java.util.Collections;
 import java.util.List;
 import javax.validation.constraints.NotNull;
 import org.eclipse.che.api.promises.client.Promise;
+import org.eclipse.che.ide.api.parts.PartStackUIResources;
 import org.eclipse.che.ide.api.parts.base.BaseView;
 import org.eclipse.che.ide.ui.smartTree.NodeLoader;
 import org.eclipse.che.ide.ui.smartTree.NodeStorage;
@@ -35,7 +38,8 @@ public class OpenLocationViewImpl extends BaseView<OpenLocationView.ActionDelega
 
   private final Tree tree;
 
-  public OpenLocationViewImpl() {
+  @Inject
+  public OpenLocationViewImpl(PartStackUIResources resources) {
     DockLayoutPanel panel = new DockLayoutPanel(Style.Unit.PX);
 
     NodeStorage storage =
@@ -72,8 +76,8 @@ public class OpenLocationViewImpl extends BaseView<OpenLocationView.ActionDelega
     private final Location location;
     private NodePresentation nodePresentation;
 
-    public LocationNode(Location location) {
-      this.location = location;
+    public LocationNode(Location location2) {
+      this.location = location2;
     }
 
     @Override
@@ -81,13 +85,13 @@ public class OpenLocationViewImpl extends BaseView<OpenLocationView.ActionDelega
       presentation.setPresentableText(location.getUri());
       presentation.setInfoText(
           "From:"
-              + location.getRange().getStart().getLine()
+              + (location.getRange().getStart().getLine() + 1)
               + ":"
-              + location.getRange().getStart().getCharacter()
+              + (location.getRange().getStart().getCharacter() + 1)
               + " To:"
-              + location.getRange().getEnd().getLine()
+              + (location.getRange().getEnd().getLine() + 1)
               + ":"
-              + location.getRange().getEnd().getCharacter());
+              + (location.getRange().getEnd().getCharacter() + 1));
     }
 
     @Override

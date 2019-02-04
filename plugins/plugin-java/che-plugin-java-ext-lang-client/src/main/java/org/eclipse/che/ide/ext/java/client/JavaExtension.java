@@ -1,24 +1,30 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.java.client;
 
+import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.RUNNING;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_ASSISTANT;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_FILE_NEW;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_PROJECT;
+import static org.eclipse.che.ide.api.action.IdeActions.GROUP_RIGHT_STATUS_PANEL;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import com.google.web.bindery.event.shared.EventBus;
 import org.eclipse.che.ide.api.action.ActionManager;
 import org.eclipse.che.ide.api.action.DefaultActionGroup;
 import org.eclipse.che.ide.api.action.IdeActions;
+import org.eclipse.che.ide.api.action.Separator;
+import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.constraints.Anchor;
 import org.eclipse.che.ide.api.constraints.Constraints;
 import org.eclipse.che.ide.api.extension.Extension;
@@ -28,23 +34,25 @@ import org.eclipse.che.ide.api.icon.Icon;
 import org.eclipse.che.ide.api.icon.IconRegistry;
 import org.eclipse.che.ide.api.keybinding.KeyBindingAgent;
 import org.eclipse.che.ide.api.keybinding.KeyBuilder;
+import org.eclipse.che.ide.api.workspace.event.WsAgentServerRunningEvent;
 import org.eclipse.che.ide.ext.java.client.action.FileStructureAction;
 import org.eclipse.che.ide.ext.java.client.action.FindUsagesAction;
 import org.eclipse.che.ide.ext.java.client.action.MarkDirAsSourceAction;
 import org.eclipse.che.ide.ext.java.client.action.MarkDirectoryAsGroup;
 import org.eclipse.che.ide.ext.java.client.action.NewJavaSourceFileAction;
 import org.eclipse.che.ide.ext.java.client.action.NewPackageAction;
-import org.eclipse.che.ide.ext.java.client.action.OpenDeclarationAction;
 import org.eclipse.che.ide.ext.java.client.action.OpenImplementationAction;
 import org.eclipse.che.ide.ext.java.client.action.OrganizeImportsAction;
-import org.eclipse.che.ide.ext.java.client.action.ParametersHintsAction;
 import org.eclipse.che.ide.ext.java.client.action.ProjectClasspathAction;
 import org.eclipse.che.ide.ext.java.client.action.QuickDocumentationAction;
 import org.eclipse.che.ide.ext.java.client.action.QuickFixAction;
 import org.eclipse.che.ide.ext.java.client.action.UnmarkDirAsSourceAction;
+import org.eclipse.che.ide.ext.java.client.progressor.ProgressMessagesHandler;
+import org.eclipse.che.ide.ext.java.client.progressor.background.ProgressMonitorAction;
 import org.eclipse.che.ide.ext.java.client.refactoring.move.CutJavaSourceAction;
 import org.eclipse.che.ide.ext.java.client.refactoring.move.MoveAction;
 import org.eclipse.che.ide.ext.java.client.refactoring.rename.RenameRefactoringAction;
+import org.eclipse.che.ide.ext.java.client.service.CustomNotificationReceiver;
 import org.eclipse.che.ide.ext.java.shared.Constants;
 import org.eclipse.che.ide.util.browser.UserAgent;
 import org.eclipse.che.ide.util.input.KeyCodeMap;
@@ -57,9 +65,7 @@ public class JavaExtension {
   public static final String SHOW_QUICK_DOC = "showQuickDoc";
   public static final String JAVA_CLASS_STRUCTURE = "javaClassStructure";
   public static final String ORGANIZE_IMPORTS = "organizeImports";
-  public static final String PARAMETERS_INFO = "parametersInfo";
   public static final String QUICK_FIX = "quickFix";
-  public static final String OPEN_JAVA_DECLARATION = "openJavaDeclaration";
   public static final String JAVA_RENAME_REFACTORING = "javaRenameRefactoring";
   public static final String JAVA_CUT_REFACTORING = "javaCutRefactoring";
   public static final String JAVA_MOVE_REFACTORING = "javaMoveRefactoring";
@@ -69,6 +75,9 @@ public class JavaExtension {
   @Inject
   public JavaExtension(
       FileTypeRegistry fileTypeRegistry,
+      AppContext appContext,
+      EventBus eventBus,
+      CustomNotificationReceiver customNotificationReceiver,
       @Named("JavaFileType") FileType javaFile,
       @Named("JavaClassFileType") FileType classFile,
       @Named("JspFileType") FileType jspFile) {
@@ -77,6 +86,16 @@ public class JavaExtension {
     fileTypeRegistry.registerFileType(javaFile);
     fileTypeRegistry.registerFileType(jspFile);
     fileTypeRegistry.registerFileType(classFile);
+
+    eventBus.addHandler(
+        WsAgentServerRunningEvent.TYPE,
+        e -> {
+          customNotificationReceiver.subscribe();
+        });
+
+    if (appContext.getWorkspace().getStatus() == RUNNING) {
+      customNotificationReceiver.subscribe();
+    }
   }
 
   @Inject
@@ -92,14 +111,14 @@ public class JavaExtension {
       MarkDirAsSourceAction markDirAsSourceAction,
       UnmarkDirAsSourceAction unmarkDirAsSourceAction,
       MarkDirectoryAsGroup markDirectoryAsGroup,
+      ProgressMonitorAction progressMonitorAction,
+      ProgressMessagesHandler progressMessagesHandler,
       OrganizeImportsAction organizeImportsAction,
       RenameRefactoringAction renameRefactoringAction,
       QuickDocumentationAction quickDocumentationAction,
       QuickFixAction quickFixAction,
-      OpenDeclarationAction openDeclarationAction,
       OpenImplementationAction openImplementationAction,
-      FindUsagesAction findUsagesAction,
-      ParametersHintsAction parametersHintsAction) {
+      FindUsagesAction findUsagesAction) {
 
     DefaultActionGroup newGroup = (DefaultActionGroup) actionManager.getAction(GROUP_FILE_NEW);
 
@@ -108,6 +127,8 @@ public class JavaExtension {
 
     actionManager.registerAction("newJavaPackage", newPackageAction);
     newGroup.add(newPackageAction, new Constraints(Anchor.AFTER, "newJavaClass"));
+
+    newGroup.add(Separator.getInstance(), new Constraints(Anchor.AFTER, "newJavaPackage"));
 
     DefaultActionGroup refactorGroup =
         (DefaultActionGroup) actionManager.getAction(GROUP_ASSISTANT_REFACTORING);
@@ -128,7 +149,6 @@ public class JavaExtension {
     assistantGroup.add(refactorGroup, new Constraints(Anchor.BEFORE, "updateDependency"));
 
     actionManager.registerAction(SHOW_QUICK_DOC, quickDocumentationAction);
-    actionManager.registerAction(OPEN_JAVA_DECLARATION, openDeclarationAction);
     actionManager.registerAction(OPEN_IMPLEMENTATION, openImplementationAction);
     actionManager.registerAction(JAVA_RENAME_REFACTORING, renameRefactoringAction);
     actionManager.registerAction(JAVA_MOVE_REFACTORING, moveAction);
@@ -136,14 +156,11 @@ public class JavaExtension {
     actionManager.registerAction(JAVA_FIND_USAGES, findUsagesAction);
     actionManager.registerAction(JAVA_CLASS_STRUCTURE, fileStructureAction);
     actionManager.registerAction(ORGANIZE_IMPORTS, organizeImportsAction);
-    actionManager.registerAction(PARAMETERS_INFO, parametersHintsAction);
     actionManager.registerAction(QUICK_FIX, quickFixAction);
 
     assistantGroup.add(
         quickDocumentationAction, new Constraints(Anchor.BEFORE, GROUP_ASSISTANT_REFACTORING));
     assistantGroup.add(quickFixAction, new Constraints(Anchor.BEFORE, GROUP_ASSISTANT_REFACTORING));
-    assistantGroup.add(
-        openDeclarationAction, new Constraints(Anchor.BEFORE, GROUP_ASSISTANT_REFACTORING));
     assistantGroup.add(
         organizeImportsAction, new Constraints(Anchor.BEFORE, GROUP_ASSISTANT_REFACTORING));
     assistantGroup.add(
@@ -167,13 +184,16 @@ public class JavaExtension {
     mainContextMenuGroup.add(markDirectoryAsGroup);
     mainContextMenuGroup.addSeparator();
 
+    // add resolver widget on right part of bottom panel
+    final DefaultActionGroup rightStatusPanelGroup =
+        (DefaultActionGroup) actionManager.getAction(GROUP_RIGHT_STATUS_PANEL);
+    rightStatusPanelGroup.add(progressMonitorAction);
+
     DefaultActionGroup editorContextMenuGroup =
         (DefaultActionGroup) actionManager.getAction(IdeActions.GROUP_EDITOR_CONTEXT_MENU);
 
     editorContextMenuGroup.add(quickDocumentationAction, new Constraints(Anchor.AFTER, "format"));
     editorContextMenuGroup.add(quickFixAction, new Constraints(Anchor.AFTER, SHOW_QUICK_DOC));
-    editorContextMenuGroup.add(openDeclarationAction, new Constraints(Anchor.AFTER, QUICK_FIX));
-    editorContextMenuGroup.add(refactorGroup, new Constraints(Anchor.AFTER, OPEN_JAVA_DECLARATION));
     editorContextMenuGroup.add(
         fileStructureAction, new Constraints(Anchor.AFTER, GROUP_ASSISTANT_REFACTORING));
 
@@ -193,9 +213,6 @@ public class JavaExtension {
           .addKey(new KeyBuilder().alt().control().charCode('o').build(), ORGANIZE_IMPORTS);
       keyBinding
           .getGlobal()
-          .addKey(new KeyBuilder().control().charCode('p').build(), PARAMETERS_INFO);
-      keyBinding
-          .getGlobal()
           .addKey(new KeyBuilder().action().charCode(KeyCodeMap.ENTER).build(), QUICK_FIX);
     } else {
       keyBinding
@@ -212,14 +229,8 @@ public class JavaExtension {
           .addKey(new KeyBuilder().alt().action().charCode('o').build(), ORGANIZE_IMPORTS);
       keyBinding
           .getGlobal()
-          .addKey(new KeyBuilder().action().charCode('p').build(), PARAMETERS_INFO);
-      keyBinding
-          .getGlobal()
           .addKey(new KeyBuilder().alt().charCode(KeyCodeMap.ENTER).build(), QUICK_FIX);
     }
-    keyBinding
-        .getGlobal()
-        .addKey(new KeyBuilder().none().charCode(KeyCodeMap.F4).build(), OPEN_JAVA_DECLARATION);
     keyBinding
         .getGlobal()
         .addKey(new KeyBuilder().shift().charCode(KeyCodeMap.F6).build(), JAVA_RENAME_REFACTORING);

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -26,6 +27,9 @@ public class ProjectData {
   /** Url to clone from GitHub (readOnly). */
   private String readOnlyUrl;
 
+  private String httpTransportUrl;
+  private boolean isPrivateRepo;
+
   private List<String> targets;
 
   public ProjectData(
@@ -34,13 +38,17 @@ public class ProjectData {
       String type,
       List<String> targets,
       String repositoryUrl,
-      String readOnlyUrl) {
+      String readOnlyUrl,
+      String httpTransportUrl,
+      boolean isPrivateRepo) {
     this.name = name;
     this.description = description;
     this.type = type;
     this.repositoryUrl = repositoryUrl;
     this.targets = targets;
     this.readOnlyUrl = readOnlyUrl;
+    this.httpTransportUrl = httpTransportUrl;
+    this.isPrivateRepo = isPrivateRepo;
   }
 
   /**
@@ -105,5 +113,37 @@ public class ProjectData {
 
   public void setReadOnlyUrl(String readOnlyUrl) {
     this.readOnlyUrl = readOnlyUrl;
+  }
+
+  /**
+   * Gets the HTTPS URL to the repository, such as "https://github.com/eclipse/che.git" This URL is
+   * read-only.
+   */
+  public String getHttpTransportUrl() {
+    return httpTransportUrl;
+  }
+
+  /** Sets the HTTPS URL to the repository, such as "https://github.com/eclipse/che.git" */
+  public void setHttpTransportUrl(String httpTransportUrl) {
+    this.httpTransportUrl = httpTransportUrl;
+  }
+
+  /**
+   * Gets state of the repository.
+   *
+   * @return {@code true} when the repository is private, {@code false} otherwise
+   */
+  public boolean isPrivateRepo() {
+    return isPrivateRepo;
+  }
+
+  /**
+   * Sets state of the repository.
+   *
+   * @param isPrivateRepo should be {@code true} when the repository is private, {@code false}
+   *     otherwise
+   */
+  void setPrivateRepo(boolean isPrivateRepo) {
+    this.isPrivateRepo = isPrivateRepo;
   }
 }

@@ -1,21 +1,22 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.watcher.server.impl;
 
-import static com.google.common.collect.Sets.newHashSet;
+import static com.google.common.collect.Sets.newConcurrentHashSet;
 import static java.nio.file.Files.isDirectory;
 import static org.eclipse.che.api.watcher.server.impl.FileWatcherUtils.toInternalPath;
 
-import java.io.File;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.WatchEvent;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,8 +28,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.inject.Singleton;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 import org.eclipse.che.api.watcher.server.FileWatcherManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,11 +42,11 @@ public class FileWatcherEventHandler {
 
   private final Map<Path, Set<FileWatcherOperation>> operations = new ConcurrentHashMap<>();
 
-  private final File root;
+  private final Path root;
 
   @Inject
-  public FileWatcherEventHandler(@Named("che.user.workspaces.storage") File root) {
-    this.root = root;
+  public FileWatcherEventHandler(RootDirPathProvider pathProvider) {
+    this.root = Paths.get(pathProvider.get());
   }
 
   /**
@@ -67,7 +68,7 @@ public class FileWatcherEventHandler {
     int id = idCounter.incrementAndGet();
     FileWatcherOperation operation = new FileWatcherOperation(id, create, modify, delete);
 
-    operations.putIfAbsent(path, newHashSet());
+    operations.putIfAbsent(path, newConcurrentHashSet());
     operations.get(path).add(operation);
 
     return id;
@@ -110,7 +111,7 @@ public class FileWatcherEventHandler {
    */
   void handle(Path path, WatchEvent.Kind<?> kind) {
     Path dir = path.getParent();
-    String internalPath = toInternalPath(root.toPath(), path);
+    String internalPath = toInternalPath(root, path);
     Set<FileWatcherOperation> dirOperations = operations.get(dir);
     Set<FileWatcherOperation> itemOperations = operations.get(path);
 

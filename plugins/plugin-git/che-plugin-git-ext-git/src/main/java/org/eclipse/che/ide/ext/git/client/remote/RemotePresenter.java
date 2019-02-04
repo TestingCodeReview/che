@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,7 +19,6 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import javax.validation.constraints.NotNull;
 import org.eclipse.che.api.git.shared.Remote;
-import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.resources.Project;
 import org.eclipse.che.ide.ext.git.client.GitLocalizationConstant;
@@ -42,7 +42,6 @@ public class RemotePresenter implements RemoteView.ActionDelegate {
   private final ProcessesPanelPresenter consolesPanelPresenter;
   private final RemoteView view;
   private final GitServiceClient service;
-  private final AppContext appContext;
   private final GitLocalizationConstant constant;
   private final AddRemoteRepositoryPresenter addRemoteRepositoryPresenter;
   private final NotificationManager notificationManager;
@@ -54,7 +53,6 @@ public class RemotePresenter implements RemoteView.ActionDelegate {
   public RemotePresenter(
       RemoteView view,
       GitServiceClient service,
-      AppContext appContext,
       GitLocalizationConstant constant,
       AddRemoteRepositoryPresenter addRemoteRepositoryPresenter,
       NotificationManager notificationManager,
@@ -65,7 +63,6 @@ public class RemotePresenter implements RemoteView.ActionDelegate {
     this.consolesPanelPresenter = processesPanelPresenter;
     this.view.setDelegate(this);
     this.service = service;
-    this.appContext = appContext;
     this.constant = constant;
     this.addRemoteRepositoryPresenter = addRemoteRepositoryPresenter;
     this.notificationManager = notificationManager;
@@ -114,8 +111,6 @@ public class RemotePresenter implements RemoteView.ActionDelegate {
           @Override
           public void onSuccess(Void result) {
             getRemotes();
-
-            project.synchronize();
           }
 
           @Override
@@ -143,8 +138,6 @@ public class RemotePresenter implements RemoteView.ActionDelegate {
         .then(
             ignored -> {
               getRemotes();
-
-              project.synchronize();
             })
         .catchError(
             error -> {

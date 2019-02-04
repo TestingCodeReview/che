@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,6 +16,7 @@ import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ATTAC
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
@@ -27,10 +29,10 @@ import org.openqa.selenium.support.ui.WebDriverWait;
  */
 @Singleton
 public class JavaDebugConfig extends AbstractDebugConfig {
-
   @Inject
-  public JavaDebugConfig(SeleniumWebDriver seleniumWebDriver) {
-    super(seleniumWebDriver);
+  public JavaDebugConfig(
+      SeleniumWebDriver seleniumWebDriver, SeleniumWebDriverHelper seleniumWebDriverHelper) {
+    super(seleniumWebDriver, seleniumWebDriverHelper);
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
@@ -49,7 +51,7 @@ public class JavaDebugConfig extends AbstractDebugConfig {
   }
 
   @Override
-  void expandDebugCategory() {
+  public void expandDebugCategory() {
     new WebDriverWait(seleniumWebDriver, ATTACHING_ELEM_TO_DOM_SEC)
         .until(ExpectedConditions.visibilityOf(debugCategoryExpandIcon))
         .click();

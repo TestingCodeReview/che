@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,7 +18,6 @@ import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.constant.TestBuildConstants;
 import org.eclipse.che.selenium.core.constant.TestCommandsConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
@@ -80,6 +80,7 @@ public class DebugExternalClassTest {
 
     // open IDE
     ide.open(ws);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT);
     loader.waitOnClosed();
     projectExplorer.waitItem(PROJECT);
     notifications.waitProgressPopupPanelClose();
@@ -91,13 +92,6 @@ public class DebugExternalClassTest {
     debugConfig.createConfig(PROJECT);
 
     projectExplorer.quickRevealToItemWithJavaScript(PATH_TO_CLASS);
-
-    // perform command "Maven > Reimport" to avoid "Type with fully qualified name:
-    // ch.qos.logback.classic.Logger was not found" error
-    projectExplorer.openContextMenuByPathSelectedItem(PROJECT);
-    projectExplorer.clickOnItemInContextMenu(TestProjectExplorerContextMenuConstants.MAVEN);
-    projectExplorer.clickOnNewContextMenuItem(
-        ProjectExplorer.PROJECT_EXPLORER_CONTEXT_MENU_MAVEN.REIMPORT);
   }
 
   @BeforeMethod
@@ -123,21 +117,17 @@ public class DebugExternalClassTest {
   @Test
   public void shouldDebugMavenArtifactClassWithSources() {
     // when
-    editor.setInactiveBreakpoint(23);
+    editor.setInactiveBreakpoint(24);
     menu.runCommandByXpath(
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.DEBUG,
         debugConfig.getXpathToІRunDebugCommand(PROJECT));
 
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
-    editor.waitActiveBreakpoint(23);
+    notifications.waitExpectedMessageOnProgressPanelAndClose("Remote debugger connected");
+    editor.waitActiveBreakpoint(24);
     debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_INTO);
 
     // then
-    editor.waitActiveTabFileName(
-        "Logger"); // there should be class "Logger" opened in decompiled view with "Download
-    // sources" link at the top
-    editor.clickOnDownloadSourcesLink();
     editor.waitActiveTabFileName("Logger"); // there should be class "Logger" opened
     debugPanel.waitDebugHighlightedText(
         "filterAndLog_1(FQCN, null, Level.INFO, format, arg, null);");
@@ -163,26 +153,18 @@ public class DebugExternalClassTest {
   @Test(priority = 1)
   public void shouldHandleDebugOfMavenArtifactWithoutSources() {
     // when
-    editor.setInactiveBreakpoint(27);
+    editor.setInactiveBreakpoint(28);
     menu.runCommandByXpath(
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.DEBUG,
         debugConfig.getXpathToІRunDebugCommand(PROJECT));
 
-    notifications.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
-    editor.waitActiveBreakpoint(27);
+    notifications.waitExpectedMessageOnProgressPanelAndClose("Remote debugger connected");
+    editor.waitActiveBreakpoint(28);
     debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_INTO);
 
     // then
-    editor.waitActiveTabFileName(
-        "Category"); // there should be class "Category" opened in decompiled view with "Download
-    // sources" link at the top
-    editor.clickOnDownloadSourcesLink(); // there should be "Download sources" link displayed in at
-    // the top of editor. Download they.
-    notifications.waitExpectedMessageOnProgressPanelAndClosed(
-        "Download sources for 'org.apache.log4j.Category' failed"); // there should an error of
-    // downloading the sources
-    editor.waitActiveTabFileName("Category"); // there should be class "Category" opened
+    editor.waitActiveTabFileName("Category");
 
     // when
     debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OUT);

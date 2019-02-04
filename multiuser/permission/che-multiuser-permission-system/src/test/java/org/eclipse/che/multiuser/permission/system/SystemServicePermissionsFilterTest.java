@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,6 +17,7 @@ import static java.util.Arrays.asList;
 import static org.everrest.assured.JettyHttpServer.ADMIN_USER_NAME;
 import static org.everrest.assured.JettyHttpServer.ADMIN_USER_PASSWORD;
 import static org.everrest.assured.JettyHttpServer.SECURE_PATH;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -67,7 +69,6 @@ public class SystemServicePermissionsFilterTest {
   @Test
   public void allPublicMethodsAreFiltered() {
     Set<String> existingMethods = getDeclaredPublicMethods(SystemService.class);
-    existingMethods.addAll(getDeclaredPublicMethods(SystemService.class));
 
     if (!existingMethods.equals(TEST_HANDLED_METHODS)) {
       Set<String> existingMinusExpected = Sets.difference(existingMethods, TEST_HANDLED_METHODS);
@@ -93,7 +94,7 @@ public class SystemServicePermissionsFilterTest {
         .then()
         .statusCode(204);
 
-    verify(systemService).stop();
+    verify(systemService).stop(anyBoolean());
   }
 
   @Test
@@ -108,7 +109,7 @@ public class SystemServicePermissionsFilterTest {
         .then()
         .statusCode(403);
 
-    verify(systemService, never()).stop();
+    verify(systemService, never()).stop(anyBoolean());
   }
 
   @Test
@@ -132,24 +133,10 @@ public class SystemServicePermissionsFilterTest {
         .auth()
         .basic(ADMIN_USER_NAME, ADMIN_USER_PASSWORD)
         .when()
-        .get(SECURE_PATH + "/system/state")
-        .then()
-        .statusCode(403);
+        .get(SECURE_PATH + "/system/state");
 
-    verify(systemService, never()).getState();
+    verify(systemService).getState();
   }
-
-  //    @Test
-  //    public void allowsToGetSystemRamForAnyone() throws Exception {
-  //        permitSubject("nothing");
-  //
-  //        given().auth()
-  //               .basic(ADMIN_USER_NAME, ADMIN_USER_PASSWORD)
-  //               .when()
-  //               .get(SECURE_PATH + "/system/ram/limit");
-  //
-  //        verify(systemService).getSystemRamLimitStatus();
-  //    }
 
   private static void permitSubject(String... allowedActions) throws ForbiddenException {
     doAnswer(

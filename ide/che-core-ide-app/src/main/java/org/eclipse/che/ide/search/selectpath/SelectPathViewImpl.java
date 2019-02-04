@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,10 +12,9 @@
 package org.eclipse.che.ide.search.selectpath;
 
 import static org.eclipse.che.ide.ui.smartTree.SelectionModel.Mode.SINGLE;
+import static org.eclipse.che.ide.util.dom.DomUtils.isWidgetOrChildFocused;
 
 import com.google.gwt.dom.client.NativeEvent;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.ui.Button;
@@ -81,40 +81,19 @@ public class SelectPathViewImpl extends Window implements SelectPathView {
 
     handler.bind(tree);
 
-    cancelButton =
-        createButton(
-            locale.cancel(),
-            "select-path-cancel-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                hide();
-              }
-            });
+    cancelButton = addFooterButton(locale.cancel(), "select-path-cancel-button", event -> hide());
 
     acceptButton =
-        createPrimaryButton(
-            locale.ok(),
-            "select-path-ok-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                acceptButtonClicked();
-              }
-            });
-
-    addButtonToFooter(acceptButton);
-    addButtonToFooter(cancelButton);
+        addFooterButton(locale.ok(), "select-path-ok-button", event -> acceptButtonClicked(), true);
   }
 
   @Override
-  protected void onEnterClicked() {
-    if (isWidgetFocused(acceptButton)) {
-      acceptButtonClicked();
-      return;
-    }
+  public void onEnterPress(NativeEvent evt) {
+    super.onEnterPress(evt);
 
-    if (isWidgetFocused(cancelButton)) {
+    if (isWidgetOrChildFocused(acceptButton)) {
+      acceptButtonClicked();
+    } else if (isWidgetOrChildFocused(cancelButton)) {
       hide();
     }
   }
@@ -125,8 +104,12 @@ public class SelectPathViewImpl extends Window implements SelectPathView {
   }
 
   @Override
-  public void show() {
-    super.show(tree);
+  public void showDialog() {
+    show(tree);
+  }
+
+  @Override
+  protected void onShow() {
     if (!tree.getRootNodes().isEmpty()) {
       tree.getSelectionModel().select(tree.getRootNodes().get(0), false);
     }

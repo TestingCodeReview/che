@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,13 +14,14 @@ package org.eclipse.che.api.workspace.server;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.lang.String.format;
 import static org.eclipse.che.api.core.model.workspace.config.MachineConfig.MEMORY_LIMIT_ATTRIBUTE;
+import static org.eclipse.che.api.core.model.workspace.config.MachineConfig.MEMORY_REQUEST_ATTRIBUTE;
+import static org.eclipse.che.api.workspace.server.SidecarToolingWorkspaceUtil.isSidecarBasedWorkspace;
 
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.regex.Pattern;
-import javax.inject.Inject;
 import javax.inject.Singleton;
-import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.ValidationException;
 import org.eclipse.che.api.core.model.workspace.Workspace;
@@ -29,7 +31,6 @@ import org.eclipse.che.api.core.model.workspace.config.Environment;
 import org.eclipse.che.api.core.model.workspace.config.MachineConfig;
 import org.eclipse.che.api.core.model.workspace.config.Recipe;
 import org.eclipse.che.api.core.model.workspace.config.Volume;
-import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
 
 /**
  * Validator for {@link Workspace}.
@@ -49,13 +50,6 @@ public class WorkspaceValidator {
   private static final Pattern VOLUME_NAME = Pattern.compile("[a-z][a-z0-9]{1,18}");
   private static final Pattern VOLUME_PATH = Pattern.compile("/.+");
 
-  private final WorkspaceRuntimes runtimes;
-
-  @Inject
-  public WorkspaceValidator(WorkspaceRuntimes runtimes) {
-    this.runtimes = runtimes;
-  }
-
   /**
    * Checks whether given workspace configuration object is in application valid state, so it
    * provides enough data to be processed by internal components, and the data it provides is valid
@@ -63,12 +57,9 @@ public class WorkspaceValidator {
    *
    * @param config configuration to validate
    * @throws ValidationException if any of validation constraints is violated
-   * @throws NotFoundException when configuration contains a recipe with a type which is not
-   *     supported by currently available workspace infrastructures
    * @throws ServerException when any other error occurs during environment validation
    */
-  public void validateConfig(WorkspaceConfig config)
-      throws ValidationException, NotFoundException, ServerException {
+  public void validateConfig(WorkspaceConfig config) throws ValidationException, ServerException {
     // configuration object properties
     checkNotNull(config.getName(), "Workspace name required");
     check(
@@ -77,30 +68,7 @@ public class WorkspaceValidator {
             + "latin letters, underscores, dots, dashes and must start and end only with digits, "
             + "latin letters or underscores");
 
-    // environments
-    check(!isNullOrEmpty(config.getDefaultEnv()), "Workspace default environment name required");
-    checkNotNull(config.getEnvironments(), "Workspace must contain at least one environment");
-    check(
-        config.getEnvironments().containsKey(config.getDefaultEnv()),
-        "Workspace default environment configuration required");
-
-    for (Environment environment : config.getEnvironments().values()) {
-      checkNotNull(environment, "Environment must not be null");
-      Recipe recipe = environment.getRecipe();
-      checkNotNull(recipe, "Environment recipe must not be null");
-      checkNotNull(recipe.getType(), "Environment recipe type must not be null");
-
-      for (Entry<String, ? extends MachineConfig> machineEntry :
-          environment.getMachines().entrySet()) {
-        validateMachine(machineEntry.getKey(), machineEntry.getValue());
-      }
-
-      try {
-        runtimes.validate(environment);
-      } catch (InfrastructureException e) {
-        throw new ServerException(e);
-      }
-    }
+    validateEnvironments(config);
 
     // commands
     for (Command command : config.getCommands()) {
@@ -117,6 +85,9 @@ public class WorkspaceValidator {
 
     // projects
     // TODO
+
+    // ensure using either plugins or installers but not both
+    validatePlugins(config);
   }
 
   /**
@@ -138,18 +109,42 @@ public class WorkspaceValidator {
     }
   }
 
-  private void validateMachine(String name, MachineConfig machine) throws ValidationException {
-    String memoryAttribute = machine.getAttributes().get(MEMORY_LIMIT_ATTRIBUTE);
-    if (memoryAttribute != null) {
-      try {
-        Long.parseLong(memoryAttribute);
-      } catch (NumberFormatException e) {
-        throw new ValidationException(
-            format(
-                "Value '%s' of attribute '%s' in machine '%s' is illegal",
-                memoryAttribute, MEMORY_LIMIT_ATTRIBUTE, name));
+  private void validateEnvironments(WorkspaceConfig config) throws ValidationException {
+    boolean environmentIsNotSet =
+        (config.getEnvironments() == null || config.getEnvironments().isEmpty())
+            && isNullOrEmpty(config.getDefaultEnv());
+    boolean isSidecarWorkspace = isSidecarBasedWorkspace(config.getAttributes());
+    if (environmentIsNotSet && isSidecarWorkspace) {
+      // sidecar based workspaces allowed not to have environment
+      return;
+    }
+    check(!isNullOrEmpty(config.getDefaultEnv()), "Workspace default environment name required");
+    checkNotNull(config.getEnvironments(), "Workspace must contain at least one environment");
+    check(
+        config.getEnvironments().containsKey(config.getDefaultEnv()),
+        "Workspace default environment configuration required");
+
+    for (Environment environment : config.getEnvironments().values()) {
+      checkNotNull(environment, "Environment must not be null");
+      Recipe recipe = environment.getRecipe();
+      checkNotNull(recipe, "Environment recipe must not be null");
+      checkNotNull(recipe.getType(), "Environment recipe type must not be null");
+
+      for (Entry<String, ? extends MachineConfig> machineEntry :
+          environment.getMachines().entrySet()) {
+        validateMachine(machineEntry.getKey(), machineEntry.getValue());
       }
     }
+  }
+
+  private void validateMachine(String machineName, MachineConfig machine)
+      throws ValidationException {
+    validateLongAttribute(
+        MEMORY_LIMIT_ATTRIBUTE, machine.getAttributes().get(MEMORY_LIMIT_ATTRIBUTE), machineName);
+    validateLongAttribute(
+        MEMORY_REQUEST_ATTRIBUTE,
+        machine.getAttributes().get(MEMORY_REQUEST_ATTRIBUTE),
+        machineName);
 
     for (Entry<String, ? extends Volume> volumeEntry : machine.getVolumes().entrySet()) {
       String volumeName = volumeEntry.getKey();
@@ -157,19 +152,55 @@ public class WorkspaceValidator {
           VOLUME_NAME.matcher(volumeName).matches(),
           "Volume name '%s' in machine '%s' is invalid",
           volumeName,
-          name);
+          machineName);
       Volume volume = volumeEntry.getValue();
       check(
           volume != null && !isNullOrEmpty(volume.getPath()),
           "Path of volume '%s' in machine '%s' is invalid. It should not be empty",
           volumeName,
-          name);
+          machineName);
       check(
           VOLUME_PATH.matcher(volume.getPath()).matches(),
           "Path '%s' of volume '%s' in machine '%s' is invalid. It should be absolute",
           volume.getPath(),
           volumeName,
-          name);
+          machineName);
+    }
+  }
+
+  private void validateLongAttribute(
+      String attributeName, String attributeValue, String machineName) throws ValidationException {
+    if (attributeValue != null) {
+      try {
+        Long.parseLong(attributeValue);
+      } catch (NumberFormatException e) {
+        throw new ValidationException(
+            format(
+                "Value '%s' of attribute '%s' in machine '%s' is illegal",
+                attributeValue, attributeName, machineName));
+      }
+    }
+  }
+
+  /**
+   * Check that workspace has either plugins defined in attributes (Che 7) or installers defined in
+   * machines (Che 6).
+   *
+   * @throws ValidationException if workspace config contains both installers section and nonempty
+   *     plugins or editor field in attributes.
+   */
+  private void validatePlugins(WorkspaceConfig config) throws ValidationException {
+    Optional<String> installers =
+        config
+            .getEnvironments()
+            .values()
+            .stream()
+            .flatMap(env -> env.getMachines().values().stream())
+            .flatMap(machine -> machine.getInstallers().stream())
+            .findAny();
+    Map<String, String> attributes = config.getAttributes();
+    if (isSidecarBasedWorkspace(attributes) && installers.isPresent()) {
+      throw new ValidationException("Workspace config cannot have both plugins and installers.");
     }
   }
 

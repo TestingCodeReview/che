@@ -1,20 +1,18 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.plugin.ssh.key.client.manage;
 
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
-import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.FlowPanel;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
@@ -54,7 +52,6 @@ public final class ShowSshKeyViewImpl extends Window implements ShowSshKeyView {
     this.constant = constant;
 
     setWidget(binder.createAndBindUi(this));
-    setHideOnEscapeEnabled(true);
 
     clipBoardBtnBuilder.withResourceWidget(key).build();
 
@@ -62,18 +59,7 @@ public final class ShowSshKeyViewImpl extends Window implements ShowSshKeyView {
   }
 
   private void addButtons() {
-    Button cancel =
-        createButton(
-            locale.cancel(),
-            "copy-reference-cancel-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                hide();
-              }
-            });
-
-    addButtonToFooter(cancel);
+    addFooterButton(locale.cancel(), "copy-reference-cancel-button", event -> hide());
   }
 
   @Override
@@ -81,7 +67,7 @@ public final class ShowSshKeyViewImpl extends Window implements ShowSshKeyView {
     setTitle(constant.publicSshKeyField() + name);
     this.key.setText(key);
     this.key.setReadOnly(true);
-    super.show();
+    show();
   }
 
   @Override

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -26,8 +27,6 @@ import org.eclipse.che.api.core.jsonrpc.impl.JsonRpcModule;
 import org.eclipse.che.api.core.websocket.commons.WebSocketMessageTransmitter;
 import org.eclipse.che.api.editor.server.EditorApiModule;
 import org.eclipse.che.api.fs.server.FsApiModule;
-import org.eclipse.che.api.fs.server.FsManager;
-import org.eclipse.che.api.fs.server.PathTransformer;
 import org.eclipse.che.api.project.server.ProjectApiModule;
 import org.eclipse.che.api.project.server.ProjectManager;
 import org.eclipse.che.api.project.server.impl.ProjectServiceApi;
@@ -37,9 +36,6 @@ import org.eclipse.che.api.project.server.impl.WorkspaceProjectSynchronizer;
 import org.eclipse.che.api.search.server.SearchApiModule;
 import org.eclipse.che.api.watcher.server.FileWatcherApiModule;
 import org.eclipse.che.plugin.java.server.inject.JavaModule;
-import org.eclipse.core.resources.ResourcesPlugin;
-import org.eclipse.jdt.internal.core.JavaModelManager;
-import org.eclipse.jdt.internal.ui.JavaPlugin;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +64,7 @@ public class ProjectApiUtils {
 
   /** Initialize project API for tests. */
   private static void init() throws Exception {
-    File root = new File("target/test-classes/workspace");
+    File root = new File("target/test-classes/workspace").getAbsoluteFile();
     File indexDir = new File("target/test-classes/workspace/index");
 
     Injector injector =
@@ -86,6 +82,9 @@ public class ProjectApiUtils {
                 bind(String.class)
                     .annotatedWith(Names.named("project.importer.default_importer_id"))
                     .toInstance("git");
+                bind(String.class)
+                    .annotatedWith(Names.named("che.core.jsonrpc.processor_max_pool_size"))
+                    .toInstance("100");
 
                 install(
                     new FactoryModuleBuilder()
@@ -133,24 +132,6 @@ public class ProjectApiUtils {
             });
 
     ProjectManager projectManager = injector.getInstance(ProjectManager.class);
-    FsManager fsManager = injector.getInstance(FsManager.class);
-    PathTransformer pathTransformer = injector.getInstance(PathTransformer.class);
-
     projectManager.setType("/test", "java", false);
-
-    ResourcesPlugin resourcesPlugin =
-        new ResourcesPlugin(
-            indexDir.getAbsolutePath(),
-            root.getAbsolutePath(),
-            () -> projectManager,
-            () -> pathTransformer,
-            () -> fsManager);
-    resourcesPlugin.start();
-
-    JavaPlugin javaPlugin =
-        new JavaPlugin(root.getAbsolutePath() + "/.settings", resourcesPlugin, projectManager);
-    javaPlugin.start();
-
-    JavaModelManager.getDeltaState().initializeRoots(true);
   }
 }

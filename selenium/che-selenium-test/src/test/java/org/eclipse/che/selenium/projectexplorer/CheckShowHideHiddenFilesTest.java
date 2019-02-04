@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -14,6 +15,7 @@ import com.google.inject.Inject;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -25,8 +27,8 @@ import org.testng.annotations.Test;
 /** @author Andrey Chizhikov */
 public class CheckShowHideHiddenFilesTest {
   private static final String PROJECT_NAME = "RefreshProject";
-  private static final String PATH_TO_CODENVY_FOLDER = PROJECT_NAME + "/.che";
-  private static final String PATH_TO_CLASSPATH_FILE = PROJECT_NAME + "/.che/classpath";
+  private static final String PATH_TO_CLASSPATH_FILE = PROJECT_NAME + "/.classpath";
+  private static final String PATH_TO_PROJECT_FILE = PROJECT_NAME + "/.project";
   public static final String CLASSPATH_CONTENT = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 
   @Inject private TestWorkspace testWorkspace;
@@ -35,7 +37,8 @@ public class CheckShowHideHiddenFilesTest {
   @Inject private Loader loader;
   @Inject private CodenvyEditor editor;
   @Inject private Menu menu;
-  @Inject private Wizard projectWizard;
+  @Inject protected Wizard projectWizard;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -45,6 +48,7 @@ public class CheckShowHideHiddenFilesTest {
   @Test
   public void checkShowHideHiddenFilesTest() {
     createProject(PROJECT_NAME);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
     projectExplorer.openItemByPath(PROJECT_NAME);
@@ -53,10 +57,8 @@ public class CheckShowHideHiddenFilesTest {
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.SHOW_HIDE_HIDDEN_FILES);
     loader.waitOnClosed();
-    projectExplorer.waitItem(PATH_TO_CODENVY_FOLDER);
-    projectExplorer.openItemByPath(PATH_TO_CODENVY_FOLDER);
-    loader.waitOnClosed();
     projectExplorer.waitItem(PATH_TO_CLASSPATH_FILE);
+    projectExplorer.waitItem(PATH_TO_PROJECT_FILE);
     projectExplorer.openItemByPath(PATH_TO_CLASSPATH_FILE);
     loader.waitOnClosed();
     editor.waitActive();
@@ -66,8 +68,9 @@ public class CheckShowHideHiddenFilesTest {
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.SHOW_HIDE_HIDDEN_FILES);
     loader.waitOnClosed();
-    editor.waitTabIsPresent("classpath");
-    projectExplorer.waitItemIsDisappeared(PATH_TO_CODENVY_FOLDER);
+    editor.waitTabIsPresent(".classpath");
+    projectExplorer.waitItemInvisibility(PATH_TO_CLASSPATH_FILE);
+    projectExplorer.waitItemInvisibility(PATH_TO_PROJECT_FILE);
   }
 
   private void createProject(String projectName) {
@@ -78,7 +81,7 @@ public class CheckShowHideHiddenFilesTest {
         TestMenuCommandsConstants.Workspace.CREATE_PROJECT);
     projectWizard.waitCreateProjectWizardForm();
     projectWizard.typeProjectNameOnWizard(projectName);
-    projectWizard.selectSample(Wizard.SamplesName.WEB_JAVA_SPRING);
+    selectSampleProject();
     projectWizard.clickCreateButton();
     loader.waitOnClosed();
     projectWizard.waitCloseProjectConfigForm();
@@ -86,5 +89,9 @@ public class CheckShowHideHiddenFilesTest {
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(projectName);
     loader.waitOnClosed();
+  }
+
+  protected void selectSampleProject() {
+    projectWizard.selectSample(Wizard.SamplesName.WEB_JAVA_SPRING);
   }
 }

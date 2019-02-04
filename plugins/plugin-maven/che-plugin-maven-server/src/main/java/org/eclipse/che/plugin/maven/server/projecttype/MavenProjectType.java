@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -32,6 +33,9 @@ public class MavenProjectType extends ProjectTypeDef {
 
     super(MavenAttributes.MAVEN_ID, MavenAttributes.MAVEN_NAME, true, false, true);
 
+    addVariableDefinition(SOURCE_FOLDER, "source folder", true, mavenValueProviderFactory);
+    addVariableDefinition(OUTPUT_FOLDER, "output folder", false, mavenValueProviderFactory);
+
     addVariableDefinition(MavenAttributes.GROUP_ID, "", false, mavenValueProviderFactory);
     addVariableDefinition(MavenAttributes.ARTIFACT_ID, "", true, mavenValueProviderFactory);
     addVariableDefinition(MavenAttributes.VERSION, "", false, mavenValueProviderFactory);
@@ -41,9 +45,6 @@ public class MavenProjectType extends ProjectTypeDef {
     addVariableDefinition(MavenAttributes.PACKAGING, "", false, mavenValueProviderFactory);
     addVariableDefinition(MavenAttributes.TEST_SOURCE_FOLDER, "", false, mavenValueProviderFactory);
     addVariableDefinition(MavenAttributes.RESOURCE_FOLDER, "", false, mavenValueProviderFactory);
-
-    setValueProviderFactory(SOURCE_FOLDER, mavenValueProviderFactory);
-    setValueProviderFactory(OUTPUT_FOLDER, mavenValueProviderFactory);
 
     addParent(JAVA_ID);
   }

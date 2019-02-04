@@ -1,14 +1,14 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
-
 package org.eclipse.che.plugin.languageserver.ide.rename;
 
 import static java.util.Collections.singletonList;
@@ -27,7 +27,9 @@ import org.eclipse.che.ide.api.editor.texteditor.TextEditor;
 import org.eclipse.che.ide.api.parts.WorkspaceAgent;
 import org.eclipse.che.plugin.languageserver.ide.LanguageServerLocalization;
 import org.eclipse.che.plugin.languageserver.ide.editor.LanguageServerEditorConfiguration;
+import org.eclipse.lsp4j.RenameOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 /** Action for rename feature */
 @Singleton
@@ -65,12 +67,20 @@ public class LSRenameAction extends AbstractPerspectiveAction {
       if (configuration instanceof LanguageServerEditorConfiguration) {
         ServerCapabilities capabilities =
             ((LanguageServerEditorConfiguration) configuration).getServerCapabilities();
-        presentation.setEnabledAndVisible(
-            capabilities.getRenameProvider() != null && capabilities.getRenameProvider());
+        presentation.setEnabledAndVisible(isRenameEnabled(capabilities));
         return;
       }
     }
     presentation.setEnabledAndVisible(false);
+  }
+
+  private boolean isRenameEnabled(ServerCapabilities capabilities) {
+    Either<Boolean, RenameOptions> capability = capabilities.getRenameProvider();
+    if (capability.isLeft()) {
+      return Boolean.TRUE.equals(capability.getLeft());
+    } else {
+      return capability.getRight() != null;
+    }
   }
 
   @Override

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,6 +21,7 @@ import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
+import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
@@ -27,8 +29,8 @@ import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Refactor;
-import org.eclipse.che.selenium.refactor.Services;
 import org.openqa.selenium.Keys;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -48,6 +50,7 @@ public class RenamePrivateFieldTest {
   @Inject private Loader loader;
   @Inject private CodenvyEditor editor;
   @Inject private Refactor refactor;
+  @Inject private AskDialog askDialog;
   @Inject private Consoles consoles;
   @Inject private NotificationsPopupPanel notificationsPopupPanel;
   @Inject private TestProjectServiceClient testProjectServiceClient;
@@ -61,94 +64,94 @@ public class RenamePrivateFieldTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SIMPLE);
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
-    new Services(projectExplorer, notificationsPopupPanel, refactor)
-        .expandSpringProjectNodes(PROJECT_NAME);
+    projectExplorer.quickExpandWithJavaScript();
+  }
+
+  @AfterMethod
+  public void closeForm() {
+    if (refactor.isWidgetOpened()) {
+      refactor.clickCancelButtonRefactorForm();
+    }
+    if (editor.isAnyTabsOpened()) {
+      editor.closeAllTabs();
+    }
   }
 
   @Test
   public void checkRenamePrivateField0() throws Exception {
     setFieldsForTest("test0");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("g");
-    loader.waitOnClosed();
-    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    refactor.clickOkButtonRefactorForm();
-    refactor.waitRenameFieldFormIsClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 1)
-  public void checkRenamePrivateField1() throws Exception {
-    setFieldsForTest("test1");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("g");
-    loader.waitOnClosed();
-    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    refactor.clickOkButtonRefactorForm();
-    refactor.waitRenameFieldFormIsClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 2)
-  public void checkRenamePrivateField2() throws Exception {
-    setFieldsForTest("test2");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
     editor.setCursorToLine(14);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("g");
+    typeAndWaitNewName("g");
+    loader.waitOnClosed();
+    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
+    refactor.clickOkButtonRefactorForm();
+    refactor.waitRenameFieldFormIsClosed();
+    waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenamePrivateField1() throws Exception {
+    setFieldsForTest("test1");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    typeAndWaitNewName("g");
+    loader.waitOnClosed();
+    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
+    refactor.clickOkButtonRefactorForm();
+    refactor.waitRenameFieldFormIsClosed();
+    waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenamePrivateField2() throws Exception {
+    setFieldsForTest("test2");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(15);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    typeAndWaitNewName("g");
     loader.waitOnClosed();
     refactor.setAndWaitStateUpdateReferencesCheckbox(false);
     refactor.clickOkButtonRefactorForm();
     refactor.waitRenameFieldFormIsClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
+    waitTextIntoEditor(contentFromOutA);
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 3)
+  @Test
   public void checkRenamePrivateField3() throws Exception {
     setFieldsForTest("test3");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
+    editor.setCursorToLine(14);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("g");
-    refactor.sendKeysIntoField("g");
-    refactor.waitTextIntoNewNameField("gg");
+    typeAndWaitNewName("gg");
     loader.waitOnClosed();
     refactor.setAndWaitStateUpdateReferencesCheckbox(true);
     refactor.setAndWaitStateCommentsAndStringsCheckbox(true);
@@ -156,247 +159,207 @@ public class RenamePrivateFieldTest {
     loader.waitOnClosed();
     refactor.waitRenameFieldFormIsClosed();
     loader.waitOnClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
+    waitTextIntoEditor(contentFromOutA);
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 4)
+  @Test
   public void checkRenamePrivateField4() throws Exception {
     setFieldsForTest("test4");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(18);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("fY");
-    refactor.sendKeysIntoField("o");
-    refactor.sendKeysIntoField("u");
-    refactor.waitTextIntoNewNameField("fYou");
-    loader.waitOnClosed();
-    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    refactor.setAndWaitStateCommentsAndStringsCheckbox(true);
-    refactor.clickOkButtonRefactorForm();
-    loader.waitOnClosed();
-    refactor.waitRenameFieldFormIsClosed();
-    loader.waitOnClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 5)
-  public void checkRenamePrivateField5() throws Exception {
-    setFieldsForTest("test5");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("fY");
-    refactor.sendKeysIntoField("o");
-    refactor.sendKeysIntoField("u");
-    refactor.waitTextIntoNewNameField("fYou");
-    loader.waitOnClosed();
-    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    refactor.clickOkButtonRefactorForm();
-    loader.waitOnClosed();
-    refactor.waitRenameFieldFormIsClosed();
-    loader.waitOnClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 6)
-  public void checkRenamePrivateField6() throws Exception {
-    setFieldsForTest("test6");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("fY");
-    refactor.sendKeysIntoField("o");
-    refactor.sendKeysIntoField("u");
-    refactor.waitTextIntoNewNameField("fYou");
-    loader.waitOnClosed();
-    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    refactor.clickOkButtonRefactorForm();
-    loader.waitOnClosed();
-    refactor.waitRenameFieldFormIsClosed();
-    loader.waitOnClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 7)
-  public void checkRenamePrivateField7() throws Exception {
-    setFieldsForTest("test7");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("fS");
-    refactor.sendKeysIntoField("mal");
-    refactor.sendKeysIntoField("l");
-    refactor.waitTextIntoNewNameField("fSmall");
-    loader.waitOnClosed();
-    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    refactor.clickOkButtonRefactorForm();
-    loader.waitOnClosed();
-    refactor.waitRenameFieldFormIsClosed();
-    loader.waitOnClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 8)
-  public void checkRenamePrivateField8() throws Exception {
-    setFieldsForTest("test8");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("g");
-    loader.waitOnClosed();
-    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    refactor.clickOkButtonRefactorForm();
-    refactor.waitRenameFieldFormIsClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 9)
-  public void checkRenamePrivateField9() throws Exception {
-    setFieldsForTest("test9");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(13);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("fS");
-    refactor.sendKeysIntoField("mal");
-    refactor.sendKeysIntoField("l");
-    refactor.waitTextIntoNewNameField("fSmall");
-    loader.waitOnClosed();
-    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    refactor.clickOkButtonRefactorForm();
-    refactor.waitRenameFieldFormIsClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 10)
-  public void checkRenamePrivateField10() throws Exception {
-    setFieldsForTest("test10");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
     editor.setCursorToLine(19);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameFieldFormIsOpen();
-    loader.waitOnClosed();
-    refactor.typeAndWaitNewName("fElem");
-    refactor.sendKeysIntoField("ent");
-    refactor.sendKeysIntoField("s");
-    refactor.waitTextIntoNewNameField("fElements");
+    typeAndWaitNewName("fYou");
     loader.waitOnClosed();
     refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    loader.waitOnClosed();
+    refactor.setAndWaitStateCommentsAndStringsCheckbox(true);
     refactor.clickOkButtonRefactorForm();
     loader.waitOnClosed();
     refactor.waitRenameFieldFormIsClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
+    loader.waitOnClosed();
+    waitTextIntoEditor(contentFromOutA);
     editor.closeFileByNameWithSaving("A");
   }
 
-  @Test(priority = 11)
-  public void checkRenamePrivateField11() throws Exception {
-    setFieldsForTest("test11");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
-    consoles.closeProcessesArea();
-    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
-    editor.waitActive();
-    editor.waitTextIntoEditor(contentFromInA);
-    editor.setCursorToLine(21);
-    editor.typeTextIntoEditor(Keys.END.toString());
-    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
-    refactor.waitRenameFieldFormIsOpen();
-    loader.waitOnClosed();
-    refactor.typeAndWaitNewName("fElem");
-    refactor.sendKeysIntoField("ent");
-    refactor.sendKeysIntoField("s");
-    refactor.waitTextIntoNewNameField("fElements");
-    loader.waitOnClosed();
-    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
-    loader.waitOnClosed();
-    refactor.clickOkButtonRefactorForm();
-    loader.waitOnClosed();
-    refactor.waitRenameFieldFormIsClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
-    editor.closeFileByNameWithSaving("A");
-  }
-
-  @Test(priority = 12)
-  public void checkRenameUnicode12() throws Exception {
-    setFieldsForTest("test12");
-    projectExplorer.openItemByPath(pathToCurrentPackage);
+  @Test
+  public void checkRenamePrivateField5() throws Exception {
+    setFieldsForTest("test5");
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
     editor.setCursorToLine(14);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameFieldFormIsOpen();
-    refactor.typeAndWaitNewName("fe");
-    refactor.sendKeysIntoField("e");
-    refactor.sendKeysIntoField("l");
-    refactor.waitTextIntoNewNameField("feel");
+    typeAndWaitNewName("fYou");
     loader.waitOnClosed();
     refactor.setAndWaitStateUpdateReferencesCheckbox(true);
     refactor.clickOkButtonRefactorForm();
     loader.waitOnClosed();
     refactor.waitRenameFieldFormIsClosed();
     loader.waitOnClosed();
-    editor.waitTextIntoEditor(contentFromOutA);
+    waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenamePrivateField6() throws Exception {
+    setFieldsForTest("test6");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    typeAndWaitNewName("fYou");
+    loader.waitOnClosed();
+    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
+    refactor.clickOkButtonRefactorForm();
+    loader.waitOnClosed();
+    refactor.waitRenameFieldFormIsClosed();
+    loader.waitOnClosed();
+    waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenamePrivateField7() throws Exception {
+    setFieldsForTest("test7");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    typeAndWaitNewName("fSmall");
+    loader.waitOnClosed();
+    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
+    refactor.clickOkButtonRefactorForm();
+    loader.waitOnClosed();
+    refactor.waitRenameFieldFormIsClosed();
+    loader.waitOnClosed();
+    waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenamePrivateField8() throws Exception {
+    setFieldsForTest("test8");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    typeAndWaitNewName("g");
+    loader.waitOnClosed();
+    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
+    refactor.clickOkButtonRefactorForm();
+    refactor.waitRenameFieldFormIsClosed();
+    waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenamePrivateField9() throws Exception {
+    setFieldsForTest("test9");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(14);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    typeAndWaitNewName("fSmall");
+    loader.waitOnClosed();
+    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
+    refactor.clickOkButtonRefactorForm();
+    refactor.waitRenameFieldFormIsClosed();
+    waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenamePrivateField10() throws Exception {
+    setFieldsForTest("test10");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(20);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    loader.waitOnClosed();
+    typeAndWaitNewName("fElements");
+    loader.waitOnClosed();
+    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
+    loader.waitOnClosed();
+    refactor.clickOkButtonRefactorForm();
+    loader.waitOnClosed();
+    refactor.waitRenameFieldFormIsClosed();
+    waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenamePrivateField11() throws Exception {
+    setFieldsForTest("test11");
+    consoles.closeProcessesArea();
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(22);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    loader.waitOnClosed();
+    typeAndWaitNewName("fElements");
+    loader.waitOnClosed();
+    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
+    loader.waitOnClosed();
+    refactor.clickOkButtonRefactorForm();
+    askDialog.acceptDialogWithText(
+        "Code modification may not be accurate as affected resource 'qa-spring-sample/src/main/java/test11/A.java' has compile errors.");
+    loader.waitOnClosed();
+    refactor.waitRenameFieldFormIsClosed();
+    waitTextIntoEditor(contentFromOutA);
+    editor.closeFileByNameWithSaving("A");
+  }
+
+  @Test
+  public void checkRenameUnicode12() throws Exception {
+    setFieldsForTest("test12");
+    projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
+    editor.waitActive();
+    editor.waitTextIntoEditor(contentFromInA);
+    editor.setCursorToLine(15);
+    editor.typeTextIntoEditor(Keys.END.toString());
+    editor.typeTextIntoEditor(Keys.ARROW_LEFT.toString());
+    editor.launchRefactorForm();
+    refactor.waitRenameFieldFormIsOpen();
+    typeAndWaitNewName("feel");
+    loader.waitOnClosed();
+    refactor.setAndWaitStateUpdateReferencesCheckbox(true);
+    refactor.clickOkButtonRefactorForm();
+    loader.waitOnClosed();
+    refactor.waitRenameFieldFormIsClosed();
+    loader.waitOnClosed();
+    waitTextIntoEditor(contentFromOutA);
     editor.closeFileByNameWithSaving("A");
   }
 
@@ -429,5 +392,13 @@ public class RenamePrivateFieldTest {
     }
 
     return result;
+  }
+
+  private void typeAndWaitNewName(String newName) {
+    refactor.typeAndWaitNewName(newName);
+  }
+
+  private void waitTextIntoEditor(String expectedText) {
+    editor.waitTextIntoEditor(expectedText);
   }
 }

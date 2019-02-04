@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -23,47 +24,64 @@ import static org.openqa.selenium.support.ui.ExpectedConditions.visibilityOfElem
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import java.util.Arrays;
+import com.google.inject.name.Named;
 import java.util.List;
 import javax.annotation.PreDestroy;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.client.keycloak.TestKeycloakSettingsServiceClient;
 import org.eclipse.che.selenium.core.entrance.Entrance;
 import org.eclipse.che.selenium.core.provider.TestDashboardUrlProvider;
-import org.eclipse.che.selenium.core.provider.TestIdeUrlProvider;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.utils.WaitUtils;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
+import org.eclipse.che.selenium.core.webdriver.WebDriverWaitFactory;
+import org.eclipse.che.selenium.pageobject.TestWebElementRenderChecker;
 import org.eclipse.che.selenium.pageobject.site.LoginPage;
 import org.openqa.selenium.By;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.PageFactory;
+import org.openqa.selenium.support.ui.ExpectedCondition;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 /** @author Musienko Maxim */
 @Singleton
 public class Dashboard {
   protected final SeleniumWebDriver seleniumWebDriver;
-  protected final TestUser defaultUser;
+  protected final DefaultTestUser defaultUser;
 
-  private final TestIdeUrlProvider testIdeUrlProvider;
   private final TestDashboardUrlProvider testDashboardUrlProvider;
   private final Entrance entrance;
   private final LoginPage loginPage;
+  private final TestWebElementRenderChecker testWebElementRenderChecker;
+  private final TestKeycloakSettingsServiceClient testKeycloakSettingsServiceClient;
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
+  private final WebDriverWaitFactory webDriverWaitFactory;
+  private final boolean isMultiuser;
 
   @Inject
   public Dashboard(
       SeleniumWebDriver seleniumWebDriver,
-      TestUser defaultUser,
-      TestIdeUrlProvider testIdeUrlProvider,
+      DefaultTestUser defaultUser,
       TestDashboardUrlProvider testDashboardUrlProvider,
       Entrance entrance,
-      LoginPage loginPage) {
+      LoginPage loginPage,
+      TestWebElementRenderChecker testWebElementRenderChecker,
+      TestKeycloakSettingsServiceClient testKeycloakSettingsServiceClient,
+      SeleniumWebDriverHelper seleniumWebDriverHelper,
+      WebDriverWaitFactory webDriverWaitFactory,
+      @Named("che.multiuser") boolean isMultiuser) {
     this.seleniumWebDriver = seleniumWebDriver;
     this.defaultUser = defaultUser;
-    this.testIdeUrlProvider = testIdeUrlProvider;
     this.testDashboardUrlProvider = testDashboardUrlProvider;
     this.entrance = entrance;
     this.loginPage = loginPage;
+    this.testWebElementRenderChecker = testWebElementRenderChecker;
+    this.testKeycloakSettingsServiceClient = testKeycloakSettingsServiceClient;
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
+    this.webDriverWaitFactory = webDriverWaitFactory;
+    this.isMultiuser = isMultiuser;
     PageFactory.initElements(seleniumWebDriver, this);
   }
 
@@ -76,6 +94,7 @@ public class Dashboard {
     ORGANIZATIONS("Organizations"),
     SETTINGS("Settings"),
     CREATE_TEAM("Create Team");
+
     private final String title;
 
     MenuItem(String title) {
@@ -83,7 +102,7 @@ public class Dashboard {
     }
   }
 
-  private interface Locators {
+  public interface Locators {
     String DASHBOARD_TOOLBAR_TITLE = "navbar";
     String NAVBAR_NOTIFICATION_CONTAINER = "navbar-notification-container";
     String COLLAPSE_DASH_NAVBAR_BTN = "ide-iframe-button-link";
@@ -102,6 +121,7 @@ public class Dashboard {
     String LICENSE_NAG_MESSAGE_XPATH = "//div[contains(@class, 'license-message')]";
     String TOOLBAR_TITLE_NAME =
         "//div[contains(@class,'che-toolbar')]//span[contains(text(),'%s')]";
+    String WORKSPACE_NAME_IN_RECENT_LIST = "//span[@title='%s']";
   }
 
   @FindBy(id = Locators.DASHBOARD_TOOLBAR_TITLE)
@@ -133,6 +153,28 @@ public class Dashboard {
 
   @FindBy(xpath = Locators.LICENSE_NAG_MESSAGE_XPATH)
   WebElement licenseNagMessage;
+
+  /**
+   * Gets digit which displays near "Workspaces" item on dashboard and means count of the existing
+   * workspaces.
+   *
+   * @return count of workspaces
+   */
+  public int getWorkspacesCountInWorkspacesItem() {
+    return Integer.parseInt(
+        seleniumWebDriverHelper
+            .waitVisibilityAndGetText(workspacesItem)
+            .replace("Workspaces\n (", "")
+            .replace(")", ""));
+  }
+
+  public void waitWorkspacesCountInWorkspacesItem(int expectedCount) {
+    webDriverWaitFactory
+        .get()
+        .until(
+            (ExpectedCondition<Boolean>)
+                driver -> expectedCount == getWorkspacesCountInWorkspacesItem());
+  }
 
   /** wait button with drop dawn icon (left top corner) */
   public void waitDashboardToolbarTitle() {
@@ -240,13 +282,17 @@ public class Dashboard {
   }
 
   public void logout() {
-    String apiEndpoint = testDashboardUrlProvider.get().toString();
-    List<String> api = Arrays.asList(apiEndpoint.split(":"));
-    String logoutApiEndpoint = api.get(0) + ":" + api.get(1);
-    String logoutURL = logoutApiEndpoint + ":5050/auth/realms/che/protocol/openid-connect/logout";
-    String redirectURL = logoutApiEndpoint + ":8080/dashboard/#/workspaces";
+    if (!isMultiuser) {
+      return;
+    }
 
-    seleniumWebDriver.navigate().to(logoutURL + "?redirect_uri=" + redirectURL);
+    String logoutUrl =
+        format(
+            "%s?redirect_uri=%s#/workspaces",
+            testKeycloakSettingsServiceClient.read().getKeycloakLogoutEndpoint(),
+            testDashboardUrlProvider.get());
+
+    seleniumWebDriver.navigate().to(logoutUrl);
   }
 
   /**
@@ -268,6 +314,40 @@ public class Dashboard {
     List<WebElement> workspaces =
         seleniumWebDriver.findElements(By.xpath(Locators.RESENT_WS_NAVBAR));
     return !(workspaces.size() == 0);
+  }
+
+  public boolean isWorkspacePresentedInRecentList(String workspaceName) {
+    try {
+      return new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+          .until(
+              visibilityOfElementLocated(
+                  By.xpath(format(Locators.WORKSPACE_NAME_IN_RECENT_LIST, workspaceName))))
+          .isDisplayed();
+    } catch (TimeoutException ex) {
+      return false;
+    }
+  }
+
+  public void clickOnUsernameButton() {
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+        .until(visibilityOfElementLocated(By.id(Locators.USER_NAME)))
+        .click();
+  }
+
+  public void clickOnAccountItem() {
+    testWebElementRenderChecker.waitElementIsRendered(By.id("menu_container_1"));
+
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+        .until(visibilityOfElementLocated(By.xpath("//span[text()=' Account']")))
+        .click();
+  }
+
+  public void clickOnLogoutItem() {
+    testWebElementRenderChecker.waitElementIsRendered(By.id("menu_container_1"));
+
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
+        .until(visibilityOfElementLocated(By.xpath("//span[text()=' Logout']")))
+        .click();
   }
 
   @PreDestroy

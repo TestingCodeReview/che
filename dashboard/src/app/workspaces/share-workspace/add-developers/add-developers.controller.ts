@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,6 +17,9 @@ import {ShareWorkspaceController} from '../share-workspace.controller';
  * @author Oleksii Kurinnyi
  */
 export class AddDeveloperController {
+
+  static $inject = ['$q', '$mdDialog'];
+
   /**
    * Promises service.
    */
@@ -27,7 +31,9 @@ export class AddDeveloperController {
   /**
    * true if user owns the workspace.
    */
+  /* tslint:disable */
   private canShare: boolean;
+  /* tslint:enable */
   /**
    * List of users to share the workspace.
    */
@@ -39,7 +45,6 @@ export class AddDeveloperController {
 
   /**
    * Default constructor.
-   * @ngInject for Dependency injection
    */
   constructor($q: ng.IQService, $mdDialog: ng.material.IDialogService) {
     this.$q = $q;

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -33,6 +34,12 @@ public class DtoGeneratorMojo extends AbstractMojo {
   @Parameter(property = "classes", required = false)
   private String[] classes = new String[] {};
 
+  @Parameter(property = "excludes", required = false)
+  private String[] excludes = new String[] {};
+
+  @Parameter(property = "imports", required = false)
+  private String[] imports = new String[] {};
+
   @Parameter(property = "genClassName", required = true)
   private String genClassName;
 
@@ -54,7 +61,13 @@ public class DtoGeneratorMojo extends AbstractMojo {
 
     try {
       generator.generate(
-          new File(outputDirectory), targetClass, targetPackage, dtoPackages, classes);
+          new File(outputDirectory),
+          targetClass,
+          targetPackage,
+          dtoPackages,
+          classes,
+          excludes,
+          imports);
     } catch (IOException e) {
       throw new MojoExecutionException("Generation failed", e);
     }

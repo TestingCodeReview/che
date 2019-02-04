@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,6 +13,7 @@ package org.eclipse.che.multiuser.api.permission.server;
 
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -43,10 +45,10 @@ public class PermissionCheckerImplTest {
   @Test
   public void shouldCheckExistingPublicPermissionsIfThereIsNoDirectUsersPermissions()
       throws Exception {
-    when(permissionsManager.exists(eq("user123"), anyString(), anyString(), anyString()))
-        .thenReturn(false);
-    when(permissionsManager.exists(eq("*"), anyString(), anyString(), anyString()))
-        .thenReturn(true);
+    doReturn(false)
+        .when(permissionsManager)
+        .exists(eq("user123"), anyString(), anyString(), anyString());
+    doReturn(true).when(permissionsManager).exists(eq("*"), anyString(), anyString(), anyString());
 
     boolean hasPermission =
         permissionChecker.hasPermission("user123", "domain123", "instance123", "test");

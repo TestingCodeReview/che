@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -24,9 +25,11 @@ import java.util.concurrent.TimeUnit;
  * @author Alexander Garagatyi
  */
 public class HttpConnectionServerChecker extends ServerChecker {
+  private static final String AUTHORIZATION_HEADER = "Authorization";
   private static final String CONNECTION_HEADER = "Connection";
   private static final String CONNECTION_CLOSE = "close";
   private final URL url;
+  private final String token;
 
   public HttpConnectionServerChecker(
       URL url,
@@ -34,10 +37,13 @@ public class HttpConnectionServerChecker extends ServerChecker {
       String serverRef,
       long period,
       long timeout,
+      int successThreshold,
       TimeUnit timeUnit,
-      Timer timer) {
-    super(machineName, serverRef, period, timeout, timeUnit, timer);
+      Timer timer,
+      String token) {
+    super(machineName, serverRef, period, timeout, successThreshold, timeUnit, timer);
     this.url = url;
+    this.token = token;
   }
 
   @Override
@@ -49,6 +55,9 @@ public class HttpConnectionServerChecker extends ServerChecker {
       httpURLConnection.setConnectTimeout((int) TimeUnit.SECONDS.toMillis(3));
       httpURLConnection.setReadTimeout((int) TimeUnit.SECONDS.toMillis(3));
       httpURLConnection.setRequestProperty(CONNECTION_HEADER, CONNECTION_CLOSE);
+      if (token != null) {
+        httpURLConnection.setRequestProperty(AUTHORIZATION_HEADER, "Bearer " + token);
+      }
       return isConnectionSuccessful(httpURLConnection);
     } catch (IOException e) {
       return false;

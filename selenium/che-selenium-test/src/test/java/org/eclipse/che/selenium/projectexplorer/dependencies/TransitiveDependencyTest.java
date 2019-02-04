@@ -1,14 +1,19 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.projectexplorer.dependencies;
+
+import static org.openqa.selenium.Keys.DELETE;
+import static org.openqa.selenium.Keys.DOWN;
+import static org.openqa.selenium.Keys.SHIFT;
 
 import com.google.inject.Inject;
 import java.net.URL;
@@ -16,9 +21,10 @@ import java.nio.file.Paths;
 import java.util.Random;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.PopupDialogsBrowser;
@@ -40,13 +46,14 @@ public class TransitiveDependencyTest {
       "spring-core-3.0.5.RELEASE.jar";
 
   @Inject private TestWorkspace testWorkspace;
-  @Inject private TestUser defaultTestUser;
   @Inject private Ide ide;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private CodenvyEditor editor;
   @Inject private Loader loader;
   @Inject private PopupDialogsBrowser popupDialogsBrowser;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private SeleniumWebDriverHelper seleniumWebDriverHelper;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -62,11 +69,13 @@ public class TransitiveDependencyTest {
   @Test
   public void transitiveDependencyTest() throws Exception {
     projectExplorer.waitItem(PROJECT_NAME);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
+
     projectExplorer.openItemByPath(PROJECT_NAME);
     loader.waitOnClosed();
-    projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME + "/pom.xml");
     projectExplorer.openItemByPath(PROJECT_NAME + "/pom.xml");
+    editor.waitActive();
 
     projectExplorer.openItemByVisibleNameInExplorer(LIB_FOLDER);
     projectExplorer.waitLibraryIsPresent(MAIN_LIBRARY);
@@ -84,10 +93,13 @@ public class TransitiveDependencyTest {
 
   private void deleteDependency() {
     editor.waitActive();
-    loader.waitOnClosed();
-    for (int i = 36; i <= 40; i++) {
-      editor.setCursorToLine(i);
-      editor.selectLineAndDelete();
-    }
+    editor.setCursorToLine(34);
+    seleniumWebDriverHelper
+        .getAction()
+        .keyDown(SHIFT)
+        .sendKeys(DOWN, DOWN, DOWN, DOWN, DOWN)
+        .keyUp(SHIFT)
+        .sendKeys(DELETE)
+        .perform();
   }
 }

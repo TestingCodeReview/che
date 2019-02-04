@@ -1,39 +1,33 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.workspaces;
 
-import static org.eclipse.che.selenium.core.constant.TestWorkspaceConstants.RUNNING_WORKSPACE_MESS;
-import static org.eclipse.che.selenium.pageobject.dashboard.workspaces.WorkspaceDetails.StateWorkspace.RUNNING;
-import static org.eclipse.che.selenium.pageobject.dashboard.workspaces.WorkspaceDetails.StateWorkspace.STOPPING;
-import static org.testng.Assert.fail;
+import static org.eclipse.che.selenium.core.project.ProjectTemplates.MAVEN_SPRING;
 
 import com.google.inject.Inject;
 import java.net.URL;
 import java.nio.file.Paths;
 import org.eclipse.che.commons.lang.NameGenerator;
-import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
-import org.eclipse.che.selenium.core.project.ProjectTemplates;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
-import org.eclipse.che.selenium.pageobject.Events;
 import org.eclipse.che.selenium.pageobject.Ide;
-import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.dashboard.Dashboard;
 import org.eclipse.che.selenium.pageobject.dashboard.workspaces.WorkspaceDetails;
 import org.eclipse.che.selenium.pageobject.dashboard.workspaces.WorkspaceOverview;
 import org.eclipse.che.selenium.pageobject.dashboard.workspaces.Workspaces;
-import org.openqa.selenium.TimeoutException;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -46,12 +40,10 @@ public class ProjectStateAfterRenameWorkspaceTest {
   @Inject private TestWorkspace testWorkspace;
   @Inject private Ide ide;
   @Inject private ProjectExplorer projectExplorer;
-  @Inject private Loader loader;
   @Inject private CodenvyEditor editor;
   @Inject private Dashboard dashboard;
   @Inject private WorkspaceDetails workspaceDetails;
-  @Inject private Events events;
-  @Inject private SeleniumWebDriver seleniumWebDriver;
+  @Inject private SeleniumWebDriverHelper seleniumWebDriverHelper;
   @Inject private TestProjectServiceClient testProjectServiceClient;
   @Inject private TestWorkspaceServiceClient testWorkspaceServiceClient;
   @Inject private Workspaces workspaces;
@@ -62,10 +54,7 @@ public class ProjectStateAfterRenameWorkspaceTest {
     URL resource =
         ProjectStateAfterRenameWorkspaceTest.this.getClass().getResource("/projects/guess-project");
     testProjectServiceClient.importProject(
-        testWorkspace.getId(),
-        Paths.get(resource.toURI()),
-        PROJECT_NAME,
-        ProjectTemplates.MAVEN_SPRING);
+        testWorkspace.getId(), Paths.get(resource.toURI()), PROJECT_NAME, MAVEN_SPRING);
     ide.open(testWorkspace);
   }
 
@@ -76,9 +65,9 @@ public class ProjectStateAfterRenameWorkspaceTest {
 
   @Test
   public void checkProjectAfterRenameWs() throws Exception {
-    projectExplorer.waitProjectExplorer();
+    ide.waitOpenedWorkspaceIsReadyToUse();
     projectExplorer.waitItem(PROJECT_NAME);
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     projectExplorer.quickExpandWithJavaScript();
     projectExplorer.waitItem(PROJECT_NAME + "/src/main/webapp/index.jsp");
     projectExplorer.waitItem(
@@ -97,28 +86,20 @@ public class ProjectStateAfterRenameWorkspaceTest {
     workspaces.selectWorkspaceItemName(testWorkspace.getName());
     workspaceOverview.enterNameWorkspace(WORKSPACE_NEW_NAME);
     workspaceDetails.clickOnSaveChangesBtn();
-    workspaceDetails.checkStateOfWorkspace(STOPPING);
-    workspaceDetails.checkStateOfWorkspace(RUNNING);
+    dashboard.waitNotificationMessage("Workspace updated");
+    dashboard.waitNotificationIsClosed();
     workspaceOverview.checkNameWorkspace(WORKSPACE_NEW_NAME);
 
     // open the IDE, check state of the project
     workspaceDetails.clickOpenInIdeWsBtn();
 
-    seleniumWebDriver.switchFromDashboardIframeToIde();
+    seleniumWebDriverHelper.switchToIdeFrameAndWaitAvailability();
 
-    projectExplorer.waitProjectExplorer();
+    ide.waitOpenedWorkspaceIsReadyToUse();
     projectExplorer.waitItem(PROJECT_NAME);
-    try {
-      projectExplorer.waitItem(PROJECT_NAME + "/src/main/webapp/index.jsp");
-    } catch (TimeoutException ex) {
-      // remove try-catch block after issue has been resolved
-      fail("Known issue https://github.com/eclipse/che/issues/3574");
-    }
-
+    projectExplorer.waitItem(PROJECT_NAME + "/src/main/webapp/index.jsp");
     projectExplorer.waitItem(
         PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/AppController.java");
-    events.clickEventLogBtn();
-    events.waitExpectedMessage(RUNNING_WORKSPACE_MESS);
     editor.waitTabIsPresent("index.jsp");
     editor.waitTabIsPresent("AppController");
     editor.waitActive();

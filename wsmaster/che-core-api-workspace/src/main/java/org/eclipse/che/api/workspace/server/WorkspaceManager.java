@@ -1,22 +1,27 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.workspace.server;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static java.lang.String.format;
 import static java.lang.System.currentTimeMillis;
 import static java.util.Objects.requireNonNull;
 import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.RUNNING;
 import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.STARTING;
 import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.STOPPED;
+import static org.eclipse.che.api.workspace.shared.Constants.CREATED_ATTRIBUTE_NAME;
+import static org.eclipse.che.api.workspace.shared.Constants.ERROR_MESSAGE_ATTRIBUTE_NAME;
+import static org.eclipse.che.api.workspace.shared.Constants.STOPPED_ABNORMALLY_ATTRIBUTE_NAME;
+import static org.eclipse.che.api.workspace.shared.Constants.STOPPED_ATTRIBUTE_NAME;
+import static org.eclipse.che.api.workspace.shared.Constants.UPDATED_ATTRIBUTE_NAME;
 
 import com.google.inject.Inject;
 import java.util.Collections;
@@ -36,9 +41,11 @@ import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceImpl;
+import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
 import org.eclipse.che.api.workspace.server.spi.WorkspaceDao;
 import org.eclipse.che.api.workspace.shared.event.WorkspaceCreatedEvent;
 import org.eclipse.che.commons.annotation.Nullable;
+import org.eclipse.che.commons.annotation.Traced;
 import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.subject.Subject;
 import org.slf4j.Logger;
@@ -56,11 +63,6 @@ import org.slf4j.LoggerFactory;
 public class WorkspaceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(WorkspaceManager.class);
-
-  /** This attribute describes time when workspace was created. */
-  public static final String CREATED_ATTRIBUTE_NAME = "created";
-  /** This attribute describes time when workspace was last updated or started/stopped/recovered. */
-  public static final String UPDATED_ATTRIBUTE_NAME = "updated";
 
   private final WorkspaceDao workspaceDao;
   private final WorkspaceRuntimes runtimes;
@@ -97,6 +99,7 @@ public class WorkspaceManager {
    * @throws ServerException when any other error occurs
    * @throws ValidationException when incoming configuration or attributes are not valid
    */
+  @Traced
   public WorkspaceImpl createWorkspace(
       WorkspaceConfig config, String namespace, @Nullable Map<String, String> attributes)
       throws ServerException, NotFoundException, ConflictException, ValidationException {
@@ -164,8 +167,6 @@ public class WorkspaceManager {
   /**
    * Gets list of workspaces which user can read
    *
-   * <p>
-   *
    * <p>Returned workspaces have either {@link WorkspaceStatus#STOPPED} status or status defined by
    * their runtime instances(if those exist).
    *
@@ -175,7 +176,7 @@ public class WorkspaceManager {
    * @return the list of workspaces or empty list if user can't read any workspace
    * @throws NullPointerException when {@code user} is null
    * @throws ServerException when any server error occurs while getting workspaces with {@link
-   *     WorkspaceDao#getWorkspaces(String)}
+   *     WorkspaceDao#getWorkspaces(String, int, long)}
    */
   public Page<WorkspaceImpl> getWorkspaces(
       String user, boolean includeRuntimes, int maxItems, long skipCount) throws ServerException {
@@ -201,7 +202,7 @@ public class WorkspaceManager {
    * @return the list of workspaces or empty list if no matches
    * @throws NullPointerException when {@code namespace} is null
    * @throws ServerException when any server error occurs while getting workspaces with {@link
-   *     WorkspaceDao#getByNamespace(String)}
+   *     WorkspaceDao#getByNamespace(String, int, long)}
    */
   public Page<WorkspaceImpl> getByNamespace(
       String namespace, boolean includeRuntimes, int maxItems, long skipCount)
@@ -261,6 +262,7 @@ public class WorkspaceManager {
    * @throws ServerException when any server error occurs
    * @throws NullPointerException when {@code workspaceId} is null
    */
+  @Traced
   public void removeWorkspace(String workspaceId) throws ConflictException, ServerException {
     requireNonNull(workspaceId, "Required non-null workspace id");
     if (runtimes.hasRuntime(workspaceId)) {
@@ -330,7 +332,8 @@ public class WorkspaceManager {
     final WorkspaceImpl workspace = normalizeState(workspaceDao.get(workspaceId), true);
     checkWorkspaceIsRunningOrStarting(workspace);
     if (!workspace.isTemporary()) {
-      workspace.getAttributes().put(UPDATED_ATTRIBUTE_NAME, Long.toString(currentTimeMillis()));
+      workspace.getAttributes().put(STOPPED_ATTRIBUTE_NAME, Long.toString(currentTimeMillis()));
+      workspace.getAttributes().put(STOPPED_ABNORMALLY_ATTRIBUTE_NAME, Boolean.toString(false));
       workspaceDao.update(workspace);
     }
 
@@ -344,32 +347,69 @@ public class WorkspaceManager {
             });
   }
 
+  /** Returns a set of supported recipe types */
   public Set<String> getSupportedRecipes() {
     return runtimes.getSupportedRecipes();
   }
 
   /** Asynchronously starts given workspace. */
-  private void startAsync(WorkspaceImpl workspace, String envName, Map<String, String> options)
+  private void startAsync(
+      WorkspaceImpl workspace, @Nullable String envName, Map<String, String> options)
       throws ConflictException, NotFoundException, ServerException {
+    String env = getValidatedEnvironmentName(workspace, envName);
+    workspace.getAttributes().put(UPDATED_ATTRIBUTE_NAME, Long.toString(currentTimeMillis()));
+    workspaceDao.update(workspace);
+    runtimes
+        .startAsync(workspace, env, firstNonNull(options, Collections.emptyMap()))
+        .thenAccept(aVoid -> handleStartupSuccess(workspace))
+        .exceptionally(
+            ex -> {
+              if (workspace.isTemporary()) {
+                removeWorkspaceQuietly(workspace);
+              } else {
+                handleStartupError(workspace, ex.getCause());
+              }
+              return null;
+            });
+  }
+
+  private String getValidatedEnvironmentName(WorkspaceImpl workspace, @Nullable String envName)
+      throws NotFoundException, ServerException {
     if (envName != null && !workspace.getConfig().getEnvironments().containsKey(envName)) {
       throw new NotFoundException(
           format(
               "Workspace '%s:%s' doesn't contain environment '%s'",
               workspace.getNamespace(), workspace.getConfig().getName(), envName));
     }
-    workspace.getAttributes().put(UPDATED_ATTRIBUTE_NAME, Long.toString(currentTimeMillis()));
-    workspaceDao.update(workspace);
-    final String env = firstNonNull(envName, workspace.getConfig().getDefaultEnv());
 
-    runtimes
-        .startAsync(workspace, env, firstNonNull(options, Collections.emptyMap()))
-        .exceptionally(
-            ex -> {
-              if (workspace.isTemporary()) {
-                removeWorkspaceQuietly(workspace);
-              }
-              return null;
-            });
+    envName = firstNonNull(envName, workspace.getConfig().getDefaultEnv());
+
+    if (envName == null
+        && SidecarToolingWorkspaceUtil.isSidecarBasedWorkspace(
+            workspace.getConfig().getAttributes())) {
+      // Sidecar-based workspaces are allowed not to have any environments
+      return null;
+    }
+
+    // validate environment in advance
+    if (envName == null) {
+      throw new NotFoundException(
+          format(
+              "Workspace %s:%s can't use null environment",
+              workspace.getNamespace(), workspace.getConfig().getName()));
+    }
+    try {
+      runtimes.validate(workspace.getConfig().getEnvironments().get(envName));
+    } catch (InfrastructureException | ValidationException e) {
+      throw new ServerException(e);
+    }
+
+    return envName;
+  }
+
+  /** Returns first non-null argument or null if both are null. */
+  private <T> T firstNonNull(T first, T second) {
+    return first != null ? first : second;
   }
 
   private void checkWorkspaceIsRunningOrStarting(WorkspaceImpl workspace) throws ConflictException {
@@ -405,6 +445,38 @@ public class WorkspaceManager {
       workspace.setStatus(runtimes.getStatus(workspace.getId()));
     }
     return workspace;
+  }
+
+  private void handleStartupError(Workspace workspace, Throwable t) {
+    workspace
+        .getAttributes()
+        .put(
+            ERROR_MESSAGE_ATTRIBUTE_NAME,
+            t instanceof RuntimeException ? t.getCause().getMessage() : t.getMessage());
+    workspace.getAttributes().put(STOPPED_ATTRIBUTE_NAME, Long.toString(currentTimeMillis()));
+    workspace.getAttributes().put(STOPPED_ABNORMALLY_ATTRIBUTE_NAME, Boolean.toString(true));
+    try {
+      updateWorkspace(workspace.getId(), workspace);
+    } catch (NotFoundException | ServerException | ValidationException | ConflictException e) {
+      LOG.warn(
+          String.format(
+              "Cannot set error status of the workspace %s. Error is: %s",
+              workspace.getId(), e.getMessage()));
+    }
+  }
+
+  private void handleStartupSuccess(Workspace workspace) {
+    workspace.getAttributes().remove(STOPPED_ATTRIBUTE_NAME);
+    workspace.getAttributes().remove(STOPPED_ABNORMALLY_ATTRIBUTE_NAME);
+    workspace.getAttributes().remove(ERROR_MESSAGE_ATTRIBUTE_NAME);
+    try {
+      updateWorkspace(workspace.getId(), workspace);
+    } catch (NotFoundException | ServerException | ValidationException | ConflictException e) {
+      LOG.warn(
+          String.format(
+              "Cannot clear error status status of the workspace %s. Error is: %s",
+              workspace.getId(), e.getMessage()));
+    }
   }
 
   private WorkspaceImpl doCreateWorkspace(

@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2012-2017 Red Hat, Inc.
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
+// Copyright (c) 2012-2018 Red Hat, Inc.
+// This program and the accompanying materials are made
+// available under the terms of the Eclipse Public License 2.0
+// which is available at https://www.eclipse.org/legal/epl-2.0/
+//
+// SPDX-License-Identifier: EPL-2.0
 //
 // Contributors:
 //   Red Hat, Inc. - initial API and implementation
@@ -15,6 +16,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+
+	"github.com/eclipse/che/agents/go-agents/core/rest"
 )
 
 // WriteJSON writes body as json to the response writer
@@ -43,4 +46,10 @@ func IntQueryParam(r *http.Request, name string, defaultValue int) int {
 		return defaultValue
 	}
 	return v
+}
+
+// OKRespondingFunc responds 200 to the requests for a server liveness checks
+func OKRespondingFunc(w http.ResponseWriter, r *http.Request, _ rest.Params) error {
+	w.WriteHeader(http.StatusOK)
+	return nil
 }

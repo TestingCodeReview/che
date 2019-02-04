@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,7 @@ public class NameUtils {
   private static RegExp FILE_NAME = RegExp.compile("^((?![*:\\/\\\\\"?<>|\0]).)+$");
   private static RegExp FOLDER_NAME = FILE_NAME;
   private static RegExp PROJECT_NAME = RegExp.compile("^[A-Za-z0-9_\\-\\.]+$");
+  private static RegExp COMMAND_NAME = RegExp.compile("^((?![*\\/\\\\\"?<>|\0]).)+$");
 
   private NameUtils() {}
 
@@ -53,6 +55,11 @@ public class NameUtils {
    */
   public static boolean checkProjectName(String name) {
     return PROJECT_NAME.test(name);
+  }
+
+  /** Returns {@code true} if name is valid, {@code false} otherwise. */
+  public static boolean isValidCommandName(String name) {
+    return COMMAND_NAME.test(name);
   }
 
   public static String getFileExtension(String name) {

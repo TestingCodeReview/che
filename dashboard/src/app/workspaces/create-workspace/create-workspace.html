@@ -1,9 +1,10 @@
-<che-toolbar che-title="New Workspace">
-  <che-button-save-flat class="create-workspace-header-button"
-                        id="create-workspace-button"
-                        che-button-title="Create"
-                        ng-click="createWorkspaceController.createWorkspace()"
-                        ng-disabled="createWorkspaceController.isCreateButtonDisabled()"></che-button-save-flat>
+<che-toolbar che-title="New Workspace"
+             class="create-workspace-toolbar">
+  <che-button-dropdown button-style="che-button-save-flat"
+                       button-disabled="createWorkspaceController.isCreateButtonDisabled()"
+                       main-action-config="createWorkspaceController.headerCreateButtonConfig.mainAction"
+                       other-actions-config="createWorkspaceController.headerCreateButtonConfig.otherActions"
+                       class="create-workspace-header-button"></che-button-dropdown>
 </che-toolbar>
 
 <md-progress-linear md-mode="indeterminate"
@@ -72,11 +73,20 @@
       <project-source-selector></project-source-selector>
     </che-label-container>
 
+    <!-- Plugin selector -->
+    <che-label-container che-label-name="Plugins"
+                         che-label-description="Choose plugins for your workspace."
+                         ng-if="createWorkspaceController.pluginRegistry && createWorkspaceController.displayPlugins" >
+      <workspace-plugins workspace-config="createWorkspaceController.workspaceConfig"
+                         plugin-registry-location="createWorkspaceController.pluginRegistry">
+      </workspace-plugins>
+    </che-label-container>
+
     <che-label-container>
       <che-button-save-flat class="create-workspace-footer-button"
                             name="saveButton"
-                            che-button-title="Create"
-                            ng-click="createWorkspaceController.createWorkspace()"
+                            che-button-title="Create & Open"
+                            ng-click="createWorkspaceController.createWorkspaceAndOpenIDE()"
                             ng-disabled="createWorkspaceController.isCreateButtonDisabled()"></che-button-save-flat>
     </che-label-container>
 

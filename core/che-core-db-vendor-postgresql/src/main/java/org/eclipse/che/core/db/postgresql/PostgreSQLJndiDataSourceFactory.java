@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -31,12 +32,20 @@ public class PostgreSQLJndiDataSourceFactory extends JNDIDataSourceFactory {
 
   public PostgreSQLJndiDataSourceFactory() throws Exception {
     super(
-        firstNonNull(System.getenv("CHE_JDBC_USERNAME"), DEFAULT_USERNAME),
-        firstNonNull(System.getenv("CHE_JDBC_PASSWORD"), DEFAULT_PASSWORD),
-        firstNonNull(System.getenv("CHE_JDBC_URL"), DEFAULT_URL),
-        firstNonNull(System.getenv("CHE_JDBC_DRIVER__CLASS__NAME"), DEFAULT_DRIVER__CLASS__NAME),
-        firstNonNull(System.getenv("CHE_JDBC_MAX__TOTAL"), DEFAULT_MAX__TOTAL),
-        firstNonNull(System.getenv("CHE_JDBC_MAX__IDLE"), DEFAULT_MAX__IDLE),
-        firstNonNull(System.getenv("CHE_JDBC_MAX__WAIT__MILLIS"), DEFAULT_MAX__WAIT__MILLIS));
+        firstNonNull(
+            nullStringToNullReference(System.getenv("CHE_JDBC_USERNAME")), DEFAULT_USERNAME),
+        firstNonNull(
+            nullStringToNullReference(System.getenv("CHE_JDBC_PASSWORD")), DEFAULT_PASSWORD),
+        firstNonNull(nullStringToNullReference(System.getenv("CHE_JDBC_URL")), DEFAULT_URL),
+        firstNonNull(
+            nullStringToNullReference(System.getenv("CHE_JDBC_DRIVER__CLASS__NAME")),
+            DEFAULT_DRIVER__CLASS__NAME),
+        firstNonNull(
+            nullStringToNullReference(System.getenv("CHE_JDBC_MAX__TOTAL")), DEFAULT_MAX__TOTAL),
+        firstNonNull(
+            nullStringToNullReference(System.getenv("CHE_JDBC_MAX__IDLE")), DEFAULT_MAX__IDLE),
+        firstNonNull(
+            nullStringToNullReference(System.getenv("CHE_JDBC_MAX__WAIT__MILLIS")),
+            DEFAULT_MAX__WAIT__MILLIS));
   }
 }

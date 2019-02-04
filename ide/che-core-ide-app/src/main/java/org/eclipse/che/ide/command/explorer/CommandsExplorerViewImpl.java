@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -30,9 +31,11 @@ import org.eclipse.che.ide.api.command.CommandGoal;
 import org.eclipse.che.ide.api.command.CommandImpl;
 import org.eclipse.che.ide.api.parts.base.BaseView;
 import org.eclipse.che.ide.command.CommandResources;
+import org.eclipse.che.ide.command.actions.CommandExplorerContextMenu;
 import org.eclipse.che.ide.command.node.CommandFileNode;
 import org.eclipse.che.ide.command.node.CommandGoalNode;
 import org.eclipse.che.ide.command.node.NodeFactory;
+import org.eclipse.che.ide.ui.smartTree.NodeDescriptor;
 import org.eclipse.che.ide.ui.smartTree.NodeLoader;
 import org.eclipse.che.ide.ui.smartTree.NodeStorage;
 import org.eclipse.che.ide.ui.smartTree.Tree;
@@ -60,7 +63,10 @@ public class CommandsExplorerViewImpl extends BaseView<CommandsExplorerView.Acti
 
   @Inject
   public CommandsExplorerViewImpl(
-      ExplorerMessages messages, CommandResources resources, NodeFactory nodeFactory) {
+      ExplorerMessages messages,
+      CommandResources resources,
+      NodeFactory nodeFactory,
+      CommandExplorerContextMenu contextMenu) {
     this.nodeFactory = nodeFactory;
     commandNodes = new HashMap<>();
 
@@ -86,10 +92,15 @@ public class CommandsExplorerViewImpl extends BaseView<CommandsExplorerView.Acti
                 }
               }
 
-              tree.getNodeDescriptor(event.getSelectedItem())
-                  .getNodeContainerElement()
-                  .setAttribute("selected", "selected");
+              if (event.getSelectedItem() != null) {
+                NodeDescriptor nodeDescriptor = tree.getNodeDescriptor(event.getSelectedItem());
+                if (nodeDescriptor != null) {
+                  nodeDescriptor.getNodeContainerElement().setAttribute("selected", "selected");
+                }
+              }
             });
+
+    tree.setContextMenuInvocationHandler(contextMenu::show);
 
     setContentWidget(UI_BINDER.createAndBindUi(this));
   }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -33,6 +34,7 @@ import org.eclipse.che.ide.editor.preferences.EditorPreferencesManager;
 import org.eclipse.che.ide.editor.preferences.editorproperties.EditorProperties;
 import org.eclipse.che.ide.util.loging.Log;
 import org.eclipse.che.plugin.languageserver.ide.service.TextDocumentServiceClient;
+import org.eclipse.che.plugin.languageserver.ide.util.DtoBuildHelper;
 import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.DocumentOnTypeFormattingParams;
 import org.eclipse.lsp4j.DocumentRangeFormattingParams;
@@ -48,6 +50,7 @@ public class LanguageServerFormatter implements ContentFormatter {
 
   private final TextDocumentServiceClient client;
   private final DtoFactory dtoFactory;
+  private DtoBuildHelper dtoHelper;
   private final NotificationManager manager;
   private final ServerCapabilities capabilities;
   private final EditorPreferencesManager editorPreferencesManager;
@@ -57,11 +60,13 @@ public class LanguageServerFormatter implements ContentFormatter {
   public LanguageServerFormatter(
       TextDocumentServiceClient client,
       DtoFactory dtoFactory,
+      DtoBuildHelper dtoHelper,
       NotificationManager manager,
       @Assisted ServerCapabilities capabilities,
       EditorPreferencesManager editorPreferencesManager) {
     this.client = client;
     this.dtoFactory = dtoFactory;
+    this.dtoHelper = dtoHelper;
     this.manager = manager;
     this.capabilities = capabilities;
     this.editorPreferencesManager = editorPreferencesManager;
@@ -79,6 +84,32 @@ public class LanguageServerFormatter implements ContentFormatter {
     } else if (capabilities.getDocumentFormattingProvider()) {
       // full document formatting
       formatFullDocument(document);
+    }
+  }
+
+  @Override
+  public boolean canFormat(Document document) {
+    TextRange selectedRange = document.getSelectedTextRange();
+
+    boolean requiresFullDocumentFormatting;
+    if (selectedRange == null) {
+      requiresFullDocumentFormatting = true;
+    } else {
+      requiresFullDocumentFormatting = selectedRange.getFrom().equals(selectedRange.getTo());
+    }
+
+    if (requiresFullDocumentFormatting) {
+      try {
+        return capabilities.getDocumentFormattingProvider();
+      } catch (NullPointerException e) {
+        return false;
+      }
+    } else {
+      try {
+        return capabilities.getDocumentRangeFormattingProvider();
+      } catch (NullPointerException e) {
+        return false;
+      }
     }
   }
 
@@ -104,9 +135,7 @@ public class LanguageServerFormatter implements ContentFormatter {
 
                     DocumentOnTypeFormattingParams params =
                         dtoFactory.createDto(DocumentOnTypeFormattingParams.class);
-                    TextDocumentIdentifier identifier =
-                        dtoFactory.createDto(TextDocumentIdentifier.class);
-                    identifier.setUri(document.getFile().getLocation().toString());
+                    TextDocumentIdentifier identifier = dtoHelper.createTDI(document.getFile());
                     params.setTextDocument(identifier);
                     params.setOptions(getFormattingOptions());
                     params.setCh(event.getText());
@@ -129,11 +158,11 @@ public class LanguageServerFormatter implements ContentFormatter {
   private void formatFullDocument(Document document) {
     DocumentFormattingParams params = dtoFactory.createDto(DocumentFormattingParams.class);
 
-    TextDocumentIdentifier identifier = dtoFactory.createDto(TextDocumentIdentifier.class);
-    identifier.setUri(document.getFile().getLocation().toString());
+    TextDocumentIdentifier identifier = dtoHelper.createTDI(document.getFile());
 
     params.setTextDocument(identifier);
     params.setOptions(getFormattingOptions());
+
     Promise<List<TextEdit>> promise = client.formatting(params);
     handleFormatting(promise, document);
   }
@@ -171,12 +200,22 @@ public class LanguageServerFormatter implements ContentFormatter {
       Collections.reverse(edits);
       for (TextEdit change : edits) {
         Range range = change.getRange();
-        document.replace(
-            range.getStart().getLine(),
-            range.getStart().getCharacter(),
-            range.getEnd().getLine(),
-            range.getEnd().getCharacter(),
-            change.getNewText());
+        int startLine = range.getStart().getLine();
+        int startCharacter = range.getStart().getCharacter();
+        int endLine = range.getEnd().getLine();
+        int endCharacter = range.getEnd().getCharacter();
+
+        if (startCharacter == 0
+            && startLine == 0
+            && endCharacter == 0
+            && endLine == document.getLineCount()) {
+          endLine = document.getLineCount() - 1;
+          endCharacter = document.getTextRangeForLine(endLine).getTo().getCharacter();
+        }
+
+        String newText = change.getNewText();
+
+        document.replace(startLine, startCharacter, endLine, endCharacter, newText);
       }
     } catch (final Exception e) {
       Log.error(getClass(), e);
@@ -188,7 +227,7 @@ public class LanguageServerFormatter implements ContentFormatter {
   }
 
   private FormattingOptions getFormattingOptions() {
-    FormattingOptions options = dtoFactory.createDto(FormattingOptions.class);
+    FormattingOptions options = new FormattingOptions();
     options.setInsertSpaces(Boolean.parseBoolean(getEditorProperty(EditorProperties.EXPAND_TAB)));
     options.setTabSize(Integer.parseInt(getEditorProperty(EditorProperties.TAB_SIZE)));
     return options;
@@ -202,8 +241,7 @@ public class LanguageServerFormatter implements ContentFormatter {
     DocumentRangeFormattingParams params =
         dtoFactory.createDto(DocumentRangeFormattingParams.class);
 
-    TextDocumentIdentifier identifier = dtoFactory.createDto(TextDocumentIdentifier.class);
-    identifier.setUri(document.getFile().getLocation().toString());
+    TextDocumentIdentifier identifier = dtoHelper.createTDI(document.getFile());
 
     params.setTextDocument(identifier);
     params.setOptions(getFormattingOptions());

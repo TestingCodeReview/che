@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -36,17 +37,19 @@ import org.eclipse.che.dto.server.DtoFactory;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.client.TestFactoryServiceClient;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
+import org.eclipse.che.selenium.core.constant.Infrastructure;
 import org.eclipse.che.selenium.core.entrance.Entrance;
 import org.eclipse.che.selenium.core.provider.TestApiEndpointUrlProvider;
 import org.eclipse.che.selenium.core.provider.TestDashboardUrlProvider;
 import org.eclipse.che.selenium.core.provider.TestIdeUrlProvider;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 
 /** @author Anatolii Bazko */
 @Singleton
 public class TestFactoryInitializer {
 
-  @Inject private TestUser defaultUser;
+  @Inject private DefaultTestUser defaultUser;
   @Inject private TestIdeUrlProvider ideUrlProvider;
   @Inject private TestDashboardUrlProvider dashboardUrlProvider;
   @Inject private TestApiEndpointUrlProvider apiEndpointProvider;
@@ -55,10 +58,11 @@ public class TestFactoryInitializer {
   @Inject private TestWorkspaceServiceClient workspaceServiceClient;
   @Inject private Entrance entrance;
   @Inject private SeleniumWebDriver seleniumWebDriver;
+  @Inject private SeleniumWebDriverHelper seleniumWebDriverHelper;
 
   @Inject
   @Named("che.infrastructure")
-  private String infrastructure;
+  private Infrastructure infrastructure;
 
   /**
    * Initialize {@link TestFactory} base upon template.
@@ -67,9 +71,7 @@ public class TestFactoryInitializer {
    */
   public TestFactoryBuilder fromTemplate(String template) throws Exception {
     String name = NameGenerator.generate("factory", 6);
-    InputStream resource =
-        TestFactory.class.getResourceAsStream(
-            format("/templates/factory/%s/%s", infrastructure, template));
+    InputStream resource = TestFactory.class.getResourceAsStream(getTemplateDirectory(template));
     if (resource == null) {
       throw new IOException(format("Factory template '%s' not found", template));
     }
@@ -81,6 +83,20 @@ public class TestFactoryInitializer {
             .withName(name);
     factoryDto.getWorkspace().setName(name);
     return new TestFactoryBuilder(factoryDto);
+  }
+
+  private String getTemplateDirectory(String template) {
+    String templateDirectoryName;
+    switch (infrastructure) {
+      case OSIO:
+        templateDirectoryName = Infrastructure.OPENSHIFT.toString().toLowerCase();
+        break;
+
+      default:
+        templateDirectoryName = infrastructure.toString().toLowerCase();
+    }
+
+    return String.format("/templates/factory/%s/%s", templateDirectoryName, template);
   }
 
   /** Initialize {@link TestFactory} base upon url. Can't be modified. */
@@ -100,7 +116,8 @@ public class TestFactoryInitializer {
         testFactoryServiceClient,
         workspaceServiceClient,
         entrance,
-        seleniumWebDriver);
+        seleniumWebDriver,
+        seleniumWebDriverHelper);
   }
 
   /** Builder for {@link TestFactory}. */
@@ -121,7 +138,8 @@ public class TestFactoryInitializer {
           testFactoryServiceClient,
           workspaceServiceClient,
           entrance,
-          seleniumWebDriver);
+          seleniumWebDriver,
+          seleniumWebDriverHelper);
     }
 
     @Override

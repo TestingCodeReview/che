@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,6 +21,9 @@ interface IAgentsResource<T> extends ng.resource.IResourceClass<T> {
  * @author Ilya Buziuk
  */
 export class CheAgent {
+
+  static $inject = ['$resource', '$q'];
+
   private $resource: ng.resource.IResourceService;
   private $q: ng.IQService;
   private agentsMap: Map<string, che.IAgent> = new Map();
@@ -28,7 +32,6 @@ export class CheAgent {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($resource: ng.resource.IResourceService, $q: ng.IQService) {
     this.$resource = $resource;
@@ -55,12 +58,13 @@ export class CheAgent {
       // reset global list
       this.agents.length = 0;
 
-      agents.forEach((agent: che.IAgent[]) => {
+      agents.forEach((agent: che.IAgent) => {
+        this.agentsMap.set(agent.id, agent);
         this.agents.push(agent);
       });
       defer.resolve(this.agents);
     }, (error: any) => {
-      if (error.status != 304) {
+      if (error.status !== 304) {
         defer.reject(error);
       } else {
         defer.resolve(this.agents);

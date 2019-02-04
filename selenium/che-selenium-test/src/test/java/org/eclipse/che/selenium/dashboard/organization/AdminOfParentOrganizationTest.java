@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,15 +21,16 @@ import static org.eclipse.che.selenium.pageobject.dashboard.organization.Organiz
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 import com.google.inject.Inject;
-import com.google.inject.name.Named;
 import java.util.ArrayList;
-import org.eclipse.che.selenium.core.annotation.Multiuser;
+import org.eclipse.che.selenium.core.TestGroup;
 import org.eclipse.che.selenium.core.client.TestOrganizationServiceClient;
+import org.eclipse.che.selenium.core.client.TestOrganizationServiceClientFactory;
 import org.eclipse.che.selenium.core.organization.InjectTestOrganization;
 import org.eclipse.che.selenium.core.organization.TestOrganization;
+import org.eclipse.che.selenium.core.provider.TestApiEndpointUrlProvider;
+import org.eclipse.che.selenium.core.requestfactory.TestUserHttpJsonRequestFactoryCreator;
 import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.pageobject.dashboard.CheMultiuserAdminDashboard;
 import org.eclipse.che.selenium.pageobject.dashboard.NavigationBar;
@@ -42,21 +44,19 @@ import org.testng.annotations.Test;
  *
  * @author Ann Shumilova
  */
-@Multiuser
+@Test(groups = {TestGroup.MULTIUSER, TestGroup.DOCKER, TestGroup.OPENSHIFT, TestGroup.K8S})
 public class AdminOfParentOrganizationTest {
   private int initialOrgCount;
+  private TestOrganizationServiceClient userTestOrganizationServiceClient;
 
-  @Inject
-  @Named("admin")
-  private TestOrganizationServiceClient adminTestOrganizationServiceClient;
-
-  @Inject private TestOrganizationServiceClient userTestOrganizationServiceClient;
-
+  @Inject private TestOrganizationServiceClientFactory userOrganizationServiceClientFactory;
   @Inject private OrganizationListPage organizationListPage;
   @Inject private OrganizationPage organizationPage;
   @Inject private NavigationBar navigationBar;
   @Inject private CheMultiuserAdminDashboard dashboard;
   @Inject private TestUser testUser;
+  @Inject private TestApiEndpointUrlProvider apiEndpointUrlProvider;
+  @Inject private TestUserHttpJsonRequestFactoryCreator testUserHttpJsonRequestFactoryCreator;
 
   @InjectTestOrganization(prefix = "parentOrg")
   private TestOrganization parentOrg;
@@ -66,6 +66,8 @@ public class AdminOfParentOrganizationTest {
 
   @BeforeClass
   public void setUp() throws Exception {
+    userTestOrganizationServiceClient = userOrganizationServiceClientFactory.create(testUser);
+
     parentOrg.addAdmin(testUser.getId());
     childOrg.addMember(testUser.getId());
     initialOrgCount = userTestOrganizationServiceClient.getAll().size();
@@ -73,7 +75,6 @@ public class AdminOfParentOrganizationTest {
     dashboard.open(testUser.getName(), testUser.getPassword());
   }
 
-  @Test
   public void testOrganizationListComponents() {
     navigationBar.waitNavigationBar();
     navigationBar.clickOnMenu(ORGANIZATIONS);
@@ -84,13 +85,7 @@ public class AdminOfParentOrganizationTest {
     assertEquals(organizationListPage.getOrganizationsToolbarTitle(), "Organizations");
     assertEquals(navigationBar.getMenuCounterValue(ORGANIZATIONS), initialOrgCount);
 
-    try {
-      assertEquals(organizationListPage.getOrganizationListItemCount(), initialOrgCount);
-    } catch (AssertionError a) {
-      // remove try-catch block after https://github.com/eclipse/che/issues/7279 has been resolved
-      fail("Known issue https://github.com/eclipse/che/issues/7279", a);
-    }
-
+    assertEquals(organizationListPage.getOrganizationListItemCount(), initialOrgCount);
     assertFalse(organizationListPage.isAddOrganizationButtonVisible());
     assertTrue(organizationListPage.isSearchInputVisible());
 
@@ -106,7 +101,6 @@ public class AdminOfParentOrganizationTest {
     assertTrue(organizationListPage.getValues(NAME).contains(childOrg.getQualifiedName()));
   }
 
-  @Test
   public void testOrganizationViews() {
     navigationBar.waitNavigationBar();
     navigationBar.clickOnMenu(ORGANIZATIONS);

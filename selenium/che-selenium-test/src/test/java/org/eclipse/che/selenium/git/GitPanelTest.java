@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,14 +22,16 @@ import com.google.inject.name.Named;
 import java.net.URL;
 import java.nio.file.Paths;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.TestGroup;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
+import org.eclipse.che.selenium.pageobject.CheTerminal;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
@@ -38,7 +41,6 @@ import org.eclipse.che.selenium.pageobject.Wizard;
 import org.eclipse.che.selenium.pageobject.git.Git;
 import org.eclipse.che.selenium.pageobject.git.GitCompare;
 import org.eclipse.che.selenium.pageobject.git.GitPanel;
-import org.eclipse.che.selenium.pageobject.machineperspective.MachineTerminal;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Keys;
 import org.testng.annotations.BeforeClass;
@@ -48,6 +50,7 @@ import org.testng.annotations.Test;
 // This test is disabled because git panel isn't ready for production and hidden
 // Git panel epic: https://github.com/eclipse/che/issues/5128
 // Issue: https://github.com/eclipse/che/issues/7022
+@Test(groups = TestGroup.GITHUB)
 public class GitPanelTest {
 
   private static final String JAVA_PLAIN_NON_GIT_PROJECT_NAME = "non-git-java-project";
@@ -67,7 +70,7 @@ public class GitPanelTest {
   private String gitHubUsername;
 
   @Inject private SeleniumWebDriver seleniumWebDriver;
-  @Inject private TestUser productUser;
+  @Inject private DefaultTestUser productUser;
   @Inject private TestWorkspace workspace;
   @Inject private Ide ide;
   @Inject private Loader loader;
@@ -76,7 +79,7 @@ public class GitPanelTest {
   @Inject private Menu menu;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private CodenvyEditor editor;
-  @Inject private MachineTerminal terminal;
+  @Inject private CheTerminal terminal;
   @Inject private AskDialog askDialog;
   @Inject private AskForValueDialog askForValueDialog;
   @Inject private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
@@ -137,7 +140,7 @@ public class GitPanelTest {
 
   @Test(priority = 2, enabled = false)
   public void checkChangesNumber() {
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
 
     projectExplorer.quickExpandWithJavaScript();
     editFile(NODE_JS_EDITED_FILE_NAME);
@@ -209,10 +212,10 @@ public class GitPanelTest {
   @Test(priority = 6, enabled = false)
   public void shouldAddNewRepositoryIntoPanelWhenNewProjectUnderGitCreated() {
     assertEquals(gitPanel.countRepositories(), 2);
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
 
     createProject(NEW_PROJECT_NAME, Wizard.SamplesName.CONSOLE_JAVA_SIMPLE);
-    projectExplorer.selectItem(NEW_PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(NEW_PROJECT_NAME);
 
     gitPanel.openPanel();
     gitPanel.waitRepositories(3);
@@ -221,9 +224,9 @@ public class GitPanelTest {
 
   @Test(priority = 7, enabled = false)
   public void shouldRemoveRepositoryFromPanelWhenProjectUnderGitDeleted() {
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
 
-    projectExplorer.selectItem(NEW_PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(NEW_PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     askDialog.waitFormToOpen();
     askDialog.clickOkBtn();
@@ -237,9 +240,9 @@ public class GitPanelTest {
 
   @Test(priority = 8, enabled = false)
   public void shouldRemoveRepositoryFromPanelWhenGitRepositoryDeletedFromProject() {
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
 
-    projectExplorer.selectItem(NODE_JS_GIT_PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(NODE_JS_GIT_PROJECT_NAME);
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.DELETE_REPOSITORY);
     askDialog.acceptDialogWithText(
@@ -254,9 +257,9 @@ public class GitPanelTest {
   @Test(priority = 9, enabled = false)
   public void shouldAddNewRepositoryIntoPanelWhenProjectAddedUnderGit() {
     assertEquals(gitPanel.countRepositories(), 1);
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
 
-    projectExplorer.selectItem(NODE_JS_GIT_PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(NODE_JS_GIT_PROJECT_NAME);
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.INITIALIZE_REPOSITORY);
     askDialog.acceptDialogWithText(
@@ -270,9 +273,9 @@ public class GitPanelTest {
 
   @Test(priority = 10, enabled = false)
   public void shouldRenameRepositoryWhenProjectUnderGitRenamed() {
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
 
-    projectExplorer.selectItem(JAVA_SPRING_GIT_PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(JAVA_SPRING_GIT_PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.RENAME);
     askForValueDialog.waitFormToOpen();
     askForValueDialog.clearInput();
@@ -291,7 +294,7 @@ public class GitPanelTest {
   @Test(priority = 11, enabled = false)
   public void shouldDisplayCleanRepositoryAfterCommit() {
     assertFalse(gitPanel.isRepositoryClean(RENAMED_JAVA_SPRING_GIT_PROJECT_NAME));
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
 
     commitAllChangesInProject(RENAMED_JAVA_SPRING_GIT_PROJECT_NAME, "Some changes");
 
@@ -301,7 +304,7 @@ public class GitPanelTest {
 
   @Test(priority = 12, enabled = false)
   public void shouldUpdatePanelIfFilesChangedFromExternalSource() {
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
 
     // change two files from editor and checkout with force from terminal
     editFile(JAVA_SPRING_EDITED_FILE1_NAME);
@@ -311,7 +314,7 @@ public class GitPanelTest {
     assertEquals(gitPanel.countRepositories(), 2);
     gitPanel.waitRepositoryToHaveChanges(RENAMED_JAVA_SPRING_GIT_PROJECT_NAME, 2);
 
-    terminal.selectTerminalTab();
+    terminal.selectFirstTerminalTab();
     terminal.sendCommandIntoTerminal("cd /projects/" + RENAMED_JAVA_SPRING_GIT_PROJECT_NAME);
     terminal.sendCommandIntoTerminal("git checkout -f HEAD");
 
@@ -332,7 +335,7 @@ public class GitPanelTest {
   public void shouldOpenGitPanelWithHotKey() {
     assertEquals(gitPanel.countRepositories(), 2);
 
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
     seleniumWebDriver.navigate().refresh();
     projectExplorer.waitProjectExplorer();
     seleniumWebDriver.findElement(By.id("gwt-debug-projectTree")).sendKeys(Keys.ALT + "g");
@@ -340,7 +343,7 @@ public class GitPanelTest {
     gitPanel.waitRepositoryToBeClean(NODE_JS_GIT_PROJECT_NAME);
     gitPanel.waitRepositoryToHaveChanges(RENAMED_JAVA_SPRING_GIT_PROJECT_NAME, 1);
 
-    projectExplorer.openPanel();
+    projectExplorer.openAndWait();
     projectExplorer.waitProjectExplorer();
     seleniumWebDriver.findElement(By.id("gwt-debug-projectTree")).sendKeys(Keys.ALT + "g");
     gitPanel.waitRepositories(2);
@@ -350,7 +353,7 @@ public class GitPanelTest {
 
   /** Creates git repository for non-under-git project */
   private void createGitRepositoryInProject(String projectName) {
-    projectExplorer.selectVisibleItem(projectName);
+    projectExplorer.waitAndSelectItemByName(projectName);
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.INITIALIZE_REPOSITORY);
     askDialog.waitFormToOpen();
@@ -360,7 +363,7 @@ public class GitPanelTest {
 
   /** Commits all changes with given message for specified project. */
   private void commitAllChangesInProject(String projectName, String message) {
-    projectExplorer.selectVisibleItem(projectName);
+    projectExplorer.waitAndSelectItemByName(projectName);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.waitAndRunCommit(message);
   }
@@ -373,14 +376,14 @@ public class GitPanelTest {
   }
 
   private void deleteFile(String visibleFileName) {
-    projectExplorer.selectVisibleItem(visibleFileName);
+    projectExplorer.waitAndSelectItemByName(visibleFileName);
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     askDialog.acceptDialogWithText("Delete file \"" + visibleFileName + "\"?");
   }
 
   private void createFileAndAddToIndex(String projectName, String fileName) {
     // create file
-    projectExplorer.selectItem(projectName);
+    projectExplorer.waitAndSelectItem(projectName);
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -390,7 +393,7 @@ public class GitPanelTest {
     askForValueDialog.clickOkBtn();
 
     // add the file into index
-    projectExplorer.selectVisibleItem(fileName);
+    projectExplorer.waitAndSelectItemByName(fileName);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.ADD_TO_INDEX);
     git.waitAddToIndexFormToOpen();
     git.waitAddToIndexFileName("Add file " + fileName + " to index?");

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -23,6 +24,7 @@ import org.eclipse.che.ide.api.action.ActionEvent;
 import org.eclipse.che.ide.api.editor.EditorAgent;
 import org.eclipse.che.ide.api.editor.EditorPartPresenter;
 import org.eclipse.che.ide.api.parts.PartPresenter;
+import org.eclipse.che.ide.api.parts.PartStack;
 import org.eclipse.che.ide.api.parts.WorkspaceAgent;
 import org.eclipse.che.plugin.pullrequest.client.ContributeMessages;
 import org.eclipse.che.plugin.pullrequest.client.ContributeResources;
@@ -66,8 +68,9 @@ public class ContributePartDisplayingModeAction extends AbstractPerspectiveActio
   public void actionPerformed(ActionEvent e) {
     ContributePartPresenter contributePartPresenter = contributePartPresenterProvider.get();
     PartPresenter activePart = workspaceAgent.getActivePart();
-    if (activePart != null && activePart instanceof ContributePartPresenter) {
-      workspaceAgent.hidePart(contributePartPresenter);
+    if (activePart instanceof ContributePartPresenter) {
+      PartStack toolingPartStack = workspaceAgent.getPartStack(TOOLING);
+      toolingPartStack.hide(true);
 
       EditorPartPresenter activeEditor = editorAgent.getActiveEditor();
       if (activeEditor != null) {
@@ -78,6 +81,7 @@ public class ContributePartDisplayingModeAction extends AbstractPerspectiveActio
 
     workspaceAgent.openPart(contributePartPresenter, TOOLING);
     workspaceAgent.setActivePart(contributePartPresenter);
+    contributePartPresenter.showContent();
   }
 
   @Override

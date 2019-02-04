@@ -1,18 +1,27 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.navigation;
 
+import static com.google.gwt.event.dom.client.KeyCodes.KEY_DOWN;
+import static com.google.gwt.event.dom.client.KeyCodes.KEY_ENTER;
+import static com.google.gwt.event.dom.client.KeyCodes.KEY_ESCAPE;
+import static com.google.gwt.event.dom.client.KeyCodes.KEY_PAGEDOWN;
+import static com.google.gwt.event.dom.client.KeyCodes.KEY_PAGEUP;
+import static com.google.gwt.event.dom.client.KeyCodes.KEY_UP;
+
+import com.google.common.base.Strings;
+import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.dom.client.Style;
-import com.google.gwt.event.dom.client.KeyCodes;
-import com.google.gwt.event.dom.client.KeyDownEvent;
+import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.resources.client.CssResource;
 import com.google.gwt.uibinder.client.UiBinder;
@@ -30,6 +39,7 @@ import com.google.inject.Singleton;
 import elemental.dom.Element;
 import elemental.html.TableCellElement;
 import elemental.html.TableElement;
+import java.util.Collections;
 import java.util.List;
 import org.eclipse.che.api.project.shared.dto.SearchResultDto;
 import org.eclipse.che.ide.CoreLocalizationConstant;
@@ -119,7 +129,7 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
             @Override
             public void run() {
               getElement().getStyle().setProperty("clip", "auto");
-              delegate.onFileNameChanged(fileName.getText());
+              delegate.onFileNameChanged();
             }
           }.schedule(300);
         });
@@ -205,6 +215,9 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
     // Create and show list of items
     final TableElement itemHolder = Elements.createTableElement();
     suggestionsContainer.getElement().appendChild(((com.google.gwt.dom.client.Element) itemHolder));
+    if (list != null) {
+      list.asWidget().removeFromParent();
+    }
     list =
         SimpleList.create(
             suggestionsContainer.getElement().cast(),
@@ -218,6 +231,11 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
 
     // Update popup position
     updatePositionAndSize();
+  }
+
+  @Override
+  public String getFileName() {
+    return fileName.getText();
   }
 
   private void updatePositionAndSize() {
@@ -255,6 +273,14 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
     suggestionsPanel.getElement().getStyle().setHeight(newHeight, Style.Unit.PX);
   }
 
+  @Override
+  public void setFileNameTextBoxEnabled(boolean enabled) {
+    fileName.setEnabled(enabled);
+    if (enabled) {
+      Scheduler.get().scheduleFinally(() -> fileName.setFocus(true));
+    }
+  }
+
   private final SimpleList.ListEventDelegate<SearchResultDto> eventDelegate =
       new SimpleList.ListEventDelegate<SearchResultDto>() {
         @Override
@@ -269,9 +295,10 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
       };
 
   @UiHandler("fileName")
-  void handleKeyDown(KeyDownEvent event) {
-    switch (event.getNativeKeyCode()) {
-      case KeyCodes.KEY_UP:
+  void handleKeyUp(KeyUpEvent event) {
+    int nativeKeyCode = event.getNativeKeyCode();
+    switch (nativeKeyCode) {
+      case KEY_UP:
         event.stopPropagation();
         event.preventDefault();
         if (list != null) {
@@ -279,7 +306,7 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
         }
         break;
 
-      case KeyCodes.KEY_DOWN:
+      case KEY_DOWN:
         event.stopPropagation();
         event.preventDefault();
         if (list != null) {
@@ -287,7 +314,7 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
         }
         break;
 
-      case KeyCodes.KEY_PAGEUP:
+      case KEY_PAGEUP:
         event.stopPropagation();
         event.preventDefault();
         if (list != null) {
@@ -295,7 +322,7 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
         }
         break;
 
-      case KeyCodes.KEY_PAGEDOWN:
+      case KEY_PAGEDOWN:
         event.stopPropagation();
         event.preventDefault();
         if (list != null) {
@@ -303,7 +330,7 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
         }
         break;
 
-      case KeyCodes.KEY_ENTER:
+      case KEY_ENTER:
         event.stopPropagation();
         event.preventDefault();
         SearchResultDto selectedItem = list.getSelectionModel().getSelectedItem();
@@ -312,20 +339,17 @@ public class NavigateToFileViewImpl extends PopupPanel implements NavigateToFile
         }
         break;
 
-      case KeyCodes.KEY_ESCAPE:
+      case KEY_ESCAPE:
         event.stopPropagation();
         event.preventDefault();
         hidePopup();
         break;
       default:
-        // here need some delay to be sure input box initiated with given value
-        // in manually testing hard to reproduce this problem but it reproduced with selenium tests
-        new Timer() {
-          @Override
-          public void run() {
-            delegate.onFileNameChanged(fileName.getText());
-          }
-        }.schedule(300);
+        if (Strings.isNullOrEmpty(fileName.getText())) {
+          showItems(Collections.emptyList());
+        } else {
+          delegate.onFileNameChanged();
+        }
         break;
     }
   }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -24,6 +25,7 @@ import org.eclipse.che.api.promises.client.Function;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseProvider;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.RequestCall;
+import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.resources.ResourceChangedEvent;
@@ -53,6 +55,7 @@ class CopyPasteManager implements ResourceChangedHandler {
   private final PromiseProvider promises;
   private final DialogFactory dialogFactory;
   private final NotificationManager notificationManager;
+  private final CoreLocalizationConstant locale;
   private final EventBus eventBus;
   private Resource[] resources;
   private boolean move;
@@ -62,10 +65,12 @@ class CopyPasteManager implements ResourceChangedHandler {
       PromiseProvider promises,
       DialogFactory dialogFactory,
       NotificationManager notificationManager,
+      CoreLocalizationConstant locale,
       EventBus eventBus) {
     this.promises = promises;
     this.dialogFactory = dialogFactory;
     this.notificationManager = notificationManager;
+    this.locale = locale;
     this.eventBus = eventBus;
 
     eventBus.addHandler(ResourceChangedEvent.getType(), this);
@@ -141,7 +146,9 @@ class CopyPasteManager implements ResourceChangedHandler {
 
               // resource may already exists
               if (error.getMessage().contains("exists")) {
-
+                if (error.getMessage().contains("Cannot create")) {
+                  return getErrorPromise(error.getMessage());
+                }
                 // create dialog with overwriting option
                 return createFromAsyncRequest(
                     (RequestCall<Void>)
@@ -220,6 +227,9 @@ class CopyPasteManager implements ResourceChangedHandler {
 
               // resource may already exists
               if (error.getMessage().contains("exists")) {
+                if (error.getMessage().contains("Cannot create")) {
+                  return getErrorPromise(error.getMessage());
+                }
 
                 // create dialog with overwriting option
                 return createFromAsyncRequest(
@@ -286,6 +296,14 @@ class CopyPasteManager implements ResourceChangedHandler {
                 return promises.resolve(null);
               }
             });
+  }
+
+  private Promise<Void> getErrorPromise(String message) {
+    return createFromAsyncRequest(
+        callback ->
+            dialogFactory
+                .createMessageDialog(locale.resourceCopyMoveErrorTitle(), message, null)
+                .show());
   }
 
   @Override

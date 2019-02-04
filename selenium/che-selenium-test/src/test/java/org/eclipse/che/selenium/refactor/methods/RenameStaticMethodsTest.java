@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,14 +12,13 @@
 package org.eclipse.che.selenium.refactor.methods;
 
 import com.google.inject.Inject;
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Random;
+import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
@@ -27,10 +27,8 @@ import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
-import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Refactor;
-import org.eclipse.che.selenium.refactor.Services;
 import org.openqa.selenium.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,12 +40,12 @@ import org.testng.annotations.Test;
 /** @author Musienko Maxim */
 public class RenameStaticMethodsTest {
   private static final Logger LOG = LoggerFactory.getLogger(RenameStaticMethodsTest.class);
-  private static final String nameOfProject =
-      RenameStaticMethodsTest.class.getSimpleName() + new Random().nextInt(9999);
+  private static final String NAME_OFP_ROJECT =
+      NameGenerator.generate(RenameStaticMethodsTest.class.getSimpleName(), 3);
   private static final String pathToPackageInChePrefix =
-      nameOfProject + "/src" + "/main" + "/java" + "/renameStaticMethods";
+      NAME_OFP_ROJECT + "/src" + "/main" + "/java" + "/renameStaticMethods";
   private static final String testsFail5ErrorMess =
-      "Related method 'm' (declared in 'renameStaticMethods.testFail5.A') is native. Renaming will cause an UnsatisfiedLinkError on runtime.";
+      "Renaming native methods will cause an unsatisfied link error on runtime.";
 
   private String pathToCurrentPackage;
   private String contentFromInA;
@@ -64,7 +62,6 @@ public class RenameStaticMethodsTest {
   @Inject private Refactor refactor;
   @Inject private AskDialog askDialog;
   @Inject private Consoles consoles;
-  @Inject private NotificationsPopupPanel notificationsPopupPanel;
   @Inject private TestProjectServiceClient testProjectServiceClient;
 
   @BeforeClass
@@ -73,16 +70,18 @@ public class RenameStaticMethodsTest {
     testProjectServiceClient.importProject(
         workspace.getId(),
         Paths.get(resource.toURI()),
-        nameOfProject,
+        NAME_OFP_ROJECT,
         ProjectTemplates.MAVEN_SIMPLE);
     ide.open(workspace);
-    new Services(projectExplorer, notificationsPopupPanel, refactor)
-        .expandRenamePrivateMethodProject(nameOfProject, "renameStaticMethods");
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    projectExplorer.waitItem(NAME_OFP_ROJECT);
+    projectExplorer.quickExpandWithJavaScript();
+    consoles.waitJDTLSProjectResolveFinishedMessage(NAME_OFP_ROJECT);
     consoles.closeProcessesArea();
   }
 
   @BeforeMethod
-  public void expandTreeOfProject(Method testName) throws IOException {
+  public void expandTreeOfProject(Method testName) {
     try {
       loader.waitOnClosed();
       if (refactor.isWidgetOpened()) {
@@ -109,31 +108,31 @@ public class RenameStaticMethodsTest {
 
   @Test
   public void test0() {
-    doRefactoringWithKeys(13, 14, "k");
+    doRefactoringWithKeys(14, 14, "k");
   }
 
-  @Test(priority = 1)
+  @Test
   public void test2() {
-    doRefactoringWithKeys(13, 17, "k");
+    doRefactoringWithKeys(14, 17, "k");
   }
 
-  @Test(priority = 2)
+  @Test
   public void test8() {
-    doRefactorByWizard(13, 17, "k");
+    doRefactorByWizard(14, 17, "k");
     editor.waitTextIntoEditor(contentFromOutB);
   }
 
-  @Test(priority = 3)
+  @Test
   public void testFail5() {
-    doRefactorByWizardWithExpectedWarningMessage(14, 24, "k", testsFail5ErrorMess);
+    doRefactorByWizardWithExpectedWarningMessage(15, 24, "k", testsFail5ErrorMess);
   }
 
-  @Test(priority = 4)
+  @Test
   public void test11() throws Exception {
     contentFromOutB = getTextFromFile(resourcesOutB);
 
     String contentFromOutA = getTextFromFile(resourceOutA);
-    doRefactorByWizard(15, 23, "fred");
+    doRefactorByWizard(16, 23, "fred");
     editor.waitTextIntoEditor(contentFromOutA);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/B.java");
     editor.waitTextIntoEditor(contentFromOutB);
@@ -142,7 +141,7 @@ public class RenameStaticMethodsTest {
   private void doRefactoringWithKeys(
       int cursorPositionLine, int cursorPositionChar, String newName) {
     prepareProjectForRefactor(cursorPositionLine, cursorPositionChar);
-    editor.launchRefactorFormFromEditor();
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("k");
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.waitTextIntoEditor(contentFromOutB);
@@ -150,10 +149,9 @@ public class RenameStaticMethodsTest {
 
   private void doRefactorByWizard(int cursorPositionLine, int cursorPositionChar, String newName) {
     prepareProjectForRefactor(cursorPositionLine, cursorPositionChar);
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameMethodFormIsOpen();
-    refactor.typeNewName(newName);
+    refactor.typeAndWaitNewName(newName);
     refactor.sendKeysIntoField(Keys.ARROW_LEFT.toString());
     refactor.sendKeysIntoField(Keys.ARROW_LEFT.toString());
     refactor.clickOkButtonRefactorForm();
@@ -167,10 +165,9 @@ public class RenameStaticMethodsTest {
       String expectedWarningMessage) {
 
     prepareProjectForRefactor(cursorPositionLine, cursorPositionChar);
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameMethodFormIsOpen();
-    refactor.typeNewName(newName);
+    refactor.typeAndWaitNewName(newName);
     refactor.clickOkButtonRefactorForm();
     askDialog.waitFormToOpen();
     askDialog.containsText(expectedWarningMessage);
@@ -181,7 +178,6 @@ public class RenameStaticMethodsTest {
 
   private void prepareProjectForRefactor(int cursorPositionLine, int cursorPositionChar) {
     projectExplorer.waitItem(pathToPackageInChePrefix);
-    projectExplorer.openItemByPath(pathToCurrentPackage);
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
     editor.goToCursorPositionVisible(cursorPositionLine, cursorPositionChar);

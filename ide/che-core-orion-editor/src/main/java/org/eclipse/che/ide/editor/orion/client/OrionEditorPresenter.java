@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -145,7 +146,6 @@ import org.eclipse.che.ide.editor.orion.client.jso.OrionLinkedModelOverlay;
 import org.eclipse.che.ide.editor.orion.client.jso.OrionStyleOverlay;
 import org.eclipse.che.ide.editor.orion.client.jso.OrionTextViewOverlay;
 import org.eclipse.che.ide.editor.orion.client.menu.EditorContextMenu;
-import org.eclipse.che.ide.editor.orion.client.signature.SignatureHelpView;
 import org.eclipse.che.ide.part.editor.multipart.EditorMultiPartStackPresenter;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.ui.dialogs.CancelCallback;
@@ -197,7 +197,6 @@ public class OrionEditorPresenter extends AbstractEditorPresenter
   private final WorkspaceAgent workspaceAgent;
   private final NotificationManager notificationManager;
   private final AppContext appContext;
-  private final SignatureHelpView signatureHelpView;
   private final EditorContextMenu contextMenu;
   private final AutoSaveMode autoSaveMode;
   private final ClientServerEventService clientServerEventService;
@@ -245,7 +244,6 @@ public class OrionEditorPresenter extends AbstractEditorPresenter
       final WorkspaceAgent workspaceAgent,
       final NotificationManager notificationManager,
       final AppContext appContext,
-      final SignatureHelpView signatureHelpView,
       final EditorContextMenu contextMenu,
       final AutoSaveMode autoSaveMode,
       final ClientServerEventService clientServerEventService,
@@ -271,7 +269,6 @@ public class OrionEditorPresenter extends AbstractEditorPresenter
     this.workspaceAgent = workspaceAgent;
     this.notificationManager = notificationManager;
     this.appContext = appContext;
-    this.signatureHelpView = signatureHelpView;
     this.contextMenu = contextMenu;
     this.autoSaveMode = autoSaveMode;
     this.clientServerEventService = clientServerEventService;
@@ -541,6 +538,7 @@ public class OrionEditorPresenter extends AbstractEditorPresenter
 
     this.documentStorage.documentClosed(this.document);
     editorInit.uninstall();
+    editorWidget.destroy();
     workspaceAgent.removePart(this);
   }
 
@@ -901,6 +899,7 @@ public class OrionEditorPresenter extends AbstractEditorPresenter
   @Override
   public void editorCursorPositionChanged() {
     this.editorView.updateInfoPanelPosition(this.document.getCursorPosition());
+    updateSignaturesWindow();
   }
 
   @Override
@@ -913,7 +912,8 @@ public class OrionEditorPresenter extends AbstractEditorPresenter
       }
     }
     if (TextEditorOperations.FORMAT == operation) {
-      if (getConfiguration().getContentFormatter() != null) {
+      ContentFormatter contentFormatter = getConfiguration().getContentFormatter();
+      if (contentFormatter != null && contentFormatter.canFormat(document)) {
         return true;
       }
     }
@@ -961,18 +961,26 @@ public class OrionEditorPresenter extends AbstractEditorPresenter
     }
   }
 
+  private void updateSignaturesWindow() {
+    if (editorWidget.isSignatureWidgetVisible()) {
+      showSignatureHelp();
+    }
+  }
+
   private void showSignatureHelp() {
-    // TODO XXX
     SignatureHelpProvider signatureHelpProvider = getConfiguration().getSignatureHelpProvider();
     if (document != null && signatureHelpProvider != null) {
       Promise<Optional<SignatureHelp>> promise =
           signatureHelpProvider.signatureHelp(document, getCursorOffset());
-      PositionConverter.PixelCoordinates coordinates =
-          getPositionConverter().offsetToPixel(getCursorOffset());
-      signatureHelpView.showSignature(
-          promise,
-          coordinates.getX(),
-          coordinates.getY() - editorWidget.getTextView().getLineHeight());
+
+      promise.then(
+          signatureHelpOptional -> {
+            if (signatureHelpOptional.isPresent()) {
+              editorWidget.showSignatureWidget(signatureHelpOptional.get());
+            } else if (editorWidget.isSignatureWidgetVisible()) {
+              editorWidget.hideSignatureWidget();
+            }
+          });
     }
   }
 

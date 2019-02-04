@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,21 +13,24 @@ package org.eclipse.che.selenium.mavenplugin;
 
 import java.util.stream.Stream;
 import javax.inject.Inject;
-import org.eclipse.che.commons.lang.IoUtil;
-import org.eclipse.che.selenium.core.constant.TestBuildConstants;
+import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.ConfigureClasspath;
 import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Menu;
+import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Wizard;
 import org.testng.annotations.Test;
 
 /** @author Musienko Maxim */
 public class CheckGeneratingMavenArchetypeTest {
-  private static final String NAME_OF_ARTIFACT = "quickStart";
+  private static final String PROJECT_NAME = NameGenerator.generate("quickStart", 4);
+  private static final String ARTIFACT_ID = "artifact";
+  private static final String GROUP_ID = "group";
   @Inject private Wizard projectWizard;
   @Inject private Menu menu;
   @Inject private ProjectExplorer projectExplorer;
@@ -34,38 +38,62 @@ public class CheckGeneratingMavenArchetypeTest {
   @Inject private CodenvyEditor editor;
   @Inject private Ide ide;
   @Inject private TestWorkspace workspace;
+  @Inject private ConfigureClasspath selectPath;
+  @Inject private NotificationsPopupPanel notificationsPopupPanel;
+  @Inject private Consoles consoles;
 
   @Test
   public void createMavenArchetypeStartProjectByWizard() throws Exception {
+    String expectedContnetInPomXml =
+        String.format(
+            "  <groupId>%s</groupId>\n"
+                + "  <artifactId>%s</artifactId>\n"
+                + "  <version>1.0-SNAPSHOT</version>",
+            GROUP_ID, ARTIFACT_ID);
+
     Stream<String> expectedItems =
         Stream.of(
-            NAME_OF_ARTIFACT + "/src/main/java/" + NAME_OF_ARTIFACT + "/App.java",
-            NAME_OF_ARTIFACT + "/src/test/java/" + NAME_OF_ARTIFACT + "/AppTest.java",
-            NAME_OF_ARTIFACT + "/pom.xml");
+            PROJECT_NAME + "/src/main/java/" + GROUP_ID + "/App.java",
+            PROJECT_NAME + "/src/test/java/" + GROUP_ID + "/AppTest.java",
+            PROJECT_NAME + "/pom.xml");
     ide.open(workspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
     menu.runCommand(
         TestMenuCommandsConstants.Workspace.WORKSPACE,
         TestMenuCommandsConstants.Workspace.CREATE_PROJECT);
     projectWizard.selectTypeProject(Wizard.TypeProject.MAVEN);
-    projectWizard.typeProjectNameOnWizard(NAME_OF_ARTIFACT);
+    projectWizard.typeProjectNameOnWizard(PROJECT_NAME);
     projectWizard.clickNextButton();
     projectWizard.waitOpenProjectConfigForm();
     projectWizard.selectArcheTypeFromList(Wizard.Archetypes.QUICK_START);
-    projectWizard.checkArtifactIdOnWizardContainsText(NAME_OF_ARTIFACT);
-    projectWizard.checkGroupIdOnWizardContainsText(NAME_OF_ARTIFACT);
+    projectWizard.setArtifactIdOnWizard(ARTIFACT_ID);
+    projectWizard.checkArtifactIdOnWizardContainsText(ARTIFACT_ID);
+    projectWizard.setGroupIdOnWizard(GROUP_ID);
+    projectWizard.checkGroupIdOnWizardContainsText(GROUP_ID);
     projectWizard.checkVersionOnWizardContainsText("1.0-SNAPSHOT");
     projectWizard.clickCreateButton();
-    projectExplorer.waitItem(NAME_OF_ARTIFACT);
-    console.waitExpectedTextIntoConsole(TestBuildConstants.BUILD_SUCCESS);
+    projectExplorer.waitItem(PROJECT_NAME);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     projectExplorer.quickExpandWithJavaScript();
     expectedItems.forEach(projectExplorer::waitItem);
-    projectExplorer.openItemByPath(NAME_OF_ARTIFACT + "/pom.xml");
+    projectExplorer.openItemByPath(PROJECT_NAME + "/pom.xml");
+    editor.waitTextIntoEditor(expectedContnetInPomXml);
+  }
 
-    String pathToExpectedContentOfPom =
-        CheckGeneratingMavenArchetypeTest.class
-            .getResource("pom-quick-start-archetype-context")
-            .getFile();
-    editor.waitTextIntoEditor(
-        IoUtil.readAndCloseQuietly(IoUtil.getResource(pathToExpectedContentOfPom)));
+  @Test(priority = 1)
+  public void shouldHideTheArchetypeFieldIfProjectPathHasPomXml() {
+    menu.runCommand(
+        TestMenuCommandsConstants.Workspace.WORKSPACE,
+        TestMenuCommandsConstants.Workspace.CREATE_PROJECT);
+    projectWizard.selectTypeProject(Wizard.TypeProject.MAVEN);
+    projectWizard.clickOnSelectPathForParentBtn();
+    selectPath.openItemInSelectPathForm("Workspace");
+    selectPath.selectItemInSelectPathForm(PROJECT_NAME);
+    selectPath.clickSelectBtnSelectPathForm();
+    projectWizard.typeProjectNameOnWizard(PROJECT_NAME);
+    projectWizard.clickNextButton();
+    projectWizard.waitInvisibilityOfAchetypeSection();
+    notificationsPopupPanel.waitExpectedMessageOnProgressPanelAndClose(
+        "'From Archetype' section is disabled because selected parent contains 'pom.xml' file");
   }
 }

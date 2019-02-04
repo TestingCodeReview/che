@@ -1,18 +1,22 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.git;
 
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Profile.PREFERENCES;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Profile.PROFILE_MENU;
+import static org.eclipse.che.selenium.pageobject.Preferences.DropDownGitInformationMenu.COMMITTER;
+
 import com.google.inject.Inject;
-import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
@@ -25,7 +29,7 @@ import org.testng.annotations.Test;
 /** @author Kuznetsov Mihail */
 public class SetGitCommitterTest {
 
-  @Inject private TestUser defaultUser;
+  @Inject private DefaultTestUser defaultUser;
   @Inject private TestWorkspace testWorkspace;
   @Inject private Ide ide;
   @Inject private Loader loader;
@@ -43,14 +47,11 @@ public class SetGitCommitterTest {
     loader.waitOnClosed();
     notificationsPopupPanel.waitProgressPopupPanelClose();
     loader.waitOnClosed();
-    menu.runCommand(
-        TestMenuCommandsConstants.Profile.PROFILE_MENU,
-        TestMenuCommandsConstants.Profile.PREFERENCES);
+    menu.runCommand(PROFILE_MENU, PREFERENCES);
     preferences.waitPreferencesForm();
 
-    preferences.waitMenuInCollapsedDropdown(
-        Preferences.DropDownGitCommitterInformationMenu.COMMITTER);
-    preferences.selectDroppedMenuByName(Preferences.DropDownGitCommitterInformationMenu.COMMITTER);
+    preferences.waitMenuInCollapsedDropdown(COMMITTER);
+    preferences.selectDroppedMenuByName(COMMITTER);
     preferences.typeAndWaitNameCommitter(defaultUser.getName());
     preferences.typeAndWaitEmailCommitter(defaultUser.getEmail());
     preferences.clickOnOkBtn();

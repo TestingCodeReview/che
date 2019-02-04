@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,9 @@ interface ICheLoaderCraneScope extends ng.IScope {
  * @author Oleksii Kurinnyi
  */
 export class CheLoaderCrane implements ng.IDirective {
+
+  static $inject = ['$timeout', '$window'];
+
   $timeout: ng.ITimeoutService;
   $window: ng.IWindowService;
 
@@ -39,7 +43,6 @@ export class CheLoaderCrane implements ng.IDirective {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($timeout: ng.ITimeoutService, $window: ng.IWindowService) {
     this.$timeout = $timeout;
@@ -62,10 +65,10 @@ export class CheLoaderCrane implements ng.IDirective {
       animationRunning = false;
 
     let applyScale = (element: any, scale: number) => {
-        let jqElement;
-        if (element.nodeType) {
-          jqElement = angular.element(element);
+        if (!element.nodeType) {
+          return;
         }
+        let jqElement = angular.element(element);
         jqElement.css('transform', 'scale(' + scale + ')');
         jqElement.css('height', craneHeight * scale);
         jqElement.css('width', craneWidth * scale);

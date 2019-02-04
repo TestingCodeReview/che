@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.io.CharStreams;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.FieldNamingPolicy;
@@ -52,12 +54,12 @@ import org.eclipse.che.commons.json.JsonParseException;
 import org.eclipse.che.commons.lang.ws.rs.ExtMediaType;
 import org.eclipse.che.commons.test.mockito.answer.SelfReturningAnswer;
 import org.eclipse.che.dto.server.DtoFactory;
+import org.eclipse.che.infrastructure.docker.auth.dto.AuthConfig;
+import org.eclipse.che.infrastructure.docker.auth.dto.AuthConfigs;
 import org.eclipse.che.infrastructure.docker.client.connection.CloseConnectionInputStream;
 import org.eclipse.che.infrastructure.docker.client.connection.DockerConnection;
 import org.eclipse.che.infrastructure.docker.client.connection.DockerConnectionFactory;
 import org.eclipse.che.infrastructure.docker.client.connection.DockerResponse;
-import org.eclipse.che.infrastructure.docker.client.dto.AuthConfig;
-import org.eclipse.che.infrastructure.docker.client.dto.AuthConfigs;
 import org.eclipse.che.infrastructure.docker.client.exception.ContainerNotFoundException;
 import org.eclipse.che.infrastructure.docker.client.exception.DockerException;
 import org.eclipse.che.infrastructure.docker.client.exception.ExecNotFoundException;
@@ -175,6 +177,7 @@ public class DockerConnectorTest {
   private static final byte[] DOCKER_RESPONSE_BYTES = DOCKER_RESPONSE.getBytes();
 
   private static final int CONTAINER_EXIT_CODE = 0;
+  private static final int IMAGE_BUILD_TIMEOUT = 300;
 
   @Mock private DockerConnectorConfiguration dockerConnectorConfiguration;
   @Mock private DockerConnectionFactory dockerConnectionFactory;
@@ -205,13 +208,7 @@ public class DockerConnectorTest {
     when(authConfigs.getConfigs()).thenReturn(new HashMap<>());
     when(dockerApiVersionPathPrefixProvider.get()).thenReturn(API_VERSION_PREFIX);
 
-    dockerConnector =
-        spy(
-            new DockerConnector(
-                dockerConnectorConfiguration,
-                dockerConnectionFactory,
-                authManager,
-                dockerApiVersionPathPrefixProvider));
+    dockerConnector = newConnectorSpy(IMAGE_BUILD_TIMEOUT, dockerApiVersionPathPrefixProvider);
 
     inputStream = spy(new ByteArrayInputStream(ERROR_MESSAGE.getBytes()));
     when(dockerResponse.getInputStream()).thenReturn(inputStream);
@@ -242,13 +239,7 @@ public class DockerConnectorTest {
       throws IOException, JsonParseException {
     String apiVersion = "/v1.18";
     when(dockerApiVersionPathPrefixProvider.get()).thenReturn(apiVersion);
-    dockerConnector =
-        spy(
-            new DockerConnector(
-                dockerConnectorConfiguration,
-                dockerConnectionFactory,
-                authManager,
-                dockerApiVersionPathPrefixProvider));
+    dockerConnector = newConnectorSpy(IMAGE_BUILD_TIMEOUT, dockerApiVersionPathPrefixProvider);
     SystemInfo systemInfo = mock(SystemInfo.class);
     doReturn(systemInfo)
         .when(dockerConnector)
@@ -261,9 +252,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileGettingSystemInfoIfResponseCodeIsNotSuccess()
       throws IOException {
     when(dockerResponse.getStatus()).thenReturn(RESPONSE_ERROR_CODE);
@@ -292,9 +282,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileGettingVersionIfResponseCodeIsNotSuccess()
       throws IOException {
     when(dockerResponse.getStatus()).thenReturn(RESPONSE_ERROR_CODE);
@@ -347,9 +336,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileListingImagesIfResponseCodeIsNotSuccess()
       throws IOException {
     when(dockerResponse.getStatus()).thenReturn(RESPONSE_ERROR_CODE);
@@ -412,9 +400,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void
       shouldThrowDockerExceptionWhileGettingListContainersByParamsObjectIfResponseCodeIsNotSuccess()
           throws IOException, JsonParseException {
@@ -484,9 +471,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileGettingImageInfoIfResponseCodeIsNotSuccess()
       throws IOException {
     InspectImageParams inspectImageParams = InspectImageParams.create(IMAGE);
@@ -499,9 +485,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = ImageNotFoundException.class,
-    expectedExceptionsMessageRegExp = ERROR_MESSAGE
-  )
+      expectedExceptions = ImageNotFoundException.class,
+      expectedExceptionsMessageRegExp = ERROR_MESSAGE)
   public void shouldThrowImageNotFoundExceptionOnGettingImageInfoIfResponseCodeIs404()
       throws IOException {
     InspectImageParams inspectImageParams = InspectImageParams.create(IMAGE);
@@ -527,9 +512,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileStoppingContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     StopContainerParams stopContainerParams = StopContainerParams.create(CONTAINER);
@@ -570,9 +554,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileKillingContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     KillContainerParams killContainerParams = KillContainerParams.create(CONTAINER);
@@ -600,9 +583,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileRemovingContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     RemoveContainerParams removeContainerParams = RemoveContainerParams.create(CONTAINER);
@@ -652,9 +634,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileWaitingContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     WaitContainerParams waitContainerParams = WaitContainerParams.create(CONTAINER);
@@ -705,9 +686,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileInspectingContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     InspectContainerParams inspectContainerParams = InspectContainerParams.create(CONTAINER);
@@ -720,9 +700,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = ContainerNotFoundException.class,
-    expectedExceptionsMessageRegExp = ERROR_MESSAGE
-  )
+      expectedExceptions = ContainerNotFoundException.class,
+      expectedExceptionsMessageRegExp = ERROR_MESSAGE)
   public void shouldThrowContainerNotFoundExceptionOnInspectingContainerIfResponseCodeIs404()
       throws IOException {
     InspectContainerParams inspectContainerParams = InspectContainerParams.create(CONTAINER);
@@ -754,9 +733,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileAttachingContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     AttachContainerParams attachContainerParams = AttachContainerParams.create(CONTAINER);
@@ -788,9 +766,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileGettingContainerLogsIfResponseCodeIs5xx()
       throws IOException {
     GetContainerLogsParams getContainerLogsParams = GetContainerLogsParams.create(CONTAINER);
@@ -844,9 +821,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileCreatingExecIfResponseCodeIsNotSuccess()
       throws IOException {
     CreateExecParams inspectContainerParams = CreateExecParams.create(CONTAINER, CMD_WITH_ARGS);
@@ -878,9 +854,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = ExecNotFoundException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = ExecNotFoundException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void execStartShouldThrowExecNotFoundIf404Received() throws IOException {
     StartExecParams startExecParams = StartExecParams.create(EXEC_ID);
 
@@ -893,9 +868,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileStartingExecIfResponseCodeIsNotSuccess()
       throws IOException {
     StartExecParams startExecParams = StartExecParams.create(EXEC_ID);
@@ -945,9 +919,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowIOExceptionWhileGettingExecInfoIfResponseCodeIsNotSuccess()
       throws IOException {
     GetExecInfoParams getExecInfoParams = GetExecInfoParams.create(EXEC_ID);
@@ -1005,9 +978,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void topShouldThrowIOExceptionWhileGettingProcessesIfResponseCodeIsNotSuccess()
       throws IOException {
     TopParams topParams = TopParams.create(CONTAINER);
@@ -1043,9 +1015,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldProduceErrorWhenGetsResourcesFromContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     GetResourceParams getResourceParams = GetResourceParams.create(CONTAINER, PATH_TO_FILE);
@@ -1082,9 +1053,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldProduceErrorWhenPutsResourcesIntoContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     InputStream source =
@@ -1118,9 +1088,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileGettingEventsIfResponseCodeIsNotSuccess()
       throws IOException {
     GetEventsParams getExecInfoParams = GetEventsParams.create();
@@ -1295,9 +1264,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileBuildingImageIfResponseCodeIsNotSuccess()
       throws IOException, InterruptedException {
     AuthConfigs authConfigs = DtoFactory.newDto(AuthConfigs.class);
@@ -1317,10 +1285,9 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp =
-        "Docker image build failed. Image id not found in build output."
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp =
+          "Docker image build failed. Image id not found in build output.")
   public void shouldThrowIOExceptionWhenBuildImageButNoSuccessMessageInResponse()
       throws IOException, InterruptedException {
     AuthConfigs authConfigs = DtoFactory.newDto(AuthConfigs.class);
@@ -1339,6 +1306,33 @@ public class DockerConnectorTest {
     dockerConnector.buildImage(getEventsParams, progressMonitor);
 
     verify(dockerResponse).getInputStream();
+  }
+
+  @Test(
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = "Docker image build exceed timeout .* seconds.")
+  public void testThrowsDockerExceptionWhenImageBuildExceedTimeout() throws Exception {
+    dockerConnector = newConnectorSpy(0, dockerApiVersionPathPrefixProvider);
+    final AuthConfigs authConfigs =
+        DtoFactory.newDto(AuthConfigs.class)
+            .withConfigs(ImmutableMap.of("auth", DtoFactory.newDto(AuthConfig.class)));
+
+    final BuildImageParams buildImageParams =
+        BuildImageParams.create(dockerfile).withAuthConfigs(authConfigs);
+    final InputStream slowStream =
+        new InputStream() {
+          @Override
+          public int read() {
+            try {
+              Thread.sleep(373);
+            } catch (Exception ignored) {
+            }
+            return 43;
+          }
+        };
+    doReturn(slowStream).when(dockerResponse).getInputStream();
+
+    dockerConnector.buildImage(buildImageParams, progressMonitor);
   }
 
   @Test
@@ -1368,9 +1362,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileRemovingImageIfResponseCodeIsNotSuccess()
       throws IOException {
     RemoveImageParams removeImageParams = RemoveImageParams.create(IMAGE);
@@ -1397,9 +1390,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileTaggingImageIfResponseCodeIsNotSuccess()
       throws IOException {
     TagParams tagParams = TagParams.create(IMAGE, REPOSITORY);
@@ -1454,9 +1446,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhilePushingImageIfResponseCodeIsNotSuccess()
       throws IOException, InterruptedException {
     PushParams pushParams = PushParams.create(REPOSITORY);
@@ -1469,10 +1460,9 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp =
-        "Docker image pushing failed. Cause: Docker push response doesn't contain image digest"
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp =
+          "Docker image pushing failed. Cause: Docker push response doesn't contain image digest")
   public void shouldThrowDockerExceptionWhenPushImageButDigestOutputMissing()
       throws IOException, InterruptedException {
     String dockerPushOutput =
@@ -1488,9 +1478,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = "Docker image pushing failed. Cause: .*"
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = "Docker image pushing failed. Cause: .*")
   public void shouldThrowDockerExceptionWhenPushImageButOutputIsEmpty()
       throws IOException, InterruptedException {
     PushParams pushParams = PushParams.create(REPOSITORY);
@@ -1499,9 +1488,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = "Docker image pushing failed. Cause: test error"
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = "Docker image pushing failed. Cause: test error")
   public void shouldThrowDockerExceptionWhenPushFails() throws IOException, InterruptedException {
     String dockerPushOutput =
         "{\"progress\":\"[=====>              ] 25%\"}\n"
@@ -1564,9 +1552,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileCommittingImageIfResponseCodeIsNotSuccess()
       throws IOException {
     CommitParams commitParams = CommitParams.create(CONTAINER).withRepository(REPOSITORY);
@@ -1617,9 +1604,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhilePullingImageIfResponseCodeIsNotSuccess()
       throws IOException, InterruptedException {
     PullParams pullParams = PullParams.create(IMAGE);
@@ -1660,9 +1646,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileCreatingContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     CreateContainerParams createContainerParams =
@@ -1689,9 +1674,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp = EXCEPTION_ERROR_MESSAGE)
   public void shouldThrowDockerExceptionWhileStartingContainerIfResponseCodeIsNotSuccess()
       throws IOException {
     StartContainerParams startContainerParams = StartContainerParams.create(CONTAINER);
@@ -1837,20 +1821,18 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp =
-        "Internal server error. Unexpected response body received from Docker."
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp =
+          "Internal server error. Unexpected response body received from Docker.")
   public void shouldThrowIOExceptionWhenParseEmptyResponseStringByClass() throws IOException {
     dockerConnector.parseResponseStreamAndClose(
         new ByteArrayInputStream("".getBytes()), Version.class);
   }
 
   @Test(
-    expectedExceptions = IOException.class,
-    expectedExceptionsMessageRegExp =
-        "Internal server error. Unexpected response body received from Docker."
-  )
+      expectedExceptions = IOException.class,
+      expectedExceptionsMessageRegExp =
+          "Internal server error. Unexpected response body received from Docker.")
   public void shouldThrowIOExceptionWhenParseEmptyResponseStringByTypeToken() throws IOException {
     dockerConnector.parseResponseStreamAndClose(
         new ByteArrayInputStream("".getBytes()), new TypeToken<List<ContainerListEntry>>() {});
@@ -1897,10 +1879,9 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp =
-        "Error response from docker API, status: 404, message: exc_message"
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp =
+          "Error response from docker API, status: 404, message: exc_message")
   public void shouldThrowExceptionOnGetNetworksIfResponseCodeIsNot20x() throws Exception {
     // given
     doReturn(404).when(dockerResponse).getStatus();
@@ -1947,10 +1928,9 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp =
-        "Error response from docker API, status: 404, message: exc_message"
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp =
+          "Error response from docker API, status: 404, message: exc_message")
   public void shouldThrowExceptionOnInspectNetworkIfResponseCodeIsNot20x() throws Exception {
     // given
     doReturn(404).when(dockerResponse).getStatus();
@@ -1991,10 +1971,9 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp =
-        "Error response from docker API, status: 404, message: exc_message"
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp =
+          "Error response from docker API, status: 404, message: exc_message")
   public void shouldThrowExceptionOnCreateNetworkIfResponseCodeIsNot20x() throws Exception {
     // given
     doReturn(404).when(dockerResponse).getStatus();
@@ -2051,10 +2030,9 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp =
-        "Error response from docker API, status: 404, message: exc_message"
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp =
+          "Error response from docker API, status: 404, message: exc_message")
   public void shouldThrowExceptionOnConnectToNetworkIfResponseCodeIsNot20x() throws Exception {
     // given
     doReturn(404).when(dockerResponse).getStatus();
@@ -2113,10 +2091,9 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp =
-        "Error response from docker API, status: 404, message: exc_message"
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp =
+          "Error response from docker API, status: 404, message: exc_message")
   public void shouldThrowExceptionOnDisconnectFromNetworkIfResponseCodeIsNot20x() throws Exception {
     // given
     doReturn(404).when(dockerResponse).getStatus();
@@ -2161,9 +2138,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = NetworkNotFoundException.class,
-    expectedExceptionsMessageRegExp = "exc_message"
-  )
+      expectedExceptions = NetworkNotFoundException.class,
+      expectedExceptionsMessageRegExp = "exc_message")
   public void shouldThrowExceptionOnRemoveNetworkIfResponseCodeIsNot20x() throws Exception {
     // given
     doReturn(404).when(dockerResponse).getStatus();
@@ -2176,9 +2152,8 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = VolumeNotFoundException.class,
-    expectedExceptionsMessageRegExp = "exc_message"
-  )
+      expectedExceptions = VolumeNotFoundException.class,
+      expectedExceptionsMessageRegExp = "exc_message")
   public void shouldThrowExceptionOnRemoveVolumeIfResponseCodeIsNot20x() throws Exception {
     // given
     doReturn(404).when(dockerResponse).getStatus();
@@ -2258,10 +2233,9 @@ public class DockerConnectorTest {
   }
 
   @Test(
-    expectedExceptions = DockerException.class,
-    expectedExceptionsMessageRegExp =
-        "Error response from docker API, status: 404, message: exc_message"
-  )
+      expectedExceptions = DockerException.class,
+      expectedExceptionsMessageRegExp =
+          "Error response from docker API, status: 404, message: exc_message")
   public void shouldThrowExceptionOnGetVolumesIfResponseCodeIsNot20x() throws Exception {
     // given
     doReturn(404).when(dockerResponse).getStatus();
@@ -2343,5 +2317,16 @@ public class DockerConnectorTest {
             asList(
                 new Volume().withName("volume1"),
                 new Volume().withName("volume2").withDriver("driver1")));
+  }
+
+  private DockerConnector newConnectorSpy(
+      int buildTimeout, DockerApiVersionPathPrefixProvider dockerApiVersionPathPrefixProvider) {
+    return spy(
+        new DockerConnector(
+            buildTimeout,
+            dockerConnectorConfiguration,
+            dockerConnectionFactory,
+            authManager,
+            dockerApiVersionPathPrefixProvider));
   }
 }

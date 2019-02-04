@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,16 +12,25 @@
 package org.eclipse.che.ide.editor;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.Lists.newArrayList;
+import static com.google.gwt.regexp.shared.RegExp.compile;
 import static java.lang.Boolean.parseBoolean;
+import static java.util.Collections.emptySet;
+import static java.util.Collections.singleton;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.EMERGE_MODE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
+import static org.eclipse.che.ide.api.notification.StatusNotification.Status.WARNING;
 import static org.eclipse.che.ide.api.parts.PartStackType.EDITING;
+import static org.eclipse.che.ide.util.NameUtils.getFileExtension;
 
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import com.google.web.bindery.event.shared.EventBus;
 import elemental.json.Json;
 import elemental.json.JsonArray;
@@ -31,6 +41,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.validation.constraints.NotNull;
 import org.eclipse.che.api.promises.client.Operation;
@@ -41,8 +52,6 @@ import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.actions.LinkWithEditorAction;
-import org.eclipse.che.ide.api.WindowActionEvent;
-import org.eclipse.che.ide.api.WindowActionHandler;
 import org.eclipse.che.ide.api.constraints.Constraints;
 import org.eclipse.che.ide.api.constraints.Direction;
 import org.eclipse.che.ide.api.editor.AsyncEditorProvider;
@@ -76,12 +85,15 @@ import org.eclipse.che.ide.api.selection.SelectionChangedEvent;
 import org.eclipse.che.ide.api.selection.SelectionChangedHandler;
 import org.eclipse.che.ide.api.statepersistance.StateComponent;
 import org.eclipse.che.ide.api.workspace.event.WorkspaceStoppedEvent;
+import org.eclipse.che.ide.api.workspace.event.WsAgentServerStoppedEvent;
 import org.eclipse.che.ide.editor.synchronization.EditorContentSynchronizer;
 import org.eclipse.che.ide.part.editor.multipart.EditorMultiPartStackPresenter;
 import org.eclipse.che.ide.part.explorer.project.ProjectExplorerPresenter;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.resources.reveal.RevealResourceEvent;
 import org.eclipse.che.ide.ui.smartTree.data.HasDataObject;
+import org.eclipse.che.ide.ui.window.event.WindowOpenedEvent;
+import org.eclipse.che.ide.ui.window.event.WindowOpenedEvent.WindowOpenedHandler;
 import org.eclipse.che.ide.util.loging.Log;
 
 /**
@@ -95,9 +107,10 @@ public class EditorAgentImpl
         EditorPartCloseHandler,
         ActivePartChangedHandler,
         SelectionChangedHandler,
-        WindowActionHandler,
         StateComponent,
-        WorkspaceStoppedEvent.Handler {
+        WorkspaceStoppedEvent.Handler,
+        WsAgentServerStoppedEvent.Handler,
+        WindowOpenedHandler {
 
   private final EventBus eventBus;
   private final WorkspaceAgent workspaceAgent;
@@ -114,6 +127,7 @@ public class EditorAgentImpl
   private final PromiseProvider promiseProvider;
   private final ResourceProvider resourceProvider;
   private final NotificationManager notificationManager;
+  private final FileType unknownFileType;
   private List<EditorPartPresenter> dirtyEditors;
   private EditorPartPresenter activeEditor;
   private PartPresenter activePart;
@@ -130,7 +144,8 @@ public class EditorAgentImpl
       EditorContentSynchronizer editorContentSynchronizer,
       PromiseProvider promiseProvider,
       ResourceProvider resourceProvider,
-      NotificationManager notificationManager) {
+      NotificationManager notificationManager,
+      @Named("defaultFileType") FileType unknownFileType) {
     this.eventBus = eventBus;
     this.fileTypeRegistry = fileTypeRegistry;
     this.preferencesManager = preferencesManager;
@@ -142,14 +157,16 @@ public class EditorAgentImpl
     this.promiseProvider = promiseProvider;
     this.resourceProvider = resourceProvider;
     this.notificationManager = notificationManager;
+    this.unknownFileType = unknownFileType;
     this.openedEditors = newArrayList();
     this.openingEditorsPathsToStacks = new HashMap<>();
     this.openedEditorsToProviders = new HashMap<>();
 
     eventBus.addHandler(ActivePartChangedEvent.TYPE, this);
     eventBus.addHandler(SelectionChangedEvent.TYPE, this);
-    eventBus.addHandler(WindowActionEvent.TYPE, this);
     eventBus.addHandler(WorkspaceStoppedEvent.TYPE, this);
+    eventBus.addHandler(WsAgentServerStoppedEvent.TYPE, this);
+    eventBus.addHandler(WindowOpenedEvent.TYPE, this);
   }
 
   @Override
@@ -181,23 +198,6 @@ public class EditorAgentImpl
       final VirtualFile file = activeEditor.getEditorInput().getFile();
       eventBus.fireEvent(new RevealResourceEvent(file.getLocation(), true, false));
     }
-  }
-
-  @Override
-  public void onWindowClosing(WindowActionEvent event) {
-    for (EditorPartPresenter editorPartPresenter : getOpenedEditors()) {
-      if (editorPartPresenter.isDirty()) {
-        event.setMessage(
-            coreLocalizationConstant
-                .changesMayBeLost()); // TODO need to move this into standalone component
-        return;
-      }
-    }
-  }
-
-  @Override
-  public void onWindowClosed(WindowActionEvent event) {
-    // do nothing
   }
 
   @Override
@@ -309,23 +309,62 @@ public class EditorAgentImpl
       VirtualFile file, EditorPartStack editorPartStackConsumer, OpenEditorCallback callback) {
 
     addToOpeningFilesList(file.getLocation(), editorPartStackConsumer);
+    Set<FileType> fileTypesByFile = getFileTypesByFile(file);
+    Optional<FileType> registeredFileType =
+        fileTypesByFile
+            .stream()
+            .filter(fileType -> editorRegistry.getEditor(fileType) instanceof AsyncEditorProvider)
+            .findAny();
+    if (registeredFileType.isPresent()) {
+      FileType fileType = registeredFileType.get();
+      final EditorProvider editorProvider = editorRegistry.getEditor(fileType);
+      ((AsyncEditorProvider) editorProvider)
+          .createEditor(file)
+          .then(
+              editor -> {
+                initEditor(
+                    file, callback, fileType, editor, editorPartStackConsumer, editorProvider);
+              });
+    } else {
+      FileType fileType = fileTypesByFile.stream().findAny().orElse(unknownFileType);
+      final EditorProvider editorProvider = editorRegistry.getEditor(fileType);
+      final EditorPartPresenter editor = editorProvider.getEditor();
+      initEditor(file, callback, fileType, editor, editorPartStackConsumer, editorProvider);
+    }
+  }
 
-    final FileType fileType = fileTypeRegistry.getFileTypeByFile(file);
-    final EditorProvider editorProvider = editorRegistry.getEditor(fileType);
-    if (editorProvider instanceof AsyncEditorProvider) {
-      AsyncEditorProvider provider = (AsyncEditorProvider) editorProvider;
-      Promise<EditorPartPresenter> promise = provider.createEditor(file);
-      if (promise != null) {
-        promise.then(
-            editor -> {
-              initEditor(file, callback, fileType, editor, editorPartStackConsumer, editorProvider);
-            });
-        return;
-      }
+  private Set<FileType> getFileTypesByFile(VirtualFile file) {
+    String name = file.getName();
+
+    if (isNullOrEmpty(name)) {
+      return emptySet();
     }
 
-    final EditorPartPresenter editor = editorProvider.getEditor();
-    initEditor(file, callback, fileType, editor, editorPartStackConsumer, editorProvider);
+    Set<FileType> typesByNamePattern =
+        fileTypeRegistry
+            .getFileTypes()
+            .stream()
+            .filter(
+                type ->
+                    type.getNamePatterns()
+                        .stream()
+                        .anyMatch(namePattern -> compile(namePattern).test(name)))
+            .collect(toSet());
+
+    String fileExtension = getFileExtension(name);
+    if (isNullOrEmpty(fileExtension)) {
+      return typesByNamePattern;
+    }
+
+    Set<FileType> fileTypes =
+        typesByNamePattern
+            .stream()
+            .filter(type -> fileExtension.equals(type.getExtension()))
+            .collect(toSet());
+    fileTypes = fileTypes.isEmpty() ? typesByNamePattern : fileTypes;
+    return fileTypes.isEmpty()
+        ? singleton(fileTypeRegistry.getFileTypeByExtension(fileExtension))
+        : fileTypes;
   }
 
   private void initEditor(
@@ -348,6 +387,7 @@ public class EditorAgentImpl
             openEditorCallback.onEditorOpened(editor);
 
             eventBus.fireEvent(new EditorOpenedEvent(file, editor));
+            eventBus.fireEvent(FileEvent.createFileOpenedEvent(file));
           }
 
           @Override
@@ -382,8 +422,6 @@ public class EditorAgentImpl
             if (editor instanceof TextEditor) {
               editorContentSynchronizer.trackEditor(editor);
             }
-
-            eventBus.fireEvent(FileEvent.createFileOpenedEvent(file));
           }
         });
   }
@@ -659,9 +697,15 @@ public class EditorAgentImpl
                           restoreCreateEditor(
                               optionalFile.get(), file, editorPartStack, callback, activeEditors);
                         } else {
+                          removeFromOpeningFilesList(path, editorPartStack);
                           callback.onSuccess(null);
                         }
                       }
+                    })
+                .catchError(
+                    error -> {
+                      removeFromOpeningFilesList(path, editorPartStack);
+                      callback.onSuccess(null);
                     });
           }
         });
@@ -684,8 +728,15 @@ public class EditorAgentImpl
     }
     final boolean active = file.hasKey("ACTIVE") && file.getBoolean("ACTIVE");
 
-    final EditorProvider provider = editorRegistry.findEditorProviderById(providerId);
-    if (provider instanceof AsyncEditorProvider) {
+    Set<FileType> fileTypesByFile = getFileTypesByFile(resourceFile);
+    Optional<FileType> registeredFileType =
+        fileTypesByFile
+            .stream()
+            .filter(fileType -> editorRegistry.getEditor(fileType) instanceof AsyncEditorProvider)
+            .findAny();
+    if (registeredFileType.isPresent()) {
+      FileType fileType = registeredFileType.get();
+      final EditorProvider provider = editorRegistry.getEditor(fileType);
       ((AsyncEditorProvider) provider)
           .createEditor(resourceFile)
           .then(
@@ -706,6 +757,8 @@ public class EditorAgentImpl
                         });
               });
     } else {
+      FileType fileType = fileTypesByFile.stream().findAny().orElse(unknownFileType);
+      final EditorProvider provider = editorRegistry.getEditor(fileType);
       EditorPartPresenter editor = provider.getEditor();
       restoreInitEditor(
               resourceFile,
@@ -747,6 +800,7 @@ public class EditorAgentImpl
                   openEditorCallback.onEditorActivated(editor);
 
                   eventBus.fireEvent(new EditorOpenedEvent(file, editor));
+                  eventBus.fireEvent(FileEvent.createFileOpenedEvent(file));
                 }
 
                 @Override
@@ -824,6 +878,42 @@ public class EditorAgentImpl
     for (EditorPartPresenter editor : getOpenedEditors()) {
       closeEditor(editor);
     }
+  }
+
+  @Override
+  public void onWsAgentServerStopped(WsAgentServerStoppedEvent event) {
+    List<EditorPartPresenter> editorsToReadOnlyMode =
+        getOpenedEditors()
+            .stream()
+            .filter(
+                editor ->
+                    editor instanceof HasReadOnlyProperty
+                        && !((HasReadOnlyProperty) editor).isReadOnly())
+            .collect(toList());
+
+    if (editorsToReadOnlyMode.isEmpty()) {
+      return;
+    }
+
+    notificationManager.notify(
+        "", coreLocalizationConstant.messageSwitchEditorsInReadOnlyMode(), WARNING, EMERGE_MODE);
+
+    editorsToReadOnlyMode.forEach(
+        editor -> {
+          EditorTab editorTab = editorMultiPartStack.getTabByPart(editor);
+          if (editorTab != null) {
+            editorTab.setReadOnlyMark(true);
+          }
+
+          ((HasReadOnlyProperty) editor).setReadOnly(true);
+        });
+  }
+
+  public void onWindowOpened(WindowOpenedEvent event) {
+    if (activeEditor == null || !(activeEditor instanceof TextEditor)) {
+      return;
+    }
+    ((TextEditor) activeEditor).getEditorWidget().hideTooltip();
   }
 
   private static class RestoreStateEditorCallBack extends OpenEditorCallbackImpl {

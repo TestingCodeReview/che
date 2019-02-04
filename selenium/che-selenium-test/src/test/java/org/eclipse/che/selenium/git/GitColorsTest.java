@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -25,27 +26,29 @@ import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import java.nio.file.Paths;
 import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.selenium.core.TestGroup;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.*;
+import org.eclipse.che.selenium.pageobject.CheTerminal;
 import org.eclipse.che.selenium.pageobject.git.Git;
-import org.eclipse.che.selenium.pageobject.machineperspective.MachineTerminal;
 import org.openqa.selenium.Keys;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Igor Vnokur */
+@Test(groups = TestGroup.GITHUB)
 public class GitColorsTest {
   private static final String PROJECT_NAME = NameGenerator.generate("project", 4);
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private TestUser productUser;
+  @Inject private DefaultTestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -54,7 +57,7 @@ public class GitColorsTest {
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Menu menu;
   @Inject private AskDialog askDialog;
-  @Inject private MachineTerminal terminal;
+  @Inject private CheTerminal terminal;
   @Inject private Git git;
   @Inject private Events events;
   @Inject private Loader loader;
@@ -91,7 +94,7 @@ public class GitColorsTest {
     projectExplorer.waitYellowNode(PROJECT_NAME + "/pom.xml");
 
     // perform init commit
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.waitAndRunCommit("init");
     loader.waitOnClosed();
@@ -124,16 +127,16 @@ public class GitColorsTest {
   @Test(priority = 1)
   public void testUntrackedFileColorFromTerminal() {
     // Remove file from index
-    terminal.selectTerminalTab();
-    terminal.typeIntoTerminal("cd " + PROJECT_NAME + Keys.ENTER);
-    terminal.typeIntoTerminal("git rm --cached README.md" + Keys.ENTER);
+    terminal.selectFirstTerminalTab();
+    terminal.typeIntoActiveTerminal("cd " + PROJECT_NAME + Keys.ENTER);
+    terminal.typeIntoActiveTerminal("git rm --cached README.md" + Keys.ENTER);
 
     // Check file colors are yellow
     projectExplorer.waitYellowNode(PROJECT_NAME + "/README.md");
     editor.waitYellowTab("README.md");
 
     // Add to index
-    terminal.typeIntoTerminal("git add README.md" + Keys.ENTER);
+    terminal.typeIntoActiveTerminal("git add README.md" + Keys.ENTER);
 
     // Check files are in default color
     projectExplorer.waitDefaultColorNode(PROJECT_NAME + "/README.md");
@@ -143,7 +146,7 @@ public class GitColorsTest {
   @Test(priority = 2)
   public void testNewFileColor() {
     // Create new file
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(PROJECT, NEW, FILE);
     askForValueDialog.waitFormToOpen();
     askForValueDialog.typeAndWaitText("newFile");
@@ -155,7 +158,7 @@ public class GitColorsTest {
     projectExplorer.waitYellowNode(PROJECT_NAME + "/newFile");
 
     // add file to index
-    projectExplorer.selectItem(PROJECT_NAME + "/newFile");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/newFile");
     menu.runCommand(GIT, ADD_TO_INDEX);
     git.waitAddToIndexFormToOpen();
     git.confirmAddToIndexForm();
@@ -198,7 +201,7 @@ public class GitColorsTest {
     editor.waitBlueTab("README.md");
 
     // Perform commit
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.waitAndRunCommit("commit");
     git.waitCommitFormClosed();
@@ -221,12 +224,13 @@ public class GitColorsTest {
     git.waitResetWindowClose();
 
     loader.waitOnClosed();
-    terminal.selectTerminalTab();
-    terminal.typeIntoTerminal("cd " + PROJECT_NAME + Keys.ENTER);
-    terminal.typeIntoTerminal("git config --global user.email \"git@email.com\"" + Keys.ENTER);
-    terminal.typeIntoTerminal("git config --global user.name \"name\"" + Keys.ENTER);
-    terminal.typeIntoTerminal("git commit -a -m 'Terminal commit'" + Keys.ENTER);
-    terminal.waitExpectedTextIntoTerminal("2 files changed, 1 insertion(+), 1 deletion(-)");
+    terminal.selectFirstTerminalTab();
+    terminal.typeIntoActiveTerminal("cd " + PROJECT_NAME + Keys.ENTER);
+    terminal.typeIntoActiveTerminal(
+        "git config --global user.email \"git@email.com\"" + Keys.ENTER);
+    terminal.typeIntoActiveTerminal("git config --global user.name \"name\"" + Keys.ENTER);
+    terminal.typeIntoActiveTerminal("git commit -a -m 'Terminal commit'" + Keys.ENTER);
+    terminal.waitTextInFirstTerminal("2 files changed, 1 insertion(+), 1 deletion(-)");
 
     // Check files are colored in default color
     projectExplorer.waitDefaultColorNode(PROJECT_NAME + "/newFile");

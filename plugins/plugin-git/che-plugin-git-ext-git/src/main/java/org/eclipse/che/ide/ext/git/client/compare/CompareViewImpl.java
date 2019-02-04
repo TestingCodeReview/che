@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -81,49 +82,40 @@ final class CompareViewImpl extends Window implements CompareView {
 
     setWidget(UI_BINDER.createAndBindUi(this));
 
-    Button closeButton =
-        createButton(locale.buttonClose(), "git-compare-close-btn", event -> onClose());
-    Button refreshButton =
-        createButton(
-            locale.buttonRefresh(), "git-compare-refresh-btn", event -> compareWidget.refresh());
+    addFooterButton(locale.buttonClose(), "git-compare-close-btn", event -> delegate.onClose());
+    addFooterButton(
+        locale.buttonRefresh(), "git-compare-refresh-btn", event -> compareWidget.refresh());
 
     btnSaveChanges =
-        createButton(
+        addFooterButton(
             locale.buttonSaveChanges(),
             "git-compare-save-changes-btn",
-            event -> delegate.onSaveChangesClicked());
+            event -> delegate.onSaveChangesClicked(),
+            true);
     btnNextDiff =
-        createButton(
+        addFooterButton(
             locale.buttonNextDiff(),
             "git-compare-next-diff-btn",
             event -> delegate.onNextDiffClicked(),
             ButtonAlignment.LEFT);
     btnPrevDiff =
-        createButton(
+        addFooterButton(
             locale.buttonPreviousDiff(),
             "git-compare-prev-diff-btn",
             event -> delegate.onPreviousDiffClicked(),
             ButtonAlignment.LEFT);
 
-    addButtonToFooter(closeButton);
-    addButtonToFooter(refreshButton);
-    addButtonToFooter(btnSaveChanges);
-
-    addButtonToFooter(btnPrevDiff);
-    addButtonToFooter(btnNextDiff);
-
     comparePanel.getElement().setId(Document.get().createUniqueId());
+  }
+
+  @Override
+  public void setTitleCaption(String title) {
+    setTitle(title);
   }
 
   @Override
   public void setDelegate(ActionDelegate delegate) {
     this.delegate = delegate;
-  }
-
-  @Override
-  protected void onClose() {
-    visible = false;
-    delegate.onClose();
   }
 
   @Override
@@ -180,6 +172,12 @@ final class CompareViewImpl extends Window implements CompareView {
           @Override
           public void onFailure(Throwable caught) {}
         });
+  }
+
+  @Override
+  public void close() {
+    visible = false;
+    hide();
   }
 
   @Override

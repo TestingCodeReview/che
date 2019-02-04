@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -23,7 +24,7 @@ import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 import javax.validation.constraints.NotNull;
 import org.eclipse.che.ide.ui.UILocalizationConstant;
-import org.eclipse.che.ide.ui.window.Window;
+import org.eclipse.che.ide.ui.window.WindowClientBundle;
 
 /**
  * The footer show on message windows.
@@ -33,7 +34,6 @@ import org.eclipse.che.ide.ui.window.Window;
  */
 public class MessageDialogFooter extends Composite {
 
-  private static final Window.Resources resources = GWT.create(Window.Resources.class);
   /** The UI binder instance. */
   private static MessageWindowFooterUiBinder uiBinder =
       GWT.create(MessageWindowFooterUiBinder.class);
@@ -46,10 +46,11 @@ public class MessageDialogFooter extends Composite {
   private ActionDelegate actionDelegate;
 
   @Inject
-  public MessageDialogFooter(final @NotNull UILocalizationConstant messages) {
+  public MessageDialogFooter(
+      final @NotNull UILocalizationConstant messages, WindowClientBundle resources) {
     this.messages = messages;
     initWidget(uiBinder.createAndBindUi(this));
-    okButton.addStyleName(resources.windowCss().primaryButton());
+    okButton.addStyleName(resources.getStyle().windowFrameFooterButtonPrimary());
     okButton.getElement().setId("info-window");
   }
 

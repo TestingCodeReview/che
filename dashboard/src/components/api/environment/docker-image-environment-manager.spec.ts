@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -41,7 +42,7 @@ describe('DockerImageEnvironmentManager', () => {
             }
           }, 'installers': ['ws-agent', 'org.eclipse.che.ws-agent'], 'attributes': {'memoryLimitBytes': '16642998272'}
         }
-      }, 'recipe': {'location': 'codenvy/ubuntu_jdk8', 'type': 'dockerimage'}
+      }, 'recipe': {'content': 'codenvy/ubuntu_jdk8', 'type': 'dockerimage'}
     };
 
     machines = envManager.getMachines(environment);
@@ -50,7 +51,7 @@ describe('DockerImageEnvironmentManager', () => {
   it('should return source', () => {
     let source = envManager.getSource(machines[0]);
 
-    let expectedSource = {image: environment.recipe.location};
+    let expectedSource = {image: environment.recipe.content};
     expect(source).toEqual(expectedSource);
   });
 
@@ -84,7 +85,7 @@ describe('DockerImageEnvironmentManager', () => {
 
     envManager.setSource(machines[0], newSource);
     let newEnvironment = envManager.getEnvironment(environment, machines);
-    expect(newEnvironment.recipe.location).toEqual(newSource);
+    expect(newEnvironment.recipe.content).toEqual(newSource);
   });
 
 });

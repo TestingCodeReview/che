@@ -1,17 +1,21 @@
 <!--
 
-    Copyright (c) 2015 Codenvy, S.A.
-    All rights reserved. This program and the accompanying materials
-    are made available under the terms of the Eclipse Public License v1.0
-    which accompanies this distribution, and is available at
-    http://www.eclipse.org/legal/epl-v10.html
+    Copyright (c) 2015-2018 Red Hat, Inc.
+    This program and the accompanying materials are made
+    available under the terms of the Eclipse Public License 2.0
+    which is available at https://www.eclipse.org/legal/epl-2.0/
+
+    SPDX-License-Identifier: EPL-2.0
 
     Contributors:
-      Codenvy, S.A. - initial API and implementation
+      Red Hat, Inc. - initial API and implementation
 
 -->
 <md-content flex layout="column" md-theme="maincontent-theme" class="workspace-machines">
-  <div class="warning-message" ng-hide="workspaceMachinesController.isScalable()">
+  <div class="che-list-empty" ng-if="workspaceMachinesController.machines.length === 0">
+    <span>There are no machines to display.</span>
+  </div>
+  <div class="warning-message" ng-hide="workspaceMachinesController.isScalable() || workspaceMachinesController.machines.length === 0">
     <span>Add another machine by changing the environment type to <b>compose</b> or <b>openshift</b></span>
   </div>
   <che-list-header che-add-button-title="Add machine"
@@ -38,15 +42,10 @@
                                 che-sort-item="name"
                                 che-column-title="Name"></che-list-header-column>
 
-        <che-list-header-column flex="30" layout="column" layout-align="center start"
+        <che-list-header-column flex="40" layout="column" layout-align="center start"
                                 che-sort-value="workspaceMachinesController.orderBy"
                                 che-sort-item="image"
                                 che-column-title="Image"></che-list-header-column>
-
-        <che-list-header-column flex="10" layout="column" layout-align="center start"
-                                che-sort-value="workspaceMachinesController.orderBy"
-                                che-sort-item="isDev"
-                                che-column-title="DEV"></che-list-header-column>
 
         <che-list-header-column flex="20" layout="column" layout-align="center start"
                                 che-sort-value="workspaceMachinesController.orderBy"
@@ -65,7 +64,6 @@
       ng-repeat="machine in workspaceMachinesController.cheListHelper.getVisibleItems() | orderBy: [workspaceMachinesController.orderBy, 'name']"
       machine="machine"
       page-url="{{workspaceMachinesController.absUrl}}"
-      machine-dev-on-change="workspaceMachinesController.changeDevMachine(name)"
       edit-machine="workspaceMachinesController.editMachine(name)"
       on-ram-change="workspaceMachinesController.onRamChange(name, memoryLimitGBytes)"
       che-list-helper="workspaceMachinesController.cheListHelper"

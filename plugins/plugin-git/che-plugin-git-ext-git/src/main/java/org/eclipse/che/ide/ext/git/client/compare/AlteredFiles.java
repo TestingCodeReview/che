@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -31,6 +32,8 @@ public class AlteredFiles {
   protected final Project project;
   protected final LinkedHashMap<String, Status> alteredFilesStatuses;
   protected final List<String> alteredFilesList;
+  protected final String commitA;
+  protected final String commitB;
 
   /**
    * Parses raw git diff string and creates advanced representation.
@@ -39,6 +42,10 @@ public class AlteredFiles {
    * @param diff plain result of git diff operation
    */
   public AlteredFiles(Project project, String diff) {
+    this(project, diff, null, null);
+  }
+
+  public AlteredFiles(Project project, String diff, String commitA, String commitB) {
     this.project = project;
 
     alteredFilesStatuses = new LinkedHashMap<>();
@@ -53,6 +60,27 @@ public class AlteredFiles {
     }
 
     alteredFilesList = new ArrayList<>(alteredFilesStatuses.keySet());
+
+    this.commitA = commitA;
+    this.commitB = commitB;
+  }
+
+  /**
+   * Returns the commit A from the current diff.
+   *
+   * @return commit A or {@code null} if such wasn't provided
+   */
+  public String getCommitA() {
+    return commitA;
+  }
+
+  /**
+   * Returns the commit B from the current diff.
+   *
+   * @return commit B or {@code null} if such wasn't provided
+   */
+  public String getCommitB() {
+    return commitB;
   }
 
   /** Returns project in which git repository is located. */

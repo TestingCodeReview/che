@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -67,6 +68,8 @@ public class RenamePrivateMethodTest {
         nameOfProject,
         ProjectTemplates.MAVEN_SIMPLE);
     ide.open(workspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(nameOfProject);
     projectExplorer.waitVisibleItem(nameOfProject);
     consoles.closeProcessesArea();
     projectExplorer.quickExpandWithJavaScript();
@@ -99,95 +102,94 @@ public class RenamePrivateMethodTest {
   public void test0() {
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(14, 18);
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(15, 18);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("k");
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.waitTextIntoEditor(contentFromOutB);
   }
 
-  @Test(priority = 1)
+  @Test
   public void test2() {
     projectExplorer.waitProjectExplorer();
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(14, 18);
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(15, 18);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("fred");
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.waitTextIntoEditor(contentFromOutB);
   }
 
-  @Test(priority = 2)
+  @Test
   public void test10() {
     projectExplorer.waitProjectExplorer();
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(13, 18);
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(14, 18);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("k");
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.waitTextIntoEditor(contentFromOutB);
   }
 
-  @Test(priority = 3)
+  @Test
   public void test11() {
     projectExplorer.waitProjectExplorer();
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(13, 18);
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(14, 18);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("k");
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.waitTextIntoEditor(contentFromOutB);
   }
 
-  @Test(priority = 4)
+  @Test
   public void test12() {
     projectExplorer.waitProjectExplorer();
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(13, 18);
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(14, 18);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("k");
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.waitTextIntoEditor(contentFromOutB);
   }
 
-  @Test(priority = 5)
+  @Test
   public void test23() {
     projectExplorer.waitProjectExplorer();
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(13, 18);
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(14, 18);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("k");
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.waitTextIntoEditor(contentFromOutB);
   }
 
-  @Test(priority = 6)
+  @Test
   public void testAnon0() {
     projectExplorer.waitProjectExplorer();
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(13, 18);
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(14, 18);
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor("k");
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     editor.waitTextIntoEditor(contentFromOutB);
   }
 
-  @Test(priority = 7)
+  @Test
   public void testFail5() {
     projectExplorer.waitProjectExplorer();
     projectExplorer.openItemByPath(pathToCurrentPackage + "/A.java");
     editor.waitTextIntoEditor(contentFromInA);
-    editor.goToCursorPositionVisible(13, 18);
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.goToCursorPositionVisible(14, 18);
+    editor.launchRefactorForm();
     refactor.waitRenameMethodFormIsOpen();
-    refactor.typeNewName("k");
+    refactor.typeAndWaitNewName("k");
     refactor.clickOkButtonRefactorForm();
     askDialog.waitFormToOpen();
     askDialog.containsText(

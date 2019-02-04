@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -27,6 +28,10 @@ interface ISharedWorkspaceUser extends che.IUser {
  * @author Ann Shumilova
  */
 export class ShareWorkspaceController {
+
+  static $inject = ['cheWorkspace', 'cheUser', 'chePermissions', 'cheNotification', '$mdDialog', '$document', '$mdConstant', '$route', '$q', 'lodash',
+   'confirmDialogService', 'cheTeam', '$log', '$scope', 'cheListHelperFactory'];
+
   /**
    * Workspace API interaction.
    */
@@ -93,10 +98,22 @@ export class ShareWorkspaceController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor(cheWorkspace: CheWorkspace, cheUser: CheUser, chePermissions: che.api.IChePermissions, cheNotification: CheNotification, $mdDialog: ng.material.IDialogService, $document: ng.IDocumentService, $mdConstant: any, $route: ng.route.IRouteService, $q: ng.IQService, lodash: any, confirmDialogService: ConfirmDialogService, cheTeam: che.api.ICheTeam, $log: ng.ILogService, $scope: ng.IScope, cheListHelperFactory: che.widget.ICheListHelperFactory) {
-    'ngInject';
+  constructor(cheWorkspace: CheWorkspace,
+              cheUser: CheUser,
+              chePermissions: che.api.IChePermissions,
+              cheNotification: CheNotification,
+              $mdDialog: ng.material.IDialogService,
+              $document: ng.IDocumentService,
+              $mdConstant: any,
+              $route: ng.route.IRouteService,
+              $q: ng.IQService,
+              lodash: any,
+              confirmDialogService: ConfirmDialogService,
+              cheTeam: che.api.ICheTeam,
+              $log: ng.ILogService,
+              $scope: ng.IScope,
+              cheListHelperFactory: che.widget.ICheListHelperFactory) {
 
     this.cheWorkspace = cheWorkspace;
     this.cheUser = cheUser;

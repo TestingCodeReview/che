@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -34,11 +35,12 @@ public class FormatterTest {
       NameGenerator.generate(FormatterTest.class.getSimpleName(), 4);
   private static final String FORMATTED_TEXT =
       "/*\n"
-          + " * Copyright (c) 2012-2017 Red Hat, Inc.\n"
-          + " * All rights reserved. This program and the accompanying materials\n"
-          + " * are made available under the terms of the Eclipse Public License v1.0\n"
-          + " * which accompanies this distribution, and is available at\n"
-          + " * http://www.eclipse.org/legal/epl-v10.html\n"
+          + " * Copyright (c) 2012-2018 Red Hat, Inc.\n"
+          + " * This program and the accompanying materials are made\n"
+          + " * available under the terms of the Eclipse Public License 2.0\n"
+          + " * which is available at https://www.eclipse.org/legal/epl-2.0/\n"
+          + " *\n"
+          + " * SPDX-License-Identifier: EPL-2.0\n"
           + " *\n"
           + " * Contributors:\n"
           + " *   Red Hat, Inc. - initial API and implementation\n"
@@ -73,7 +75,7 @@ public class FormatterTest {
           + "        view.addObject(\"num\", result);\n"
           + "        return view;\n"
           + "    }\n"
-          + "}\n";
+          + "}";
 
   @Inject private TestWorkspace workspace;
   @Inject private Ide ide;
@@ -95,6 +97,7 @@ public class FormatterTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -105,7 +108,7 @@ public class FormatterTest {
     consoles.closeProcessesArea();
     projectExplorer.quickExpandWithJavaScript();
     loader.waitOnClosed();
-    projectExplorer.selectVisibleItem("AppController.java");
+    projectExplorer.waitAndSelectItemByName("AppController.java");
     projectExplorer.openItemByVisibleNameInExplorer("AppController.java");
 
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.FORMAT);

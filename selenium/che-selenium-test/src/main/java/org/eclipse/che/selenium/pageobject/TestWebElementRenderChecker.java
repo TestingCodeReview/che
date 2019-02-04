@@ -1,39 +1,43 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.pageobject;
 
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.ELEMENT_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
 
 import com.google.inject.Inject;
+import com.google.inject.Singleton;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.ui.ExpectedCondition;
-import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.WebDriverWait;
 
+@Singleton
 public class TestWebElementRenderChecker {
   private final SeleniumWebDriver seleniumWebDriver;
-  private final WebDriverWait loadPageWebDriverWait;
+  private final SeleniumWebDriverHelper seleniumWebDriverHelper;
 
   @Inject
-  public TestWebElementRenderChecker(SeleniumWebDriver seleniumWebDriver) {
+  public TestWebElementRenderChecker(
+      SeleniumWebDriver seleniumWebDriver, SeleniumWebDriverHelper seleniumWebDriverHelper) {
     this.seleniumWebDriver = seleniumWebDriver;
-    this.loadPageWebDriverWait = new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC);
+    this.seleniumWebDriverHelper = seleniumWebDriverHelper;
   }
 
   /**
@@ -58,20 +62,19 @@ public class TestWebElementRenderChecker {
   /**
    * wait until element have the same size between two checks it means that element is fully opened
    *
-   * @param webElementXpath list or context menu Xpath which need check
+   * @param locator list or context menu Xpath which need check
    */
-  public void waitElementIsRendered(String webElementXpath) {
-    waitElementIsRendered(getAndWaitWebElement(webElementXpath));
+  public void waitElementIsRendered(By locator) {
+    waitElementIsRendered(waitAndGetWebElement(locator));
   }
 
   /**
    * wait until element have the same size between two checks it means that element is fully opened
    *
-   * @param webElementXpath list or context menu Xpath which need check
-   * @param seconds timeout for check
+   * @param locator list or context menu Xpath which need check
    */
-  public void waitElementIsRendered(String webElementXpath, int seconds) {
-    waitElementIsRendered(getAndWaitWebElement(webElementXpath), seconds);
+  public void waitElementIsRendered(By locator, int seconds) {
+    waitElementIsRendered(waitAndGetWebElement(locator), seconds);
   }
 
   private Boolean dimensionsAreEquivalent(AtomicInteger sizeHashCode, Dimension newDimension) {
@@ -91,7 +94,7 @@ public class TestWebElementRenderChecker {
     webDriverWait.until(
         (ExpectedCondition<Boolean>)
             driver -> {
-              Dimension newDimension = getAndWaitWebElement(webElement).getSize();
+              Dimension newDimension = waitAndGetWebElement(webElement).getSize();
 
               if (dimensionsAreEquivalent(sizeHashCode, newDimension)) {
                 return true;
@@ -113,12 +116,11 @@ public class TestWebElementRenderChecker {
     return dimension.getWidth() + (dimension.getHeight() * 10000);
   }
 
-  private WebElement getAndWaitWebElement(String webElementXpath) {
-    return loadPageWebDriverWait.until(
-        ExpectedConditions.visibilityOfElementLocated(By.xpath(webElementXpath)));
+  private WebElement waitAndGetWebElement(WebElement webElement) {
+    return seleniumWebDriverHelper.waitVisibility(webElement, ELEMENT_TIMEOUT_SEC);
   }
 
-  private WebElement getAndWaitWebElement(WebElement webElement) {
-    return loadPageWebDriverWait.until(ExpectedConditions.visibilityOf(webElement));
+  private WebElement waitAndGetWebElement(By locator) {
+    return seleniumWebDriverHelper.waitVisibility(locator, ELEMENT_TIMEOUT_SEC);
   }
 }

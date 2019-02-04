@@ -9,6 +9,7 @@ target/
 bin/
 test-output/
 maven-eclipse.xml
+.factorypath
 
 # Idea #
 ##################
@@ -16,6 +17,8 @@ maven-eclipse.xml
 *.ipr
 *.iws
 .idea/
+
+.vscode/
 
 # Compiled source #
 ###################
@@ -57,6 +60,7 @@ Icon?
 Thumbs.db
 */overlays
 *~
+.directory
 
 # Che files #
 #############
@@ -74,3 +78,4 @@ docs/assets/imgs
 ##################
 plugins/plugin-terminal-ui/node_modules/
 plugins/plugin-terminal-ui/build/
+requirements.lock

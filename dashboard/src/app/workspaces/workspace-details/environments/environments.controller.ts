@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,6 +12,8 @@
 'use strict';
 import {CheEnvironmentRegistry} from '../../../../components/api/environment/che-environment-registry.factory';
 import {EnvironmentManager} from '../../../../components/api/environment/environment-manager';
+import {CheNotification} from '../../../../components/notification/che-notification.factory';
+import {CheRecipeService} from '../che-recipe.service';
 
 /**
  * @ngdoc controller
@@ -24,6 +27,9 @@ const MAX_WORKSPACE_RAM: number = 100 * MIN_WORKSPACE_RAM;
 const DEFAULT_WORKSPACE_RAM: number = 2 * MIN_WORKSPACE_RAM;
 
 export class WorkspaceEnvironmentsController {
+
+  static $inject = ['$q', '$scope', '$timeout', '$mdDialog', 'cheEnvironmentRegistry', '$log', 'cheNotification', 'cheRecipeService'];
+
   cheEnvironmentRegistry: CheEnvironmentRegistry;
   environmentManager: EnvironmentManager;
   $mdDialog: ng.material.IDialogService;
@@ -51,15 +57,30 @@ export class WorkspaceEnvironmentsController {
   environmentOnChange: Function;
 
   private $q: ng.IQService;
+  /**
+   * Logging service.
+   */
+  private $log: ng.ILogService;
+  /**
+   * Notification factory.
+   */
+  private cheNotification: CheNotification;
+  /**
+   * Environment recipe service.
+   */
+  private cheRecipeService: CheRecipeService;
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($q: ng.IQService, $scope: ng.IScope, $timeout: ng.ITimeoutService, $mdDialog: ng.material.IDialogService, cheEnvironmentRegistry: CheEnvironmentRegistry) {
+  constructor($q: ng.IQService, $scope: ng.IScope, $timeout: ng.ITimeoutService, $mdDialog: ng.material.IDialogService,
+    cheEnvironmentRegistry: CheEnvironmentRegistry, $log: ng.ILogService, cheNotification: CheNotification, cheRecipeService: CheRecipeService) {
     this.$q = $q;
     this.$mdDialog = $mdDialog;
     this.cheEnvironmentRegistry = cheEnvironmentRegistry;
+    this.$log = $log;
+    this.cheNotification = cheNotification;
+    this.cheRecipeService = cheRecipeService;
 
     this.editorOptions = {
       lineWrapping: true,
@@ -69,7 +90,7 @@ export class WorkspaceEnvironmentsController {
       onLoad: (editor: any) => {
         $timeout(() => {
           editor.refresh();
-        }, 1000);
+        }, 500);
       }
     };
 
@@ -99,7 +120,14 @@ export class WorkspaceEnvironmentsController {
       return;
     }
 
-    this.environmentManager = this.cheEnvironmentRegistry.getEnvironmentManager(this.recipe.type);
+    const recipeType = this.recipe.type;
+    this.environmentManager = this.cheEnvironmentRegistry.getEnvironmentManager(recipeType);
+    if (!this.environmentManager) {
+      const errorMessage = `Unsupported recipe type '${recipeType}'`;
+      this.$log.error(errorMessage);
+      this.cheNotification.showError(errorMessage);
+      return;
+    }
 
     this.editorOptions.mode = this.environmentManager.editorMode;
 
@@ -109,6 +137,15 @@ export class WorkspaceEnvironmentsController {
     if (!this.machinesViewStatus[this.environmentName]) {
       this.machinesViewStatus[this.environmentName] = {};
     }
+  }
+
+  /**
+   * Returns true if the recipe type is scalable.
+   *
+   * @returns {boolean}
+   */
+  isMultiMachine(): boolean {
+    return this.cheRecipeService.isScalable(this.environment.recipe);
   }
 
   /**
@@ -155,44 +192,6 @@ export class WorkspaceEnvironmentsController {
     });
 
     return devMachine ? devMachine.name : '';
-  }
-
-  /**
-   * Add 'ws-agent' to list of agents of specified machine and remove it from lists of agents of other machines.
-   *
-   * @param machineName
-   * @returns {ng.IPromise<any>}
-   */
-  changeMachineDev(machineName: string): ng.IPromise<any> {
-    if (!machineName) {
-      return this.$q.reject('Machine name is not defined.');
-    }
-
-    // remove ws-agent from machine which is the dev machine now
-    this.machines.forEach((machine: any) => {
-      if (this.environmentManager.isDev(machine)) {
-        this.environmentManager.setDev(machine, false);
-      }
-    });
-
-    let machine = this.machines.find((machine: any) => {
-      return machine.name === machineName;
-    });
-    if (!machine) {
-      return this.$q.reject('Machine is not found.');
-    }
-
-    // add ws-agent to current machine agents list
-    this.environmentManager.setDev(machine, true);
-
-    let newEnvironment = this.environmentManager.getEnvironment(this.environment, this.machines);
-    this.workspaceConfig.environments[this.environmentName] = newEnvironment;
-    this.environment = newEnvironment;
-
-    this.doUpdateEnvironments();
-    this.init();
-
-    return this.$q.when();
   }
 
   /**
@@ -267,12 +266,6 @@ export class WorkspaceEnvironmentsController {
           environmentManager.setMemoryLimit(machine, DEFAULT_WORKSPACE_RAM);
         }
       });
-
-      // if recipe contains only one machine
-      // then this is the dev machine
-      if (machines.length === 1) {
-        environmentManager.setDev(machines[0], true);
-      }
 
       this.workspaceConfig.environments[this.environmentName] = environmentManager.getEnvironment(environment, machines);
     }

@@ -1,16 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ui.dialogs.input;
 
+import static org.eclipse.che.ide.util.dom.DomUtils.isWidgetOrChildFocused;
+
 import com.google.gwt.core.client.GWT;
+import com.google.gwt.dom.client.NativeEvent;
 import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
@@ -50,22 +54,10 @@ public class InputDialogViewImpl extends Window implements InputDialogView {
     setWidget(widget);
 
     this.footer = footer;
-    getFooter().add(this.footer);
+    addFooterWidget(footer);
 
-    this.ensureDebugId("askValueDialog-window");
-    this.value.ensureDebugId("askValueDialog-textBox");
-  }
-
-  @Override
-  public void show() {
-    super.show();
-    value.setSelectionRange(selectionStartIndex, selectionLength);
-    new Timer() {
-      @Override
-      public void run() {
-        value.setFocus(true);
-      }
-    }.schedule(300);
+    ensureDebugId("askValueDialog-window");
+    value.ensureDebugId("askValueDialog-textBox");
   }
 
   @Override
@@ -75,13 +67,30 @@ public class InputDialogViewImpl extends Window implements InputDialogView {
   }
 
   @Override
-  protected void onEnterClicked() {
+  public void onEnterPress(NativeEvent evt) {
+    evt.preventDefault();
     delegate.onEnterClicked();
   }
 
   @Override
   public void showDialog() {
-    this.show();
+    show();
+  }
+
+  @Override
+  public void setTitleCaption(String title) {
+    setTitle(title);
+  }
+
+  @Override
+  protected void onShow() {
+    value.setSelectionRange(selectionStartIndex, selectionLength);
+    new Timer() {
+      @Override
+      public void run() {
+        value.setFocus(true);
+      }
+    }.schedule(300);
   }
 
   @Override
@@ -133,12 +142,12 @@ public class InputDialogViewImpl extends Window implements InputDialogView {
 
   @Override
   public boolean isOkButtonInFocus() {
-    return isWidgetFocused(footer.okButton);
+    return isWidgetOrChildFocused(footer.okButton);
   }
 
   @Override
   public boolean isCancelButtonInFocus() {
-    return isWidgetFocused(footer.cancelButton);
+    return isWidgetOrChildFocused(footer.cancelButton);
   }
 
   @UiHandler("value")

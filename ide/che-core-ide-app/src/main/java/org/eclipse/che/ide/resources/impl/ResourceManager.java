@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Arrays.copyOf;
 import static java.util.Arrays.stream;
+import static java.util.stream.Collectors.toMap;
 import static org.eclipse.che.ide.api.resources.Resource.FILE;
 import static org.eclipse.che.ide.api.resources.ResourceDelta.ADDED;
 import static org.eclipse.che.ide.api.resources.ResourceDelta.COPIED_FROM;
@@ -56,6 +58,7 @@ import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseProvider;
 import org.eclipse.che.api.workspace.shared.dto.ProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.SourceStorageDto;
+import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.editor.DeletedFilesController;
 import org.eclipse.che.ide.api.editor.EditorAgent;
@@ -135,6 +138,7 @@ public final class ResourceManager {
   private final Container workspaceRoot;
 
   private final AppContext appContext;
+  private final CoreLocalizationConstant locale;
   private final AgentURLModifier urlModifier;
   private final ClientServerEventService clientServerEventService;
   /** Internal store, which caches requested resources from the server. */
@@ -151,6 +155,7 @@ public final class ResourceManager {
       DtoFactory dtoFactory,
       ProjectTypeRegistry typeRegistry,
       ResourceStore store,
+      CoreLocalizationConstant locale,
       AgentURLModifier urlModifier,
       ClientServerEventService clientServerEventService,
       AppContext appContext) {
@@ -163,6 +168,7 @@ public final class ResourceManager {
     this.dtoFactory = dtoFactory;
     this.typeRegistry = typeRegistry;
     this.store = store;
+    this.locale = locale;
     this.urlModifier = urlModifier;
     this.clientServerEventService = clientServerEventService;
 
@@ -530,56 +536,42 @@ public final class ResourceManager {
     return findResource(destination)
         .thenPromise(
             resource -> {
-              checkState(
-                  !resource.isPresent() || force,
-                  "Cannot create '" + destination.toString() + "'. Resource already exists.");
+              if (source.getLocation().equals(destination)) {
+                return promises.reject(
+                    new IllegalStateException(
+                        locale.resourceCopyMoveSamePathErrorMessage(source.getName())));
+              }
+
+              if (resource.isPresent() && !force) {
+                return promises.reject(
+                    new IllegalStateException(
+                        locale.resourceCopyMoveAlreadyExistErrorMessage(
+                            source.getName(), destination.parent().toString())));
+              }
 
               if (isResourceOpened(source)) {
                 deletedFilesController.add(source.getLocation().toString());
               }
 
-              return clientServerEventService
-                  .sendFileTrackingSuspendEvent()
+              return ps.move(
+                      source.getLocation(), destination.parent(), destination.lastSegment(), force)
                   .thenPromise(
-                      success -> {
-                        store.dispose(
-                            source.getLocation(), !source.isFile()); // TODO: need to be tested
+                      ignored2 ->
+                          findResource(destination)
+                              .thenPromise(
+                                  movedResource -> {
+                                    if (movedResource.isPresent()) {
+                                      eventBus.fireEvent(
+                                          new ResourceChangedEvent(
+                                              new ResourceDeltaImpl(
+                                                  movedResource.get(),
+                                                  source,
+                                                  ADDED | MOVED_FROM | MOVED_TO | DERIVED)));
+                                      return promises.resolve(movedResource.get());
+                                    }
 
-                        return ps.move(
-                                source.getLocation(),
-                                destination.parent(),
-                                destination.lastSegment(),
-                                force)
-                            .thenPromise(
-                                ignored ->
-                                    findResource(destination)
-                                        .then(
-                                            (Function<Optional<Resource>, Resource>)
-                                                movedResource -> {
-                                                  if (movedResource.isPresent()) {
-                                                    eventBus.fireEvent(
-                                                        new ResourceChangedEvent(
-                                                            new ResourceDeltaImpl(
-                                                                movedResource.get(),
-                                                                source,
-                                                                ADDED
-                                                                    | MOVED_FROM
-                                                                    | MOVED_TO
-                                                                    | DERIVED)));
-
-                                                    clientServerEventService
-                                                        .sendFileTrackingResumeEvent();
-
-                                                    return movedResource.get();
-                                                  }
-
-                                                  clientServerEventService
-                                                      .sendFileTrackingResumeEvent();
-
-                                                  throw new IllegalStateException(
-                                                      "Resource not found");
-                                                }));
-                      });
+                                    throw new IllegalStateException("Resource not found");
+                                  }));
             });
   }
 
@@ -590,12 +582,17 @@ public final class ResourceManager {
     return findResource(destination)
         .thenPromise(
             resource -> {
+              if (source.getLocation().equals(destination)) {
+                return promises.reject(
+                    new IllegalStateException(
+                        locale.resourceCopyMoveSamePathErrorMessage(source.getName())));
+              }
+
               if (resource.isPresent() && !force) {
                 return promises.reject(
                     new IllegalStateException(
-                        "Cannot create '"
-                            + destination.toString()
-                            + "'. Resource already exists."));
+                        locale.resourceCopyMoveAlreadyExistErrorMessage(
+                            source.getName(), destination.parent().toString())));
               }
 
               return ps.copy(
@@ -812,6 +809,10 @@ public final class ResourceManager {
             });
   }
 
+  protected Promise<Optional<Resource>> getResource(final Path absolutePath) {
+    return findResource(absolutePath);
+  }
+
   protected Promise<Optional<File>> getFile(final Path absolutePath) {
     final Optional<Resource> resourceOptional = store.getResource(absolutePath);
 
@@ -869,13 +870,71 @@ public final class ResourceManager {
       return getRemoteResources(container, DEPTH_ONE, true);
     }
 
-    final Optional<Resource[]> optChildren = store.get(container.getLocation());
+    Promise<Optional<Resource[]>> promise = promises.resolve(store.get(container.getLocation()));
 
-    if (optChildren.isPresent()) {
-      return promises.resolve(optChildren.get());
-    } else {
-      return promises.resolve(NO_RESOURCES);
-    }
+    return promise.thenPromise(
+        children ->
+            ps.getTree(container.getLocation(), 1, true)
+                .thenPromise(
+                    loadedChildren -> {
+                      if (!children.isPresent()) {
+                        return promises.resolve(NO_RESOURCES);
+                      }
+
+                      Resource[] resources = children.get();
+
+                      if (resources.length == loadedChildren.getChildren().size()) {
+
+                        Map<String, VcsStatus> vcsStatusMap =
+                            getVcsStatusesForFiles(loadedChildren.getChildren());
+
+                        for (Resource resource : resources) {
+                          if (resource.isFile()) {
+                            VcsStatus oldVcsStatus = resource.asFile().getVcsStatus();
+                            VcsStatus newVcsStatus = vcsStatusMap.remove(resource.getName());
+
+                            if (oldVcsStatus != newVcsStatus) {
+                              resource.asFile().setVcsStatus(newVcsStatus);
+                            }
+                          }
+                        }
+
+                        return promises.resolve(resources);
+                      } else {
+                        // situation, when we have outdated cached children
+                        java.util.Arrays.stream(resources)
+                            .forEach(outdated -> store.dispose(outdated.getLocation(), false));
+
+                        List<Resource> updated =
+                            new ArrayList<>(loadedChildren.getChildren().size());
+
+                        for (TreeElement nodeElement : loadedChildren.getChildren()) {
+                          ItemReference reference = nodeElement.getNode();
+                          Resource tempResource = newResourceFrom(reference);
+                          store.register(tempResource);
+
+                          if (tempResource.isProject()) {
+                            inspectProject(tempResource.asProject());
+                          }
+
+                          updated.add(tempResource);
+                        }
+
+                        return promises.resolve(updated.toArray(new Resource[updated.size()]));
+                      }
+                    }));
+  }
+
+  private Map<String, VcsStatus> getVcsStatusesForFiles(List<TreeElement> elements) {
+    return elements
+        .stream()
+        .map(TreeElement::getNode)
+        .filter(ref -> ref.getType().equals("file"))
+        .filter(ref -> ref.getAttributes().containsKey("vcs.status"))
+        .collect(
+            toMap(
+                ItemReference::getName,
+                ref -> VcsStatus.from(ref.getAttributes().get("vcs.status"))));
   }
 
   private Promise<Optional<Resource>> doFindResource(Path path) {
@@ -1052,6 +1111,9 @@ public final class ResourceManager {
           maxDepth[0] = segCount;
         }
       }
+
+      java.util.Arrays.stream(descendants.get())
+          .forEach(resource -> store.dispose(resource.getLocation(), false));
     }
 
     if (container.getLocation().isRoot()) {
@@ -1109,8 +1171,10 @@ public final class ResourceManager {
   }
 
   private Promise<Void> onExternalDeltaMoved(final ResourceDelta delta) {
-    final Optional<Resource> toRemove = store.getResource(delta.getFromPath());
-    store.dispose(delta.getFromPath(), true);
+    Optional<Resource> toRemove = store.getResource(delta.getFromPath());
+    Path pathToDispose = Path.commonPath(delta.getFromPath(), delta.getToPath());
+
+    store.dispose(pathToDispose, true);
 
     return findResource(delta.getToPath())
         .thenPromise(

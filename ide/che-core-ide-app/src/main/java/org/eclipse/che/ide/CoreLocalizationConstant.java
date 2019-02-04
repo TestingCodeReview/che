@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -50,11 +51,11 @@ public interface CoreLocalizationConstant extends Messages {
   @Key("navigateToFile.searchIsCaseSensitive")
   String navigateToFileSearchIsCaseSensitive();
 
-  @Key("appearance.title")
-  String appearanceTitle();
+  @Key("general.title")
+  String generalTitle();
 
-  @Key("appearance.category")
-  String appearanceCategory();
+  @Key("general.category")
+  String generalCategory();
 
   /* Add resources to File Watcher excludes */
   @Key("action.fileWatcher.add.excludes.text")
@@ -227,6 +228,21 @@ public interface CoreLocalizationConstant extends Messages {
 
   @Key("projectWizard.saveButtonText")
   String projectWizardSaveButtonText();
+
+  @Key("projectWizard.updateProject")
+  String projectWizardUpdateProject(String projectName);
+
+  @Key("projectWizard.createProject.failed")
+  String projectWizardCreateProjectFailed();
+
+  @Key("projectWizard.importProject.failed")
+  String projectWizardImportProjectFailed();
+
+  @Key("projectWizard.updateProject.failed")
+  String projectWizardUpdateProjectFailed();
+
+  @Key("projectWizard.defaultErrorTitle")
+  String projectWizardDefaultErrorTitle();
 
   @Key("format.name")
   String formatName();
@@ -493,6 +509,9 @@ public interface CoreLocalizationConstant extends Messages {
   String invalidName();
 
   /* Messages */
+  @Key("messages.closeTabConfirmation")
+  String closeTabConfirmation();
+
   @Key("messages.changesMayBeLost")
   String changesMayBeLost();
 
@@ -504,6 +523,9 @@ public interface CoreLocalizationConstant extends Messages {
 
   @Key("messages.promptSaveChanges")
   String messagesPromptSaveChanges();
+
+  @Key("messages.command.invalid")
+  String messagesInvalidCommand();
 
   @Key("messages.unableOpenResource")
   String unableOpenResource(String path);
@@ -642,11 +664,20 @@ public interface CoreLocalizationConstant extends Messages {
   @Key("start.ws.button")
   String startWsButton();
 
+  @Key("restart.ws.agent.button")
+  String restartWsAgentButton();
+
+  @Key("ignore.ws.agent.button")
+  String ignoreWsAgentButton();
+
   @Key("placeholder.select.ws.to.start")
   String placeholderSelectWsToStart();
 
   @Key("start.ws.title")
   String startWsTitle();
+
+  @Key("start.ws.description")
+  String startWsDescription();
 
   @Key("stop.ws.title")
   String stopWsTitle();
@@ -689,6 +720,9 @@ public interface CoreLocalizationConstant extends Messages {
 
   @Key("workspace.not.running")
   String workspaceNotRunning();
+
+  @Key("workspace.status.title")
+  String workspaceStatusTitle();
 
   @Key("start.ws.error.title")
   String startWsErrorTitle();
@@ -1059,23 +1093,8 @@ public interface CoreLocalizationConstant extends Messages {
   @Key("create.factory.launch.button.tooltip")
   String createFactoryLaunchTooltip();
 
-  @Key("import.config.view.name")
-  String importFromConfigurationName();
-
-  @Key("import.config.view.description")
-  String importFromConfigurationDescription();
-
   @Key("project.import.configured.cloned")
   String clonedSource(String projectName);
-
-  @Key("import.config.form.button.import")
-  String importButton();
-
-  @Key("import.config.view.title")
-  String importFromConfigurationTitle();
-
-  @Key("import.config.form.prompt")
-  String configFileTitle();
 
   @Key("project.already.imported")
   String projectAlreadyImported(String projectName);
@@ -1168,6 +1187,12 @@ public interface CoreLocalizationConstant extends Messages {
   @Key("messages.machine.not.found")
   String machineNotFound(String machineId);
 
+  @Key("message.projectCreated")
+  String projectCreated(String projectName);
+
+  @Key("message.switch.editors.in.readOnly.mode")
+  String messageSwitchEditorsInReadOnlyMode();
+
   @Key("ssh.connect.info")
   String sshConnectInfo(
       String machineName,
@@ -1207,6 +1232,22 @@ public interface CoreLocalizationConstant extends Messages {
 
   @Key("control.terminal.create.description")
   String newTerminalDescription();
+
+  @Key("control.open.in.terminal")
+  @DefaultMessage("Open in Terminal")
+  String openInTerminalAction();
+
+  @Key("machine.output.action.title")
+  String machineOutputActionTitle();
+
+  @Key("machine.output.action.description")
+  String machineOutputActionDescription();
+
+  @Key("machine.ssh.action.title")
+  String machineSSHActionTitle();
+
+  @Key("machine.ssh.action.description")
+  String machineSSHActionDescription();
 
   @Key("control.connect.ssh")
   String connectViaSSH();
@@ -1274,6 +1315,12 @@ public interface CoreLocalizationConstant extends Messages {
   @Key("menu.loader.workspaceStarted")
   String menuLoaderWorkspaceStarted();
 
+  @Key("menu.loader.workspaceStopping")
+  String menuLoaderWorkspaceStopping();
+
+  @Key("menu.loader.workspaceStopped")
+  String menuLoaderWorkspaceStopped();
+
   @Key("menu.loader.waitingWorkspace")
   String menuLoaderWaitingWorkspace();
 
@@ -1294,4 +1341,22 @@ public interface CoreLocalizationConstant extends Messages {
 
   @Key("gwt_recompile.dialog.message.no_server")
   String gwtRecompileDialogNoServerMessage();
+
+  @Key("resource.copy.move.error.title")
+  String resourceCopyMoveErrorTitle();
+
+  @Key("resource.copy.move.same.path.error.message")
+  String resourceCopyMoveSamePathErrorMessage(String sourceName);
+
+  @Key("resource.copy.move.already.exist.error.message")
+  String resourceCopyMoveAlreadyExistErrorMessage(String sourceName, String path);
+
+  @Key("low.disk.space")
+  String lowDiskSpace();
+
+  @Key("low.disk.space.description")
+  String lowDiskSpaceDescription();
+
+  @Key("low.disk.space.status.bar.message")
+  String lowDiskSpaceStatusBarMessage();
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -39,26 +40,25 @@ public class DefaultAvailableResourcesProvider implements AvailableResourcesProv
   private static final Logger LOG =
       LoggerFactory.getLogger(DefaultAvailableResourcesProvider.class);
 
-  private final Provider<ResourceUsageManager> resourceUsageManagerProvider;
+  private final Provider<ResourceManager> resourceManagerProvider;
   private final ResourceAggregator resourceAggregator;
 
   @Inject
   public DefaultAvailableResourcesProvider(
-      Provider<ResourceUsageManager> resourceUsageManagerProvider,
-      ResourceAggregator resourceAggregator) {
-    this.resourceUsageManagerProvider = resourceUsageManagerProvider;
+      Provider<ResourceManager> resourceManagerProvider, ResourceAggregator resourceAggregator) {
+    this.resourceManagerProvider = resourceManagerProvider;
     this.resourceAggregator = resourceAggregator;
   }
 
   @Override
   public List<? extends Resource> getAvailableResources(String accountId)
       throws NotFoundException, ServerException {
-    ResourceUsageManager resourceUsageManager = resourceUsageManagerProvider.get();
+    ResourceManager resourceManager = resourceManagerProvider.get();
     List<? extends Resource> totalResources = null;
     List<Resource> usedResources = null;
     try {
-      totalResources = resourceUsageManager.getTotalResources(accountId);
-      usedResources = new ArrayList<>(resourceUsageManager.getUsedResources(accountId));
+      totalResources = resourceManager.getTotalResources(accountId);
+      usedResources = new ArrayList<>(resourceManager.getUsedResources(accountId));
       return resourceAggregator.deduct(totalResources, usedResources);
     } catch (NoEnoughResourcesException e) {
       LOG.warn(

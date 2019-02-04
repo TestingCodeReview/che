@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.api.parts.base.BaseView;
@@ -36,11 +38,12 @@ import org.eclipse.che.ide.processes.ProcessDataAdapter;
 import org.eclipse.che.ide.processes.ProcessTreeNode;
 import org.eclipse.che.ide.processes.ProcessTreeRenderer;
 import org.eclipse.che.ide.processes.StopProcessHandler;
-import org.eclipse.che.ide.terminal.TerminalOptionsJso;
+import org.eclipse.che.ide.terminal.options.TerminalOptionsJso;
 import org.eclipse.che.ide.ui.SplitterFancyUtil;
 import org.eclipse.che.ide.ui.multisplitpanel.SubPanel;
 import org.eclipse.che.ide.ui.multisplitpanel.SubPanelFactory;
 import org.eclipse.che.ide.ui.multisplitpanel.WidgetToShow;
+import org.eclipse.che.ide.ui.multisplitpanel.panel.ActiveTabClosedHandler;
 import org.eclipse.che.ide.ui.tree.SelectionModel;
 import org.eclipse.che.ide.ui.tree.Tree;
 import org.eclipse.che.ide.ui.tree.TreeNodeElement;
@@ -103,7 +106,7 @@ public class ProcessesPanelViewImpl extends BaseView<ProcessesPanelView.ActionDe
     widget2TreeNodes = new HashMap<>();
 
     renderer.addAddTerminalClickHandler(
-        machineId -> delegate.onAddTerminal(machineId, TerminalOptionsJso.createDefault()));
+        machineId -> delegate.onAddTerminal(machineId, TerminalOptionsJso.create(), true));
     renderer.addPreviewSshClickHandler(machineId -> delegate.onPreviewSsh(machineId));
     renderer.addStopProcessHandler(
         new StopProcessHandler() {
@@ -196,7 +199,20 @@ public class ProcessesPanelViewImpl extends BaseView<ProcessesPanelView.ActionDe
       final String title,
       final SVGResource icon,
       final IsWidget widget,
-      final boolean machineConsole) {
+      final boolean removable) {
+
+    Optional<WidgetToShow> existedWidget =
+        focusedSubPanel
+            .getAllWidgets()
+            .stream()
+            .filter(widgetToShow -> widgetToShow.getWidget().equals(widget))
+            .findFirst();
+
+    if (existedWidget.isPresent()) {
+      focusedSubPanel.activateWidget(existedWidget.get());
+      return;
+    }
+
     final WidgetToShow widgetToShow =
         new WidgetToShow() {
           @Override
@@ -219,13 +235,14 @@ public class ProcessesPanelViewImpl extends BaseView<ProcessesPanelView.ActionDe
 
     focusedSubPanel.addWidget(
         widgetToShow,
-        !machineConsole,
+        removable,
         new SubPanel.WidgetRemovingListener() {
           @Override
           public void onWidgetRemoving(SubPanel.RemoveCallback removeCallback) {
             final ProcessTreeNode treeNode = widget2TreeNodes.get(widgetToShow.getWidget());
 
             if (treeNode == null) {
+              removeCallback.remove();
               return;
             }
 
@@ -241,6 +258,7 @@ public class ProcessesPanelViewImpl extends BaseView<ProcessesPanelView.ActionDe
                 removeCallback.remove();
                 break;
               default:
+                removeCallback.remove();
             }
           }
         });
@@ -368,6 +386,10 @@ public class ProcessesPanelViewImpl extends BaseView<ProcessesPanelView.ActionDe
     onResize();
 
     final WidgetToShow widgetToShow = processWidgets.get(processId);
+    if (!focusedSubPanel.getAllWidgets().contains(widgetToShow)) {
+      return;
+    }
+
     final SubPanel subPanel = widget2Panels.get(widgetToShow);
     if (subPanel != null) {
       subPanel.activateWidget(widgetToShow);
@@ -384,19 +406,16 @@ public class ProcessesPanelViewImpl extends BaseView<ProcessesPanelView.ActionDe
 
   @Override
   public void hideProcessOutput(String processId) {
-    final WidgetToShow widgetToShow = processWidgets.get(processId);
-    final SubPanel subPanel = widget2Panels.get(widgetToShow);
-    if (subPanel != null) {
-      subPanel.removeWidget(widgetToShow);
-    }
-    processWidgets.remove(processId);
+    removeWidget(processId);
   }
 
   @Override
-  public void removeWidget(String processId) {
-    WidgetToShow widget = processWidgets.get(processId);
-    hideProcessOutput(processId);
-    widget2Panels.remove(widget);
+  public void removeWidget(String processId, ActiveTabClosedHandler handler) {
+    WidgetToShow widget = processWidgets.remove(processId);
+    SubPanel subPanel = widget2Panels.remove(widget);
+    if (subPanel != null) {
+      subPanel.removeWidget(widget, handler);
+    }
   }
 
   @Override
@@ -416,7 +435,7 @@ public class ProcessesPanelViewImpl extends BaseView<ProcessesPanelView.ActionDe
   public void clear() {
     for (WidgetToShow widgetToShow : processWidgets.values()) {
       SubPanel subPanel = widget2Panels.get(widgetToShow);
-      subPanel.removeWidget(widgetToShow);
+      subPanel.removeWidget(widgetToShow, (subPanelView, tabToActivate) -> {});
     }
 
     processWidgets.clear();

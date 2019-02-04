@@ -1,9 +1,11 @@
 #!/bin/bash
+#
 # Copyright (c) 2012-2017 Red Hat, Inc.
-# All rights reserved. This program and the accompanying materials
-# are made available under the terms of the Eclipse Public License v1.0
-# which accompanies this distribution, and is available at
-# http://www.eclipse.org/legal/epl-v10.html
+# This program and the accompanying materials are made
+# available under the terms of the Eclipse Public License 2.0
+# which is available at https://www.eclipse.org/legal/epl-2.0/
+#
+# SPDX-License-Identifier: EPL-2.0
 #
 # Contributors:
 #   Tyler Jewell - Initial Implementation
@@ -57,7 +59,7 @@ cmd_backup() {
         "${CHE_CONTAINER_BACKUP}/moved-$(get_current_date)-${CHE_BACKUP_FILE_NAME}"
   fi
 
-  info "backup" "Saving codenvy data..."
+  info "backup" "Saving Eclipse Che data..."
   docker_run -v "${CHE_HOST_CONFIG}":/root${CHE_CONTAINER_ROOT} \
                -v "${CHE_HOST_BACKUP}":/root/backup \
                $(cmd_backup_extra_args) \

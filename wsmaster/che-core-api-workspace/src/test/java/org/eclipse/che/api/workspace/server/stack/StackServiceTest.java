@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,6 +29,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -47,12 +49,10 @@ import org.eclipse.che.api.workspace.server.model.impl.EnvironmentImpl;
 import org.eclipse.che.api.workspace.server.model.impl.WorkspaceConfigImpl;
 import org.eclipse.che.api.workspace.server.model.impl.stack.StackComponentImpl;
 import org.eclipse.che.api.workspace.server.model.impl.stack.StackImpl;
-import org.eclipse.che.api.workspace.server.model.impl.stack.StackSourceImpl;
 import org.eclipse.che.api.workspace.server.spi.StackDao;
 import org.eclipse.che.api.workspace.server.stack.image.StackIcon;
 import org.eclipse.che.api.workspace.shared.dto.stack.StackComponentDto;
 import org.eclipse.che.api.workspace.shared.dto.stack.StackDto;
-import org.eclipse.che.api.workspace.shared.dto.stack.StackSourceDto;
 import org.eclipse.che.api.workspace.shared.stack.Stack;
 import org.eclipse.che.api.workspace.shared.stack.StackComponent;
 import org.eclipse.che.commons.env.EnvironmentContext;
@@ -119,11 +119,9 @@ public class StackServiceTest {
   private StackDto stackDto;
   private StackImpl stackImpl;
   private StackImpl foreignStack;
-  private StackSourceImpl stackSourceImpl;
   private List<StackComponent> componentsImpl;
   private StackIcon stackIcon;
 
-  private StackSourceDto stackSourceDto;
   private List<StackComponentDto> componentsDto;
 
   @Mock StackDao stackDao;
@@ -141,7 +139,6 @@ public class StackServiceTest {
     byte[] fileContent = STACK_ID.getBytes();
     stackIcon = new StackIcon(ICON_MEDIA_TYPE, "image/svg+xml", fileContent);
     componentsImpl = singletonList(new StackComponentImpl(COMPONENT_NAME, COMPONENT_VERSION));
-    stackSourceImpl = new StackSourceImpl(SOURCE_TYPE, SOURCE_ORIGIN);
     CommandImpl command = new CommandImpl(COMMAND_NAME, COMMAND_LINE, COMMAND_TYPE);
     EnvironmentImpl environment = new EnvironmentImpl(null, null);
 
@@ -153,7 +150,6 @@ public class StackServiceTest {
             .setEnvironments(singletonMap(ENVIRONMENT_NAME, environment))
             .build();
 
-    stackSourceDto = newDto(StackSourceDto.class).withType(SOURCE_TYPE).withOrigin(SOURCE_ORIGIN);
     StackComponentDto stackComponentDto =
         newDto(StackComponentDto.class).withName(COMPONENT_NAME).withVersion(COMPONENT_VERSION);
     componentsDto = singletonList(stackComponentDto);
@@ -167,7 +163,6 @@ public class StackServiceTest {
             .withScope(SCOPE)
             .withCreator(CREATOR)
             .withTags(tags)
-            .withSource(stackSourceDto)
             .withComponents(componentsDto);
 
     stackImpl =
@@ -178,7 +173,6 @@ public class StackServiceTest {
             .setScope(SCOPE)
             .setCreator(CREATOR)
             .setTags(tags)
-            .setSource(stackSourceImpl)
             .setComponents(componentsImpl)
             .setWorkspaceConfig(workspaceConfig)
             .setStackIcon(stackIcon)
@@ -192,13 +186,12 @@ public class StackServiceTest {
             .setScope(SCOPE)
             .setCreator(FOREIGN_CREATOR)
             .setTags(tags)
-            .setSource(stackSourceImpl)
             .setComponents(componentsImpl)
             .setWorkspaceConfig(workspaceConfig)
             .setStackIcon(stackIcon)
             .build();
 
-    when(uriInfo.getBaseUriBuilder()).thenReturn(new UriBuilderImpl());
+    lenient().when(uriInfo.getBaseUriBuilder()).thenReturn(new UriBuilderImpl());
 
     final Field uriField = service.getClass().getSuperclass().getDeclaredField("uriInfo");
     uriField.setAccessible(true);
@@ -230,8 +223,6 @@ public class StackServiceTest {
 
     assertEquals(stackDtoDescriptor.getComponents(), stackDto.getComponents());
 
-    assertEquals(stackDtoDescriptor.getSource(), stackDto.getSource());
-
     assertEquals(stackDtoDescriptor.getScope(), stackDto.getScope());
 
     assertEquals(stackDtoDescriptor.getLinks().size(), 2);
@@ -255,8 +246,6 @@ public class StackServiceTest {
   //    public void shouldThrowBadRequestExceptionOnCreateStackWithEmptyName() {
   //        StackComponentDto stackComponentDto =
   // newDto(StackComponentDto.class).withName("Java").withVersion("1.8.45");
-  //        StackSourceDto stackSourceDto =
-  // newDto(StackSourceDto.class).withType("image").withOrigin("codenvy/ubuntu_jdk8");
   //        StackDto stackDto = newDto(StackDto.class).withId(USER_ID)
   //                                                  .withDescription("")
   //                                                  .withScope("Simple java stack for generation
@@ -265,7 +254,6 @@ public class StackServiceTest {
   //                                                  .withCreator("che")
   //
   // .withComponents(singletonList(stackComponentDto))
-  //                                                  .withSource(stackSourceDto);
   //
   //        Response response = given().auth()
   //                                   .basic(ADMIN_USER_NAME, ADMIN_USER_PASSWORD)
@@ -303,8 +291,6 @@ public class StackServiceTest {
         result.getComponents().get(0).getName(), stackImpl.getComponents().get(0).getName());
     assertEquals(
         result.getComponents().get(0).getVersion(), stackImpl.getComponents().get(0).getVersion());
-    assertEquals(result.getSource().getType(), stackImpl.getSource().getType());
-    assertEquals(result.getSource().getOrigin(), stackImpl.getSource().getOrigin());
     assertEquals(result.getCreator(), stackImpl.getCreator());
   }
 
@@ -321,7 +307,6 @@ public class StackServiceTest {
             .withScope(updatedScope)
             .withCreator(CREATOR)
             .withTags(tags)
-            .withSource(stackSourceDto)
             .withComponents(componentsDto);
 
     StackImpl updateStack = new StackImpl(stackImpl);
@@ -354,8 +339,6 @@ public class StackServiceTest {
     assertEquals(
         result.getComponents().get(0).getVersion(),
         updatedStackDto.getComponents().get(0).getVersion());
-    assertEquals(result.getSource().getType(), updatedStackDto.getSource().getType());
-    assertEquals(result.getSource().getOrigin(), updatedStackDto.getSource().getOrigin());
     assertEquals(result.getCreator(), updatedStackDto.getCreator());
 
     verify(stackDao).update(any());
@@ -374,7 +357,6 @@ public class StackServiceTest {
             .withScope(SCOPE)
             .withCreator("creator changed")
             .withTags(tags)
-            .withSource(stackSourceDto)
             .withComponents(componentsDto);
 
     when(stackDao.getById(anyString())).thenReturn(foreignStack);
@@ -403,8 +385,6 @@ public class StackServiceTest {
     assertEquals(
         result.getComponents().get(0).getVersion(),
         updatedStackDto.getComponents().get(0).getVersion());
-    assertEquals(result.getSource().getType(), updatedStackDto.getSource().getType());
-    assertEquals(result.getSource().getOrigin(), updatedStackDto.getSource().getOrigin());
     assertEquals(result.getCreator(), FOREIGN_CREATOR);
 
     verify(stackDao).update(any());

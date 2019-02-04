@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,6 +20,7 @@ import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -50,6 +52,7 @@ public class RenamePackageSmokeTest {
   @Inject private Refactor refactor;
   @Inject private Menu menu;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -60,6 +63,8 @@ public class RenamePackageSmokeTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(workspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -71,7 +76,7 @@ public class RenamePackageSmokeTest {
     projectExplorer.openItemByPath(PROJECT_NAME + "/src/main/java/test0/r/A.java");
     editor.waitActive();
     editor.waitTextNotPresentIntoEditor(TEST0_P1_OUT);
-    projectExplorer.selectItem(PROJECT_NAME + "/src/main/java/test0/r");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME + "/src/main/java/test0/r");
     menu.runCommand(
         TestMenuCommandsConstants.Assistant.ASSISTANT,
         TestMenuCommandsConstants.Assistant.Refactoring.REFACTORING,
@@ -84,7 +89,7 @@ public class RenamePackageSmokeTest {
     loader.waitOnClosed();
     refactor.clickOkButtonRefactorForm();
     refactor.waitRenamePackageFormIsClosed();
-    projectExplorer.waitItemIsDisappeared(PROJECT_NAME + "/src/main/java/test0/r/A.java");
+    projectExplorer.waitItemInvisibility(PROJECT_NAME + "/src/main/java/test0/r/A.java");
     projectExplorer.waitItem(PROJECT_NAME + "/src/main/java/test0/p1/A.java");
     editor.waitTextIntoEditor(TEST0_P1_OUT);
     editor.closeFileByNameWithSaving("A");

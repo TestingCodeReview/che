@@ -1,19 +1,22 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.editor;
 
+import static org.eclipse.che.selenium.core.TestGroup.FLAKY;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.WIDGET_TIMEOUT_SEC;
 import static org.eclipse.che.selenium.core.project.ProjectTemplates.MAVEN_JAVA_MULTIMODULE;
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.TabAction.SPIT_HORISONTALLY;
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.TabAction.SPLIT_VERTICALLY;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.TabActionLocator.SPLIT_HORIZONTALLY;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.TabActionLocator.SPLIT_VERTICALLY;
 import static org.testng.Assert.fail;
 
 import com.google.common.base.Joiner;
@@ -41,6 +44,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Musienko Maxim */
+@Test(groups = FLAKY)
 public class CheckRestoringSplitEditorTest {
   private String javaClassName = "AppController.java";
   private String readmeFileName = "README.md";
@@ -49,9 +53,9 @@ public class CheckRestoringSplitEditorTest {
   private final String PROJECT_NAME = NameGenerator.generate("project", 4);;
   private final String PATH_TO_JAVA_FILE =
       PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/" + javaClassName;
-  private Pair<Integer, Integer> cursorPositionForJavaFile = new Pair<>(12, 1);
+  private Pair<Integer, Integer> cursorPositionForJavaFile = new Pair<>(13, 1);
   private Pair<Integer, Integer> cursorPositionForReadMeFile = new Pair<>(1, 10);
-  private Pair<Integer, Integer> cursorPositionForPomFile = new Pair<>(31, 1);
+  private Pair<Integer, Integer> cursorPositionForPomFile = new Pair<>(32, 1);
   private List<String> expectedTextFromEditor;
 
   @Inject private TestWorkspace workspace;
@@ -80,42 +84,34 @@ public class CheckRestoringSplitEditorTest {
   }
 
   @Test
-  public void checkRestoringStateSplittedEditor() throws IOException {
+  public void checkRestoringStateSplitEditor() throws IOException, Exception {
     projectExplorer.waitItem(PROJECT_NAME);
     projectExplorer.quickExpandWithJavaScript();
     splitEditorAndOpenFiles();
-    try {
-      setPositionsForSplittedEditor();
-    } catch (TimeoutException ex) {
-      // remove try-catch block after issue has been resolved
-      fail("Known issue https://github.com/eclipse/che/issues/7729", ex);
-    }
-
+    setPositionsForSplitEditor();
     editor.waitActive();
     if (popupDialogsBrowser.isAlertPresent()) {
       popupDialogsBrowser.acceptAlert();
     }
 
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
+    projectExplorer.waitItemIsSelected(PROJECT_NAME);
+
     seleniumWebDriver.navigate().refresh();
     projectExplorer.waitItem(PROJECT_NAME);
+    loader.waitOnClosed();
+    projectExplorer.waitVisibilityByName(javaClassName, WIDGET_TIMEOUT_SEC);
 
-    try {
-      projectExplorer.waitItemInVisibleArea(javaClassName);
-    } catch (TimeoutException ex) {
-      // remove try-catch block after issue has been resolved
-      fail("Known issue https://github.com/eclipse/che/issues/7551", ex);
-    }
-
-    notificationsPopupPanel.waitPopUpPanelsIsClosed();
-    checkSplitdEditorAfterRefreshing(
+    notificationsPopupPanel.waitPopupPanelsAreClosed();
+    checkSplitEditorAfterRefreshing(
         1, javaClassTab, expectedTextFromEditor.get(0), cursorPositionForJavaFile);
-    checkSplitdEditorAfterRefreshing(
+    checkSplitEditorAfterRefreshing(
         2, readmeFileName, expectedTextFromEditor.get(1).trim(), cursorPositionForReadMeFile);
-    checkSplitdEditorAfterRefreshing(
+    checkSplitEditorAfterRefreshing(
         3, pomFileTab, expectedTextFromEditor.get(2).trim(), cursorPositionForPomFile);
   }
 
-  private void checkSplitdEditorAfterRefreshing(
+  private void checkSplitEditorAfterRefreshing(
       int numOfEditor,
       String nameOfEditorTab,
       String expectedTextAfterRefresh,
@@ -124,9 +120,15 @@ public class CheckRestoringSplitEditorTest {
 
     editor.waitActive();
     editor.selectTabByName(nameOfEditorTab);
-    editor.waitCursorPosition(pair.first, pair.second);
-    editor.waitTextInDefinedSplitEditor(
-        numOfEditor, LOAD_PAGE_TIMEOUT_SEC, expectedTextAfterRefresh);
+    editor.waitCursorPosition(numOfEditor - 1, pair.first, pair.second);
+
+    try {
+      editor.waitTextInDefinedSplitEditor(
+          numOfEditor, LOAD_PAGE_TIMEOUT_SEC, expectedTextAfterRefresh);
+    } catch (TimeoutException ex) {
+      // remove try-catch block after issue has been resolved
+      fail("Known random failure https://github.com/eclipse/che/issues/9456", ex);
+    }
   }
 
   private void splitEditorAndOpenFiles() {
@@ -135,8 +137,8 @@ public class CheckRestoringSplitEditorTest {
     projectExplorer.openItemByPath(PATH_TO_JAVA_FILE);
     loader.waitOnClosed();
     editor.waitActive();
-    editor.openContextMenuForTabByName(javaClassTab);
-    editor.runActionForTabFromContextMenu(SPIT_HORISONTALLY);
+    editor.openAndWaitContextMenuForTabByName(javaClassTab);
+    editor.runActionForTabFromContextMenu(SPLIT_HORIZONTALLY);
     editor.selectTabByIndexEditorWindowAndOpenMenu(0, javaClassTab);
     editor.runActionForTabFromContextMenu(SPLIT_VERTICALLY);
     loader.waitOnClosed();
@@ -146,13 +148,12 @@ public class CheckRestoringSplitEditorTest {
     projectExplorer.openItemByPath(PROJECT_NAME + "/" + namePomFile);
   }
 
-  private void setPositionsForSplittedEditor() {
+  private void setPositionsForSplitEditor() {
     editor.selectTabByIndexEditorWindow(0, javaClassTab);
-    editor.goToCursorPositionVisible(
-        cursorPositionForJavaFile.first, cursorPositionForJavaFile.second);
+    editor.goToPosition(0, cursorPositionForJavaFile.first, cursorPositionForJavaFile.second);
     editor.selectTabByName(readmeFileName);
-    editor.goToPosition(cursorPositionForReadMeFile.first, cursorPositionForReadMeFile.second);
+    editor.goToPosition(1, cursorPositionForReadMeFile.first, cursorPositionForReadMeFile.second);
     editor.selectTabByName(pomFileTab);
-    editor.goToPosition(cursorPositionForPomFile.first, cursorPositionForPomFile.second);
+    editor.goToPosition(2, cursorPositionForPomFile.first, cursorPositionForPomFile.second);
   }
 }

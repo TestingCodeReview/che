@@ -1,31 +1,36 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.dashboard;
 
+import static org.eclipse.che.commons.lang.NameGenerator.generate;
+import static org.eclipse.che.selenium.pageobject.dashboard.NewWorkspace.Stack.JAVA;
 import static org.eclipse.che.selenium.pageobject.dashboard.ProjectSourcePage.Sources.ZIP;
 
 import com.google.inject.Inject;
-import java.util.concurrent.ExecutionException;
-import org.eclipse.che.commons.lang.NameGenerator;
-import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import org.eclipse.che.selenium.core.client.TestGitHubRepository;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
-import org.eclipse.che.selenium.core.constant.TestStacksConstants;
-import org.eclipse.che.selenium.core.user.TestUser;
-import org.eclipse.che.selenium.pageobject.Loader;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.webdriver.SeleniumWebDriverHelper;
+import org.eclipse.che.selenium.core.workspace.TestWorkspace;
+import org.eclipse.che.selenium.core.workspace.TestWorkspaceProvider;
+import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
-import org.eclipse.che.selenium.pageobject.dashboard.CreateWorkspace;
+import org.eclipse.che.selenium.pageobject.ToastLoader;
 import org.eclipse.che.selenium.pageobject.dashboard.Dashboard;
-import org.eclipse.che.selenium.pageobject.dashboard.NavigationBar;
+import org.eclipse.che.selenium.pageobject.dashboard.NewWorkspace;
 import org.eclipse.che.selenium.pageobject.dashboard.ProjectSourcePage;
-import org.eclipse.che.selenium.pageobject.dashboard.workspaces.WorkspaceDetails;
 import org.eclipse.che.selenium.pageobject.dashboard.workspaces.Workspaces;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -33,23 +38,31 @@ import org.testng.annotations.Test;
 
 /** @author Andrey Chizhikov */
 public class ImportProjectFromZipTest {
-  private final String WORKSPACE = NameGenerator.generate("ImptPrjFromZip", 4);
+
+  private final String WORKSPACE = generate("ImptPrjFromZip", 4);
   private static final String PROJECT_NAME = "master";
 
   @Inject private Dashboard dashboard;
-  @Inject private WorkspaceDetails workspaceDetails;
-  @Inject private Loader loader;
   @Inject private ProjectExplorer explorer;
-  @Inject private NavigationBar navigationBar;
-  @Inject private CreateWorkspace createWorkspace;
+  @Inject private NewWorkspace newWorkspace;
   @Inject private ProjectSourcePage projectSourcePage;
-  @Inject private SeleniumWebDriver seleniumWebDriver;
+  @Inject private ToastLoader toastLoader;
+  @Inject private SeleniumWebDriverHelper seleniumWebDriverHelper;
   @Inject private TestWorkspaceServiceClient workspaceServiceClient;
-  @Inject private TestUser defaultTestUser;
+  @Inject private DefaultTestUser defaultTestUser;
   @Inject private Workspaces workspaces;
+  @Inject private Ide ide;
+  @Inject private TestGitHubRepository testRepo;
+  @Inject private TestWorkspaceProvider testWorkspaceProvider;
+
+  // it is used to read workspace logs on test failure
+  private TestWorkspace testWorkspace;
 
   @BeforeClass
-  public void setUp() {
+  public void setUp() throws IOException {
+    Path entryPath = Paths.get(getClass().getResource("/projects/java-multimodule").getPath());
+    testRepo.addContent(entryPath);
+
     dashboard.open();
   }
 
@@ -59,43 +72,38 @@ public class ImportProjectFromZipTest {
   }
 
   @Test
-  public void importProjectFromZipTest() throws ExecutionException, InterruptedException {
+  public void importProjectFromZipTest() {
+    String testRepoFullName = testRepo.getFullName();
+    String zipUrl =
+        String.format("%s/%s/%s", "https://github.com", testRepoFullName, "archive/master.zip");
+
     dashboard.waitDashboardToolbarTitle();
     dashboard.selectWorkspacesItemOnDashboard();
 
-    workspaces.clickOnNewWorkspaceBtn();
-    createWorkspace.waitToolbar();
-    createWorkspace.selectStack(TestStacksConstants.JAVA.getId());
-    createWorkspace.typeWorkspaceName(WORKSPACE);
+    workspaces.clickOnAddWorkspaceBtn();
+    newWorkspace.waitToolbar();
+
+    // we are selecting 'Java' stack from the 'All Stack' tab for compatibility with OSIO
+    newWorkspace.clickOnAllStacksTab();
+    newWorkspace.selectStack(JAVA);
+    newWorkspace.typeWorkspaceName(WORKSPACE);
 
     projectSourcePage.clickOnAddOrImportProjectButton();
     projectSourcePage.selectSourceTab(ZIP);
-    projectSourcePage.typeZipLocation(
-        "https://github.com/iedexmain1/multimodule-project/archive/master.zip");
+    projectSourcePage.typeZipLocation(zipUrl);
     projectSourcePage.skipRootFolder();
     projectSourcePage.clickOnAddProjectButton();
 
-    createWorkspace.clickOnCreateWorkspaceButton();
-    seleniumWebDriver.switchFromDashboardIframeToIde();
-    loader.waitOnClosed();
+    newWorkspace.clickOnCreateButtonAndOpenInIDE();
+    // store info about created workspace to make SeleniumTestHandler.captureTestWorkspaceLogs()
+    // possible to read logs in case of test failure
+    testWorkspace = testWorkspaceProvider.getWorkspace(WORKSPACE, defaultTestUser);
+
+    seleniumWebDriverHelper.switchToIdeFrameAndWaitAvailability();
+    toastLoader.waitToastLoaderAndClickStartButton();
+    ide.waitOpenedWorkspaceIsReadyToUse();
     explorer.waitItem(PROJECT_NAME);
-    explorer.selectItem(PROJECT_NAME);
+    explorer.waitAndSelectItem(PROJECT_NAME);
     explorer.openContextMenuByPathSelectedItem(PROJECT_NAME);
-
-    /* TODO when bug with project type is solved:
-    explorer.clickOnItemInContextMenu(ProjectExplorerContextMenuConstants.MAVEN);
-    explorer.clickOnItemInContextMenu(ProjectExplorer.PROJECT_EXPLORER_CONTEXT_MENU_MAVEN.REIMPORT);
-    loader.waitOnClosed();
-
-    explorer.openItemByPath(PROJECT_NAME);
-
-    explorer.openContextMenuByPathSelectedItem(PROJECT_NAME + "/my-lib");
-    explorer.clickOnItemInContextMenu(ProjectExplorerContextMenuConstants.MAVEN);
-    explorer.clickOnItemInContextMenu(ProjectExplorer.PROJECT_EXPLORER_CONTEXT_MENU_MAVEN.REIMPORT);
-    loader.waitOnClosed();
-
-    explorer.openContextMenuByPathSelectedItem(PROJECT_NAME + "/my-webapp");
-    explorer.clickOnItemInContextMenu(ProjectExplorerContextMenuConstants.MAVEN);
-    explorer.clickOnItemInContextMenu(ProjectExplorer.PROJECT_EXPLORER_CONTEXT_MENU_MAVEN.REIMPORT);*/
   }
 }

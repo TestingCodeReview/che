@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,9 +12,6 @@
 package org.eclipse.che.ide.ext.java.client.settings.compiler;
 
 import static java.util.Arrays.asList;
-import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.RUNNING;
-import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.FLOAT_MODE;
-import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
 import static org.eclipse.che.ide.ext.java.client.settings.compiler.ErrorWarningsOptions.COMPARING_IDENTICAL_VALUES;
 import static org.eclipse.che.ide.ext.java.client.settings.compiler.ErrorWarningsOptions.COMPILER_UNUSED_IMPORT;
 import static org.eclipse.che.ide.ext.java.client.settings.compiler.ErrorWarningsOptions.COMPILER_UNUSED_LOCAL;
@@ -35,21 +33,15 @@ import static org.eclipse.che.ide.ext.java.client.settings.compiler.ErrorWarning
 
 import com.google.gwt.user.client.ui.AcceptsOneWidget;
 import com.google.inject.Inject;
-import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.google.web.bindery.event.shared.EventBus;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.validation.constraints.NotNull;
-import org.eclipse.che.api.promises.client.Operation;
-import org.eclipse.che.api.promises.client.OperationException;
-import org.eclipse.che.api.promises.client.PromiseError;
-import org.eclipse.che.ide.api.app.AppContext;
-import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.preferences.AbstractPreferencePagePresenter;
 import org.eclipse.che.ide.api.preferences.PreferencesManager;
-import org.eclipse.che.ide.api.workspace.event.WorkspaceRunningEvent;
+import org.eclipse.che.ide.api.workspace.WorkspaceReadyEvent;
 import org.eclipse.che.ide.ext.java.client.JavaLocalizationConstant;
 import org.eclipse.che.ide.ext.java.client.inject.factories.PropertyWidgetFactory;
 import org.eclipse.che.ide.ext.java.client.settings.property.PropertyWidget;
@@ -61,48 +53,39 @@ import org.eclipse.che.ide.ext.java.client.settings.property.PropertyWidget;
  */
 @Singleton
 public class JavaCompilerPreferencePresenter extends AbstractPreferencePagePresenter
-    implements PropertyWidget.ActionDelegate, WorkspaceRunningEvent.Handler {
+    implements PropertyWidget.ActionDelegate {
   public static final String CATEGORY = "Java Compiler";
 
   private final ErrorWarningsView view;
   private final PropertyWidgetFactory propertyFactory;
   private final PreferencesManager preferencesManager;
-  private final Provider<NotificationManager> notificationManagerProvider;
-  private final JavaLocalizationConstant locale;
 
-  private final List<PropertyWidget> widgets;
+  private List<ErrorWarningsOptions> options;
+  private Map<String, PropertyWidget> widgets;
 
   @Inject
   public JavaCompilerPreferencePresenter(
       JavaLocalizationConstant locale,
+      EventBus eventBus,
       ErrorWarningsView view,
       PropertyWidgetFactory propertyFactory,
-      @JavaCompilerPreferenceManager PreferencesManager preferencesManager,
-      Provider<NotificationManager> notificationManagerProvider) {
+      @JavaCompilerPreferenceManager PreferencesManager preferencesManager) {
     super(locale.compilerSetup(), CATEGORY);
 
     this.view = view;
     this.propertyFactory = propertyFactory;
     this.preferencesManager = preferencesManager;
-    this.notificationManagerProvider = notificationManagerProvider;
-    this.locale = locale;
+    this.widgets = new HashMap<>();
 
-    this.widgets = new ArrayList<>();
-  }
+    eventBus.addHandler(WorkspaceReadyEvent.getType(), e -> updateErrorWarningsPanel());
 
-  @Inject
-  private void initialize(AppContext appContext, EventBus eventBus) {
-    eventBus.addHandler(WorkspaceRunningEvent.TYPE, this);
-
-    if (appContext.getWorkspace().getStatus() == RUNNING) {
-      addErrorWarningsPanel();
-    }
+    fillUpOptions();
   }
 
   /** {@inheritDoc} */
   @Override
   public boolean isDirty() {
-    for (PropertyWidget widget : widgets) {
+    for (PropertyWidget widget : widgets.values()) {
       String propertyName = widget.getOptionId().toString();
       String changedValue = widget.getSelectedValue();
 
@@ -116,27 +99,33 @@ public class JavaCompilerPreferencePresenter extends AbstractPreferencePagePrese
   /** {@inheritDoc} */
   @Override
   public void storeChanges() {
-    for (PropertyWidget widget : widgets) {
-      String propertyName = widget.getOptionId().toString();
-      String selectedValue = widget.getSelectedValue();
+    widgets
+        .values()
+        .forEach(
+            widget -> {
+              String propertyName = widget.getOptionId().toString();
+              String selectedValue = widget.getSelectedValue();
 
-      if (!selectedValue.equals(preferencesManager.getValue(propertyName))) {
-        preferencesManager.setValue(propertyName, selectedValue);
-      }
-    }
+              if (!selectedValue.equals(preferencesManager.getValue(propertyName))) {
+                preferencesManager.setValue(propertyName, selectedValue);
+              }
+            });
   }
 
   /** {@inheritDoc} */
   @Override
   public void revertChanges() {
-    for (PropertyWidget widget : widgets) {
-      String propertyId = widget.getOptionId().toString();
-      String previousValue = preferencesManager.getValue(propertyId);
+    widgets
+        .values()
+        .forEach(
+            widget -> {
+              String propertyId = widget.getOptionId().toString();
+              String previousValue = preferencesManager.getValue(propertyId);
 
-      if (!widget.getSelectedValue().equals(previousValue)) {
-        widget.selectPropertyValue(previousValue);
-      }
-    }
+              if (!widget.getSelectedValue().equals(previousValue)) {
+                widget.selectPropertyValue(previousValue);
+              }
+            });
   }
 
   /** {@inheritDoc} */
@@ -148,68 +137,70 @@ public class JavaCompilerPreferencePresenter extends AbstractPreferencePagePrese
   /** {@inheritDoc} */
   @Override
   public void go(AcceptsOneWidget container) {
-    container.setWidget(view);
+    if (widgets.isEmpty()) {
+      preferencesManager
+          .loadPreferences()
+          .then(
+              properties -> {
+                options.forEach(this::provideWidget);
+                container.setWidget(view);
+              });
+    } else {
+      container.setWidget(view);
+    }
   }
 
-  private void addErrorWarningsPanel() {
+  private void updateErrorWarningsPanel() {
     preferencesManager
         .loadPreferences()
         .then(
-            new Operation<Map<String, String>>() {
-              @Override
-              public void apply(Map<String, String> properties) throws OperationException {
-                List<ErrorWarningsOptions> options =
-                    asList(
-                        COMPILER_UNUSED_LOCAL,
-                        COMPILER_UNUSED_IMPORT,
-                        DEAD_CODE,
-                        METHOD_WITH_CONSTRUCTOR_NAME,
-                        UNNECESSARY_ELSE_STATEMENT,
-                        COMPARING_IDENTICAL_VALUES,
-                        NO_EFFECT_ASSIGNMENT,
-                        MISSING_SERIAL_VERSION_UID,
-                        TYPE_PARAMETER_HIDE_ANOTHER_TYPE,
-                        FIELD_HIDES_ANOTHER_VARIABLE,
-                        MISSING_DEFAULT_CASE,
-                        UNUSED_PRIVATE_MEMBER,
-                        UNCHECKED_TYPE_OPERATION,
-                        USAGE_OF_RAW_TYPE,
-                        MISSING_OVERRIDE_ANNOTATION,
-                        NULL_POINTER_ACCESS,
-                        POTENTIAL_NULL_POINTER_ACCESS,
-                        REDUNDANT_NULL_CHECK);
-                for (ErrorWarningsOptions option : options) {
-                  createAndAddWidget(option);
-                }
-              }
-            })
-        .catchError(
-            new Operation<PromiseError>() {
-              @Override
-              public void apply(PromiseError arg) throws OperationException {
-                notificationManagerProvider
-                    .get()
-                    .notify(
-                        locale.unableToLoadJavaCompilerErrorsWarningsSettings(), FAIL, FLOAT_MODE);
-              }
+            properties -> {
+              options.forEach(this::provideWidget);
             });
   }
 
-  private void createAndAddWidget(@NotNull ErrorWarningsOptions option) {
+  /** Creates a new widget when widget does not exist for given option, updates widget otherwise */
+  private void provideWidget(@NotNull ErrorWarningsOptions option) {
+    String optionId = option.toString();
+    String value = preferencesManager.getValue(optionId);
+
+    if (widgets.containsKey(optionId)) {
+      PropertyWidget widget = widgets.get(optionId);
+      widget.selectPropertyValue(value);
+      return;
+    }
+
     PropertyWidget widget = propertyFactory.create(option);
 
-    String value = preferencesManager.getValue(option.toString());
     widget.selectPropertyValue(value);
 
     widget.setDelegate(JavaCompilerPreferencePresenter.this);
 
-    widgets.add(widget);
+    widgets.put(optionId, widget);
 
     view.addProperty(widget);
   }
 
-  @Override
-  public void onWorkspaceRunning(WorkspaceRunningEvent event) {
-    addErrorWarningsPanel();
+  private void fillUpOptions() {
+    options =
+        asList(
+            COMPILER_UNUSED_LOCAL,
+            COMPILER_UNUSED_IMPORT,
+            DEAD_CODE,
+            METHOD_WITH_CONSTRUCTOR_NAME,
+            UNNECESSARY_ELSE_STATEMENT,
+            COMPARING_IDENTICAL_VALUES,
+            NO_EFFECT_ASSIGNMENT,
+            MISSING_SERIAL_VERSION_UID,
+            TYPE_PARAMETER_HIDE_ANOTHER_TYPE,
+            FIELD_HIDES_ANOTHER_VARIABLE,
+            MISSING_DEFAULT_CASE,
+            UNUSED_PRIVATE_MEMBER,
+            UNCHECKED_TYPE_OPERATION,
+            USAGE_OF_RAW_TYPE,
+            MISSING_OVERRIDE_ANNOTATION,
+            NULL_POINTER_ACCESS,
+            POTENTIAL_NULL_POINTER_ACCESS,
+            REDUNDANT_NULL_CHECK);
   }
 }

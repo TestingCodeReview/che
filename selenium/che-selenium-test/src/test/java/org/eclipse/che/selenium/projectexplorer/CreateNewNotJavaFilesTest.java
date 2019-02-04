@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -19,6 +20,7 @@ import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -65,6 +67,7 @@ public class CreateNewNotJavaFilesTest {
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Loader loader;
   @Inject private CodenvyEditor editor;
+  @Inject private Consoles consoles;
   @Inject private NotificationsPopupPanel notificationsPopupPanel;
   @Inject private Menu menu;
   @Inject private AskForValueDialog askForValueDialog;
@@ -79,6 +82,8 @@ public class CreateNewNotJavaFilesTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(testWorkspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -141,14 +146,14 @@ public class CreateNewNotJavaFilesTest {
   private void createNewFile(String pathFromItem, String name, String type, String fileExt)
       throws Exception {
 
-    projectExplorer.selectItem(pathFromItem);
+    projectExplorer.waitAndSelectItem(pathFromItem);
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT, TestMenuCommandsConstants.Project.New.NEW, type);
     askForValueDialog.waitFormToOpen();
     askForValueDialog.typeAndWaitText(name);
     askForValueDialog.clickOkBtn();
     loader.waitOnClosed();
-    projectExplorer.waitItemInVisibleArea(name + fileExt);
+    projectExplorer.waitVisibilityByName(name + fileExt);
   }
 
   private void checkDefaultTextInCodeMirrorEditorForFile(String defaultText, String fileName)

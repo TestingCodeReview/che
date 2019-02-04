@@ -1,16 +1,18 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.refactor.move;
 
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.ERROR_MARKER;
+import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.DEFAULT_TIMEOUT;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.ERROR;
 
 import com.google.common.base.Joiner;
 import com.google.inject.Inject;
@@ -22,7 +24,10 @@ import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
+import org.eclipse.che.selenium.pageobject.CheTerminal;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
+import org.eclipse.che.selenium.pageobject.Events;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
@@ -33,6 +38,7 @@ import org.testng.annotations.Test;
 
 /** @author Aleksandr Shmaraev on 05.01.16 */
 public class FailMoveItemTest {
+  private static final String APPLY_WORKSPACE_CHANGES = "Apply Workspace Changes\nDone";
   private static final String PROJECT_NAME = NameGenerator.generate("FailMoveItemProject-", 4);
   private static final String pathToPackageInChePrefix = PROJECT_NAME + "/src" + "/main" + "/java";
 
@@ -42,10 +48,13 @@ public class FailMoveItemTest {
   @Inject private TestWorkspace workspace;
   @Inject private Ide ide;
   @Inject private ProjectExplorer projectExplorer;
+  @Inject private CheTerminal terminal;
   @Inject private Loader loader;
   @Inject private CodenvyEditor editor;
   @Inject private Refactor refactor;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
+  @Inject private Events events;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -56,9 +65,13 @@ public class FailMoveItemTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
+    projectExplorer.waitProjectExplorer();
+    terminal.waitFirstTerminalTab();
     projectExplorer.waitVisibleItem(PROJECT_NAME);
     projectExplorer.quickExpandWithJavaScript();
     loader.waitOnClosed();
+    events.clickEventLogBtn();
   }
 
   @AfterMethod(alwaysRun = true)
@@ -75,7 +88,7 @@ public class FailMoveItemTest {
     projectExplorer.openItemByPath(pathToPackageInChePrefix + "/r/A17.java");
     editor.waitActive();
     editor.waitTextIntoEditor(contentFromInA);
-    projectExplorer.selectItem(pathToPackageInChePrefix + "/r/A17.java");
+    projectExplorer.waitAndSelectItem(pathToPackageInChePrefix + "/r/A17.java");
     projectExplorer.launchRefactorMoveByKeyboard();
     refactor.waitMoveItemFormIsOpen();
     refactor.clickOnExpandIconTree(PROJECT_NAME);
@@ -83,10 +96,12 @@ public class FailMoveItemTest {
     refactor.chooseDestinationForItem("p1");
     refactor.setAndWaitStateUpdateReferencesCheckbox(false);
     refactor.clickOkButtonRefactorForm();
+    loader.waitOnClosed();
     refactor.waitMoveItemFormIsClosed();
+    events.waitExpectedMessage(APPLY_WORKSPACE_CHANGES, DEFAULT_TIMEOUT);
     editor.waitTextIntoEditor(contentFromOutA);
     editor.clickOnSelectedElementInEditor("r.A17");
-    editor.waitMarkerInPosition(ERROR_MARKER, 14);
+    editor.waitMarkerInPosition(ERROR, 14);
     projectExplorer.waitDisappearItemByPath(pathToPackageInChePrefix + "/r/A17.java");
     editor.closeFileByNameWithSaving("A17");
   }

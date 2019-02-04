@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.filewatcher;
 
+import static org.eclipse.che.selenium.core.TestGroup.FLAKY;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Edit.DELETE;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Edit.EDIT;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
@@ -37,11 +39,8 @@ import org.openqa.selenium.TimeoutException;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-/**
- * //
- *
- * @author Musienko Maxim
- */
+/** @author Musienko Maxim */
+@Test(groups = FLAKY)
 public class RemoveFilesWithActiveTabs {
   private static final String PROJECT_NAME = NameGenerator.generate("project", 6);
   @Inject private TestWorkspace ws;
@@ -109,7 +108,7 @@ public class RemoveFilesWithActiveTabs {
   public void checkDeletionWithSingleOpenedTabFromIde() throws Exception {
     String deletedClass = "AppController.java";
     String expectedMessage = "File '" + deletedClass + "' is removed";
-    projectExplorer1.selectVisibleItem(deletedClass);
+    projectExplorer1.waitAndSelectItemByName(deletedClass);
     menu1.runCommand(EDIT, DELETE);
     projectExplorer2.openItemByVisibleNameInExplorer(deletedClass);
     editor2.waitActive();
@@ -131,7 +130,7 @@ public class RemoveFilesWithActiveTabs {
     projectExplorer1.openItemByPath(PROJECT_NAME + "/" + nameFiletxt1);
     projectExplorer2.openItemByPath(PROJECT_NAME + "/" + nameReadmeFile);
     projectExplorer2.openItemByPath(PROJECT_NAME + "/" + nameFiletxt1);
-    projectExplorer1.selectItem(PROJECT_NAME + "/" + nameReadmeFile);
+    projectExplorer1.waitAndSelectItem(PROJECT_NAME + "/" + nameReadmeFile);
     projectExplorer1.selectMultiFilesByCtrlKeys(PROJECT_NAME + "/" + nameFiletxt1);
     menu1.runCommand(EDIT, DELETE);
 
@@ -192,7 +191,7 @@ public class RemoveFilesWithActiveTabs {
       event.waitExpectedMessage(expectedMessage, LOAD_PAGE_TIMEOUT_SEC);
     } catch (TimeoutException ex) {
       // remove try-catch block after issue has been resolved
-      fail("Known issue https://github.com/eclipse/che/issues/7339");
+      fail("Known random failure https://github.com/eclipse/che/issues/7339");
     }
   }
 }

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,8 +17,10 @@ import com.google.inject.Singleton;
 import org.eclipse.che.api.debug.shared.model.Location;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.editor.EditorAgent;
+import org.eclipse.che.ide.api.resources.Project;
+import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.resources.VirtualFile;
-import org.eclipse.che.ide.ext.java.client.navigation.service.JavaNavigationService;
+import org.eclipse.che.ide.ext.java.client.service.JavaLanguageExtensionServiceClient;
 import org.eclipse.che.ide.ext.java.client.tree.JavaNodeFactory;
 import org.eclipse.che.ide.ext.java.client.tree.library.JarFileNode;
 import org.eclipse.che.ide.resource.Path;
@@ -31,24 +34,24 @@ import org.eclipse.che.plugin.debugger.ide.debug.FileResourceLocationHandler;
 @Singleton
 public class ExternalResourceLocationHandler extends FileResourceLocationHandler {
 
-  private final JavaNavigationService javaNavigationService;
+  private JavaLanguageExtensionServiceClient service;
   private final JavaNodeFactory nodeFactory;
 
   @Inject
   public ExternalResourceLocationHandler(
       EditorAgent editorAgent,
       AppContext appContext,
-      JavaNavigationService javaNavigationService,
+      JavaLanguageExtensionServiceClient service,
       JavaNodeFactory nodeFactory) {
     super(editorAgent, appContext);
+    this.service = service;
 
-    this.javaNavigationService = javaNavigationService;
     this.nodeFactory = nodeFactory;
   }
 
   @Override
   public boolean isSuitedFor(Location location) {
-    return location.isExternalResource() && location.getExternalResourceId() != 0;
+    return location.isExternalResource() && location.getExternalResourceId() != null;
   }
 
   @Override
@@ -71,33 +74,33 @@ public class ExternalResourceLocationHandler extends FileResourceLocationHandler
   private void findExternalResource(
       final Location location, final AsyncCallback<VirtualFile> callback) {
 
-    final String className = extractOuterClassFqn(location.getTarget());
-    final int libId = location.getExternalResourceId();
-    final Path projectPath = new Path(location.getResourceProjectPath());
+    Resource resource = appContext.getResource();
+    if (resource == null) {
+      callback.onFailure(new IllegalStateException("Resource is undefined"));
+      return;
+    }
 
-    javaNavigationService
-        .getEntry(projectPath, libId, className)
+    Project project = resource.getProject();
+    if (project == null) {
+      callback.onFailure(new IllegalStateException("Project is undefined"));
+      return;
+    }
+
+    service
+        .libraryEntry(location.getExternalResourceId())
         .then(
             jarEntry -> {
               final JarFileNode file =
-                  nodeFactory.newJarFileNode(jarEntry, libId, projectPath, null);
+                  nodeFactory.newJarFileNode(
+                      jarEntry,
+                      location.getExternalResourceId(),
+                      Path.valueOf(project.getPath()),
+                      null);
               callback.onSuccess(file);
             })
         .catchError(
             error -> {
               callback.onFailure(error.getCause());
             });
-  }
-
-  private String extractOuterClassFqn(String fqn) {
-    // handle fqn in case of nested classes
-    if (fqn.contains("$")) {
-      return fqn.substring(0, fqn.indexOf("$"));
-    }
-    // handle fqn in case lambda expressions
-    if (fqn.contains("$$")) {
-      return fqn.substring(0, fqn.indexOf("$$"));
-    }
-    return fqn;
   }
 }

@@ -24,7 +24,8 @@
             "org.eclipse.che.terminal",
             "org.eclipse.che.ws-agent",
             "org.eclipse.che.ls.php",
-            "org.eclipse.che.ls.json"
+            "org.eclipse.che.ls.json",
+            "org.eclipse.che.exec"
           ]
         }
       },
@@ -54,7 +55,7 @@
       "type": "custom"
     },
     {
-      "commandLine": "sudo service apache2 start && sudo tail -f /var/log/apache2/access.log -f /var/log/apache2/error.log",
+      "commandLine": "service apache2 start && tail -f /var/log/apache2/access.log -f /var/log/apache2/error.log",
       "name": "start apache",
       "attributes": {
         "previewUrl": "${server.80/tcp}/${current.project.relpath}"
@@ -62,7 +63,7 @@
       "type": "custom"
     },
     {
-      "commandLine": "sudo service apache2 stop",
+      "commandLine": "service apache2 stop",
       "name": "stop apache",
       "attributes": {
         "previewUrl": ""
@@ -70,7 +71,7 @@
       "type": "custom"
     },
     {
-      "commandLine": "sudo service apache2 restart",
+      "commandLine": "service apache2 restart",
       "name": "restart apache",
       "attributes": {
         "previewUrl": "${server.80/tcp}/${current.project.relpath}"

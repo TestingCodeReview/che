@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -102,6 +103,23 @@ public class ProjectPerspective extends AbstractPerspective {
   /** {@inheritDoc} */
   @Override
   public void go(@NotNull AcceptsOneWidget container) {
+    PartStack navigatorPanel = getPartStack(NAVIGATION);
+    PartStack editorPanel = getPartStack(EDITING);
+    PartStack toolPanel = getPartStack(TOOLING);
+    PartStack infoPanel = getPartStack(INFORMATION);
+
+    if (navigatorPanel != null) {
+      navigatorPanel.go(view.getNavigationPanel());
+    }
+    if (editorPanel != null) {
+      editorPanel.go(view.getEditorPanel());
+    }
+    if (toolPanel != null) {
+      toolPanel.go(view.getToolPanel());
+    }
+    if (infoPanel != null) {
+      infoPanel.go(view.getInformationPanel());
+    }
     container.setWidget(view);
   }
 }

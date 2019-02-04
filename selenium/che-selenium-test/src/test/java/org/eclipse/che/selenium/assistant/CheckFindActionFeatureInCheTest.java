@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -35,8 +36,7 @@ public class CheckFindActionFeatureInCheTest {
   private static final String FIRST_EXPECTED_ITEMS_WITH_DISABLED_NONE_MENU_ACTIONS_CHECKBOX =
       "Update Project Configuration...  Project\n"
           + "Configure Classpath  Project\n"
-          + "Edit Debug Configurations... [Alt+Shift+F9]  Run\n"
-          + "Import From Che Config...  Project";
+          + "Edit Debug Configurations... [Alt+Shift+F9]  Run";
 
   private static final String SECOND_EXPECTED_ITEMS_WITH_DISABLED_NONE_MENU_ACTIONS_CHECKBOX =
       "Commands Palette [Shift+F10]  Run";
@@ -49,7 +49,6 @@ public class CheckFindActionFeatureInCheTest {
           + "Configure \n"
           + "Configure Classpath  Project\n"
           + "Edit Debug Configurations... [Alt+Shift+F9]  Run\n"
-          + "Import From Che Config...  Project\n"
           + "breakpointConfiguration ";
 
   private static final String SECOND_EXPECTED_ITEMS_WITH_ENABLED_NONE_MENU_ACTIONS_CHECKBOX =
@@ -82,7 +81,7 @@ public class CheckFindActionFeatureInCheTest {
     ide.open(testWorkspace);
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitVisibleItem(PROJECT_NAME);
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(
         TestMenuCommandsConstants.Assistant.ASSISTANT,
         TestMenuCommandsConstants.Assistant.FIND_ACTION);

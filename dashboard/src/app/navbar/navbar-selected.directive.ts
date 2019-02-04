@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -25,6 +26,9 @@ interface INavBarSelectedRootScopeService extends ng.IRootScopeService {
  * @author Florent Benoit
  */
 export class NavBarSelected  implements ng.IDirective {
+
+  static $inject = ['$rootScope', '$location'];
+
   restrict = 'A';
   replace = false;
   controller = 'NavBarSelectedCtrl';
@@ -36,7 +40,6 @@ export class NavBarSelected  implements ng.IDirective {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor ($rootScope: ng.IRootScopeService, $location: ng.ILocationService) {
     this.$rootScope = <INavBarSelectedRootScopeService>$rootScope;
@@ -45,9 +48,8 @@ export class NavBarSelected  implements ng.IDirective {
 
   /**
    * Monitor click
-   * $scope: ng.IScope, $element: ng.IAugmentedJQuery, $attrs: ICheFormatOutputAttributes
    */
-  link($scope: ng.IScope, element: ng.IAugmentedJQuery, attrs: INavBarSelectedAttributes) {
+  link($scope: ng.IScope, $element: ng.IAugmentedJQuery, $attrs: INavBarSelectedAttributes) {
     const select = (elem: ng.IAugmentedJQuery) => {
       // if there is a previous selected element, unselect it
       if (this.$rootScope.selectedNavBarElement) {
@@ -60,40 +62,40 @@ export class NavBarSelected  implements ng.IDirective {
     };
 
     // highlight item at start
-    if (attrs.href === '#' + this.$location.path()) {
-      select(element);
+    if ($attrs.href === '#' + this.$location.path()) {
+      select($element);
     }
 
     // highlight item on click
-    element.bind('click', (event: JQueryEventObject) => {
+    $element.bind('click', (event: JQueryEventObject) => {
       // prevent activating menu item if Ctrl key is pressed
       if (event.ctrlKey) {
         this.$rootScope.selectedNavBarElement.focus();
         return;
       }
-      select(element);
+      select($element);
     });
-    element.bind('mousedown', () => {
-      element.addClass('navbar-item-no-hover');
+    $element.bind('mousedown', () => {
+      $element.addClass('navbar-item-no-hover');
     });
-    element.bind('mouseup', () => {
-      if (element !== this.$rootScope.selectedNavBarElement) {
-        element.blur();
+    $element.bind('mouseup', () => {
+      if ($element !== this.$rootScope.selectedNavBarElement) {
+        $element.blur();
       }
     });
-    element.bind('mouseover', () => {
-      element.removeClass('navbar-item-no-hover');
+    $element.bind('mouseover', () => {
+      $element.removeClass('navbar-item-no-hover');
     });
 
     $scope.$on('navbar-selected:set', (event: ng.IAngularEvent, path: string) => {
       // unselect previously selected item
-      if (this.$rootScope.selectedNavBarElement === element) {
+      if (this.$rootScope.selectedNavBarElement === $element) {
         this.$rootScope.selectedNavBarElement.removeClass('che-navbar-selected');
         delete this.$rootScope.selectedNavBarElement;
       }
       // select item
-      if (attrs.href === path) {
-        select(element);
+      if ($attrs.href === path) {
+        select($element);
       }
     });
   }

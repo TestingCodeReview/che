@@ -1,11 +1,13 @@
-/**
- * ***************************************************************************** Copyright (c) 2016
- * Rogue Wave Software, Inc. All rights reserved. This program and the accompanying materials are
- * made available under the terms of the Eclipse Public License v1.0 which accompanies this
- * distribution, and is available at http://www.eclipse.org/legal/epl-v10.html
+/*
+ * Copyright (c) 2016 Rogue Wave Software, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
  *
- * <p>Contributors: Rogue Wave Software, Inc. - initial API and implementation
- * *****************************************************************************
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *   Rogue Wave Software, Inc. - initial API and implementation
  */
 package org.eclipse.che.plugin.zdb.server.connection;
 
@@ -49,6 +51,17 @@ import org.eclipse.che.plugin.zdb.server.exceptions.ZendDbgTimeoutException;
  * @author Bartlomiej Laczkowski
  */
 public class ZendDbgConnection {
+
+  private EngineConnectionRunnable engineConnectionRunnable;
+  private ExecutorService engineConnectionRunnableExecutor;
+  private EngineMessageRunnable engineMessageRunnable;
+  private ExecutorService engineMessageRunnableExecutor;
+  private Map<Integer, EngineSyncResponse<IDbgEngineResponse>> engineSyncResponses =
+      new HashMap<>();
+  private final ZendDbgSettings debugSettings;
+  private IEngineMessageHandler engineMessageHandler;
+  private int debugRequestId = 1000;
+  private boolean isConnected = false;
 
   private final class EngineConnectionRunnable implements Runnable {
 
@@ -242,17 +255,6 @@ public class ZendDbgConnection {
 
     <T extends IDbgClientResponse> T handleRequest(IDbgEngineRequest<T> request);
   }
-
-  private EngineConnectionRunnable engineConnectionRunnable;
-  private ExecutorService engineConnectionRunnableExecutor;
-  private EngineMessageRunnable engineMessageRunnable;
-  private ExecutorService engineMessageRunnableExecutor;
-  private Map<Integer, EngineSyncResponse<IDbgEngineResponse>> engineSyncResponses =
-      new HashMap<>();
-  private final ZendDbgSettings debugSettings;
-  private IEngineMessageHandler engineMessageHandler;
-  private int debugRequestId = 1000;
-  private boolean isConnected = false;
 
   /**
    * Constructs a new DebugConnectionThread with a given Socket.

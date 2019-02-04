@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -16,12 +17,13 @@ import java.net.URL;
 import java.nio.file.Paths;
 import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.TestGroup;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.TestUser;
+import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.Events;
@@ -34,10 +36,11 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author aleksandr shmaraev */
+@Test(groups = TestGroup.GITHUB)
 public class InitializeAndDeleteLocalRepositoryTest {
   private static final String PROJECT_NAME = NameGenerator.generate("InitAndDelLocalRepo-", 4);
   private static final String PATH_FOR_EXPAND =
-      PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/";
+      PROJECT_NAME + "/src/main/java/org/eclipse/qa/examples/AppController.java";
   private static final String ASK_DIALOG_TEXT =
       "Do you want to initialize the local repository " + PROJECT_NAME + "?";
   private static final String DELETE_REPO_TEXT =
@@ -48,7 +51,7 @@ public class InitializeAndDeleteLocalRepositoryTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private TestUser productUser;
+  @Inject private DefaultTestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -80,7 +83,7 @@ public class InitializeAndDeleteLocalRepositoryTest {
     // Initialize git repository
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.INITIALIZE_REPOSITORY);
     askDialog.acceptDialogWithText(ASK_DIALOG_TEXT);
@@ -92,17 +95,18 @@ public class InitializeAndDeleteLocalRepositoryTest {
     menu.waitCommandIsDisabledInMenu(TestMenuCommandsConstants.Git.INITIALIZE_REPOSITORY);
     menu.runCommandByXpath(TestMenuCommandsConstants.Git.STATUS);
     git.waitGitStatusBarWithMess("On branch master");
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     projectExplorer.quickExpandWithJavaScript();
-    projectExplorer.openItemByPath(PATH_FOR_EXPAND + "AppController.java");
+    projectExplorer.quickRevealToItemWithJavaScript(PATH_FOR_EXPAND);
+    projectExplorer.waitItem(PATH_FOR_EXPAND);
     loader.waitOnClosed();
 
     // Check git log
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.SHOW_HISTORY);
     warningDialog.waitWaitWarnDialogWindowWithSpecifiedTextMess(WARNING_TEXT);
     warningDialog.clickOkBtn();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.waitAndRunCommit("init");
     loader.waitOnClosed();
@@ -126,6 +130,9 @@ public class InitializeAndDeleteLocalRepositoryTest {
     menu.runCommand(TestMenuCommandsConstants.Git.GIT);
     menu.waitCommandIsDisabledInMenu(TestMenuCommandsConstants.Git.DELETE_REPOSITORY);
     seleniumWebDriver.navigate().refresh();
-    projectExplorer.waitItem(PATH_FOR_EXPAND + "AppController.java");
+    projectExplorer.waitProjectExplorer();
+    projectExplorer.waitItem(PROJECT_NAME);
+    projectExplorer.quickRevealToItemWithJavaScript(PATH_FOR_EXPAND);
+    projectExplorer.waitItem(PATH_FOR_EXPAND);
   }
 }

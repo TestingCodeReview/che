@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,7 @@ import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.uibinder.client.UiHandler;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.Composite;
+import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.TextBox;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
@@ -36,6 +38,8 @@ public class NamePageViewImpl extends Composite implements NamePageView {
 
   @UiField Button runButton;
 
+  @UiField Label warningLabel;
+
   private ActionDelegate delegate;
 
   @Inject
@@ -53,6 +57,11 @@ public class NamePageViewImpl extends Composite implements NamePageView {
     commandName.setValue(name);
   }
 
+  @Override
+  public void setFocusOnName() {
+    commandName.setFocus(true);
+  }
+
   @UiHandler({"commandName"})
   void onNameChanged(KeyUpEvent event) {
     delegate.onNameChanged(commandName.getValue());
@@ -61,6 +70,11 @@ public class NamePageViewImpl extends Composite implements NamePageView {
   @UiHandler("runButton")
   public void handleRunButton(ClickEvent clickEvent) {
     delegate.onCommandRun();
+  }
+
+  @Override
+  public void showWarning(boolean show) {
+    warningLabel.setVisible(show);
   }
 
   interface NamePageViewImplUiBinder extends UiBinder<Widget, NamePageViewImpl> {}

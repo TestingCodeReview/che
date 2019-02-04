@@ -1,17 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.core.db.jpa;
 
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static org.eclipse.che.core.db.jpa.TestObjectsFactory.createAccount;
+import static org.eclipse.che.core.db.jpa.TestObjectsFactory.createK8sRuntimeState;
 import static org.eclipse.che.core.db.jpa.TestObjectsFactory.createPreferences;
 import static org.eclipse.che.core.db.jpa.TestObjectsFactory.createProfile;
 import static org.eclipse.che.core.db.jpa.TestObjectsFactory.createSshPair;
@@ -33,7 +36,6 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Stage;
 import com.google.inject.name.Names;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import javax.annotation.PostConstruct;
@@ -44,9 +46,7 @@ import org.eclipse.che.account.api.AccountModule;
 import org.eclipse.che.account.event.BeforeAccountRemovedEvent;
 import org.eclipse.che.account.spi.AccountDao;
 import org.eclipse.che.account.spi.AccountImpl;
-import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
-import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.ssh.server.jpa.JpaSshDao.RemoveSshKeysBeforeUserRemovedEventSubscriber;
 import org.eclipse.che.api.ssh.server.jpa.SshJpaModule;
@@ -61,9 +61,15 @@ import org.eclipse.che.api.user.server.model.impl.UserImpl;
 import org.eclipse.che.api.user.server.spi.PreferenceDao;
 import org.eclipse.che.api.user.server.spi.ProfileDao;
 import org.eclipse.che.api.user.server.spi.UserDao;
+import org.eclipse.che.api.workspace.activity.WorkspaceActivity;
+import org.eclipse.che.api.workspace.activity.WorkspaceActivityDao;
+import org.eclipse.che.api.workspace.activity.inject.WorkspaceActivityModule;
+import org.eclipse.che.api.workspace.server.DefaultWorkspaceLockService;
+import org.eclipse.che.api.workspace.server.DefaultWorkspaceStatusCache;
 import org.eclipse.che.api.workspace.server.WorkspaceManager;
 import org.eclipse.che.api.workspace.server.WorkspaceRuntimes;
 import org.eclipse.che.api.workspace.server.WorkspaceSharedPool;
+import org.eclipse.che.api.workspace.server.hc.probe.ProbeScheduler;
 import org.eclipse.che.api.workspace.server.jpa.JpaWorkspaceDao.RemoveWorkspaceBeforeAccountRemovedEventSubscriber;
 import org.eclipse.che.api.workspace.server.jpa.WorkspaceJpaModule;
 import org.eclipse.che.api.workspace.server.model.impl.CommandImpl;
@@ -88,6 +94,13 @@ import org.eclipse.che.core.db.h2.jpa.eclipselink.H2ExceptionHandler;
 import org.eclipse.che.core.db.schema.SchemaInitializer;
 import org.eclipse.che.core.db.schema.impl.flyway.FlywaySchemaInitializer;
 import org.eclipse.che.inject.lifecycle.InitModule;
+import org.eclipse.che.workspace.infrastructure.kubernetes.cache.KubernetesMachineCache;
+import org.eclipse.che.workspace.infrastructure.kubernetes.cache.KubernetesRuntimeStateCache;
+import org.eclipse.che.workspace.infrastructure.kubernetes.cache.jpa.JpaKubernetesRuntimeCacheModule;
+import org.eclipse.che.workspace.infrastructure.kubernetes.model.KubernetesMachineImpl;
+import org.eclipse.che.workspace.infrastructure.kubernetes.model.KubernetesRuntimeCommandImpl;
+import org.eclipse.che.workspace.infrastructure.kubernetes.model.KubernetesRuntimeState;
+import org.eclipse.che.workspace.infrastructure.kubernetes.model.KubernetesServerImpl;
 import org.h2.Driver;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -109,6 +122,9 @@ public class CascadeRemovalTest {
   private ProfileDao profileDao;
   private WorkspaceDao workspaceDao;
   private SshDao sshDao;
+  private WorkspaceActivityDao workspaceActivityDao;
+  private KubernetesRuntimeStateCache k8sRuntimes;
+  private KubernetesMachineCache k8sMachines;
 
   /** Account and User are a root of dependency tree. */
   private AccountImpl account;
@@ -134,6 +150,8 @@ public class CascadeRemovalTest {
 
   private SshPairImpl sshPair2;
 
+  private KubernetesRuntimeState k8sRuntimeState;
+
   private H2DBTestServer server;
 
   @BeforeMethod
@@ -156,6 +174,7 @@ public class CascadeRemovalTest {
                             PreferenceEntity.class,
                             WorkspaceImpl.class,
                             WorkspaceConfigImpl.class,
+                            WorkspaceActivity.class,
                             ProjectConfigImpl.class,
                             EnvironmentImpl.class,
                             MachineConfigImpl.class,
@@ -165,7 +184,13 @@ public class CascadeRemovalTest {
                             CommandImpl.class,
                             RecipeImpl.class,
                             SshPairImpl.class,
-                            VolumeImpl.class)
+                            VolumeImpl.class,
+                            KubernetesRuntimeState.class,
+                            KubernetesRuntimeCommandImpl.class,
+                            KubernetesMachineImpl.class,
+                            KubernetesMachineImpl.MachineId.class,
+                            KubernetesServerImpl.class,
+                            KubernetesServerImpl.ServerId.class)
                         .addEntityClass(
                             "org.eclipse.che.api.workspace.server.model.impl.ProjectConfigImpl$Attribute")
                         .setExceptionHandler(H2ExceptionHandler.class)
@@ -179,6 +204,10 @@ public class CascadeRemovalTest {
                 bind(String[].class)
                     .annotatedWith(Names.named("che.auth.reserved_user_names"))
                     .toInstance(new String[0]);
+
+                bind(Long.class)
+                    .annotatedWith(Names.named("che.limits.workspace.idle.timeout"))
+                    .toInstance(100000L);
                 bind(UserManager.class);
                 bind(AccountManager.class);
 
@@ -186,6 +215,8 @@ public class CascadeRemovalTest {
                 install(new AccountModule());
                 install(new SshJpaModule());
                 install(new WorkspaceJpaModule());
+                install(new WorkspaceActivityModule());
+                install(new JpaKubernetesRuntimeCacheModule());
                 bind(WorkspaceManager.class);
 
                 RuntimeInfrastructure infra = mock(RuntimeInfrastructure.class);
@@ -196,16 +227,19 @@ public class CascadeRemovalTest {
                     spy(
                         new WorkspaceRuntimes(
                             mock(EventService.class),
-                            Collections.emptyMap(),
+                            emptyMap(),
                             infra,
                             mock(WorkspaceSharedPool.class),
                             mock(WorkspaceDao.class),
-                            mock(DBInitializer.class)));
+                            mock(DBInitializer.class),
+                            mock(ProbeScheduler.class),
+                            new DefaultWorkspaceStatusCache(),
+                            new DefaultWorkspaceLockService()));
                 when(wR.hasRuntime(anyString())).thenReturn(false);
                 bind(WorkspaceRuntimes.class).toInstance(wR);
                 bind(AccountManager.class);
                 bind(WorkspaceSharedPool.class)
-                    .toInstance(new WorkspaceSharedPool("cached", null, null));
+                    .toInstance(new WorkspaceSharedPool("cached", null, null, null));
               }
             });
 
@@ -218,6 +252,9 @@ public class CascadeRemovalTest {
     profileDao = injector.getInstance(ProfileDao.class);
     sshDao = injector.getInstance(SshDao.class);
     workspaceDao = injector.getInstance(WorkspaceDao.class);
+    workspaceActivityDao = injector.getInstance(WorkspaceActivityDao.class);
+    k8sRuntimes = injector.getInstance(KubernetesRuntimeStateCache.class);
+    k8sMachines = injector.getInstance(KubernetesMachineCache.class);
   }
 
   @AfterMethod
@@ -240,6 +277,8 @@ public class CascadeRemovalTest {
     assertTrue(preferenceDao.getPreferences(user.getId()).isEmpty());
     assertTrue(sshDao.get(user.getId()).isEmpty());
     assertTrue(workspaceDao.getByNamespace(user.getName(), 30, 0).isEmpty());
+    assertNull(notFoundToNull(() -> workspaceActivityDao.findActivity(workspace1.getId())));
+    assertNull(notFoundToNull(() -> workspaceActivityDao.findActivity(workspace2.getId())));
   }
 
   @Test(dataProvider = "beforeUserRemoveRollbackActions")
@@ -297,7 +336,7 @@ public class CascadeRemovalTest {
     };
   }
 
-  private void createTestData() throws ConflictException, ServerException {
+  private void createTestData() throws Exception {
     accountDao.create(account = createAccount("bobby"));
 
     userDao.create(user = createUser("bobby"));
@@ -309,13 +348,29 @@ public class CascadeRemovalTest {
     workspaceDao.create(workspace1 = createWorkspace("workspace1", account));
     workspaceDao.create(workspace2 = createWorkspace("workspace2", account));
 
+    workspaceActivityDao.setCreatedTime(workspace1.getId(), System.currentTimeMillis());
+    workspaceActivityDao.setCreatedTime(workspace2.getId(), System.currentTimeMillis());
+    workspaceActivityDao.setExpirationTime(workspace1.getId(), System.currentTimeMillis());
+    workspaceActivityDao.setExpirationTime(workspace2.getId(), System.currentTimeMillis());
+
     sshDao.create(sshPair1 = createSshPair(user.getId(), "service", "name1"));
     sshDao.create(sshPair2 = createSshPair(user.getId(), "service", "name2"));
+
+    k8sRuntimes.putIfAbsent(k8sRuntimeState = createK8sRuntimeState(workspace1.getId()));
+
+    k8sMachines.put(
+        k8sRuntimeState.getRuntimeId(), TestObjectsFactory.createK8sMachine(k8sRuntimeState));
   }
 
   private void wipeTestData() throws Exception {
     sshDao.remove(sshPair1.getOwner(), sshPair1.getService(), sshPair1.getName());
     sshDao.remove(sshPair2.getOwner(), sshPair2.getService(), sshPair2.getName());
+
+    workspaceActivityDao.removeActivity(workspace1.getId());
+    workspaceActivityDao.removeActivity(workspace2.getId());
+
+    k8sMachines.remove(k8sRuntimeState.getRuntimeId());
+    k8sRuntimes.remove(k8sRuntimeState.getRuntimeId());
 
     workspaceDao.remove(workspace1.getId());
     workspaceDao.remove(workspace2.getId());

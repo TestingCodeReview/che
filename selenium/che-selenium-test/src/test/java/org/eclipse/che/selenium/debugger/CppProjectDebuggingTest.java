@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -40,7 +41,6 @@ public class CppProjectDebuggingTest {
   private static final String PROJECT = "cpp-tests";
   private static final String PATH_TO_PROGRAM = PROJECT + "/hello.cc";
   private static final int DEBUG_PORT = 8001;
-
   private static final String MAKE_AND_DEBUG_COMMAND_NAME = "make and debug";
 
   @InjectTestWorkspace(template = WorkspaceTemplate.ECLIPSE_CPP_GCC)
@@ -50,7 +50,7 @@ public class CppProjectDebuggingTest {
 
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Loader loader;
-  @Inject private DebugPanel debugPanel;
+  @Inject protected DebugPanel debugPanel;
   @Inject private CppDebugConfig debugConfig;
   @Inject private NotificationsPopupPanel notifications;
   @Inject private Menu menu;
@@ -114,13 +114,13 @@ public class CppProjectDebuggingTest {
         TestMenuCommandsConstants.Run.DEBUG,
         getXpathForDebugConfigurationMenuItem());
 
-    notifications.waitExpectedMessageOnProgressPanelAndClosed(
+    notifications.waitExpectedMessageOnProgressPanelAndClose(
         String.format("Remote debugger connected\nConnected to: localhost:%s.", DEBUG_PORT));
 
     // then
     editor.waitTabFileWithSavedStatus("hello.cc");
     debugPanel.waitDebugHighlightedText("  return \"Hello World, \" + name + \"!\";");
-    debugPanel.waitTextInVariablesPanel("name =");
+    waitTextInVariablesPanel();
     debugPanel.waitTextInVariablesPanel("\"man\"");
 
     // when
@@ -135,5 +135,9 @@ public class CppProjectDebuggingTest {
     return String.format(
         "//*[@id=\"%1$s/%2$s\" or @id=\"topmenu/Run/Debug/Debug '%2$s'\"]",
         TestMenuCommandsConstants.Run.DEBUG, PROJECT);
+  }
+
+  protected void waitTextInVariablesPanel() {
+    debugPanel.waitTextInVariablesPanel("name =");
   }
 }

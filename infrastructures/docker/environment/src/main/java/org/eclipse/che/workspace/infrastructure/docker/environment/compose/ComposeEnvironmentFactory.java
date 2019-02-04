@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,7 +12,7 @@
 package org.eclipse.che.workspace.infrastructure.docker.environment.compose;
 
 import static java.lang.String.format;
-import static java.util.stream.Collectors.*;
+import static java.util.stream.Collectors.joining;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -20,6 +21,7 @@ import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -31,8 +33,11 @@ import org.eclipse.che.api.workspace.server.spi.environment.InternalEnvironmentF
 import org.eclipse.che.api.workspace.server.spi.environment.InternalMachineConfig;
 import org.eclipse.che.api.workspace.server.spi.environment.InternalRecipe;
 import org.eclipse.che.api.workspace.server.spi.environment.MachineConfigsValidator;
+import org.eclipse.che.api.workspace.server.spi.environment.MemoryAttributeProvisioner;
 import org.eclipse.che.api.workspace.server.spi.environment.RecipeRetriever;
+import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.workspace.infrastructure.docker.environment.compose.model.ComposeRecipe;
+import org.eclipse.che.workspace.infrastructure.docker.environment.compose.model.ComposeService;
 
 /** @author Sergii Leshchenko */
 @Singleton
@@ -45,6 +50,7 @@ public class ComposeEnvironmentFactory extends InternalEnvironmentFactory<Compos
 
   private final ComposeServicesStartStrategy startStrategy;
   private final ComposeEnvironmentValidator composeValidator;
+  private final MemoryAttributeProvisioner memoryProvisioner;
 
   @Inject
   public ComposeEnvironmentFactory(
@@ -52,16 +58,21 @@ public class ComposeEnvironmentFactory extends InternalEnvironmentFactory<Compos
       RecipeRetriever recipeRetriever,
       MachineConfigsValidator machinesValidator,
       ComposeEnvironmentValidator composeValidator,
-      ComposeServicesStartStrategy startStrategy) {
+      ComposeServicesStartStrategy startStrategy,
+      MemoryAttributeProvisioner memoryProvisioner) {
     super(installerRegistry, recipeRetriever, machinesValidator);
     this.startStrategy = startStrategy;
     this.composeValidator = composeValidator;
+    this.memoryProvisioner = memoryProvisioner;
   }
 
   @Override
   protected ComposeEnvironment doCreate(
-      InternalRecipe recipe, Map<String, InternalMachineConfig> machines, List<Warning> warnings)
+      @Nullable InternalRecipe recipe,
+      Map<String, InternalMachineConfig> machines,
+      List<Warning> warnings)
       throws InfrastructureException, ValidationException {
+    checkNotNull(recipe, "Null recipe is not supported by compose environment factory");
     String contentType = recipe.getContentType();
     checkNotNull(contentType, "Recipe content type should not be null");
 
@@ -81,6 +92,8 @@ public class ComposeEnvironmentFactory extends InternalEnvironmentFactory<Compos
     }
     ComposeRecipe composeRecipe = doParse(recipeContent);
 
+    addRamAttributes(machines, composeRecipe.getServices());
+
     ComposeEnvironment composeEnvironment =
         new ComposeEnvironment(
             composeRecipe.getVersion(),
@@ -92,6 +105,21 @@ public class ComposeEnvironmentFactory extends InternalEnvironmentFactory<Compos
     composeValidator.validate(composeEnvironment);
 
     return composeEnvironment;
+  }
+
+  @VisibleForTesting
+  void addRamAttributes(
+      Map<String, InternalMachineConfig> machines, Map<String, ComposeService> services)
+      throws InfrastructureException {
+    for (Entry<String, ComposeService> entry : services.entrySet()) {
+      InternalMachineConfig machineConfig;
+      if ((machineConfig = machines.get(entry.getKey())) == null) {
+        machineConfig = new InternalMachineConfig();
+        machines.put(entry.getKey(), machineConfig);
+      }
+      memoryProvisioner.provision(
+          machineConfig, entry.getValue().getMemLimit(), entry.getValue().getMemRequest());
+    }
   }
 
   @VisibleForTesting

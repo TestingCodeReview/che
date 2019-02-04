@@ -1,16 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.editor.autocomplete;
 
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.ERROR_MARKER;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.ERROR;
 
 import com.google.inject.Inject;
 import java.net.URL;
@@ -23,6 +24,7 @@ import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.MavenPluginStatusBar;
@@ -51,6 +53,7 @@ public class InheritClassTest {
   @Inject private Menu menu;
   @Inject private AskForValueDialog askForValueDialog;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -61,6 +64,7 @@ public class InheritClassTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
@@ -70,14 +74,14 @@ public class InheritClassTest {
     projectExplorer.waitItem(PROJECT_NAME);
     notificationsPopupPanel.waitProgressPopupPanelClose();
     loader.waitOnClosed();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     projectExplorer.quickExpandWithJavaScript();
     loader.waitOnClosed();
     projectExplorer.openItemByPath(COMMON_PACKAGE + "/AppController.java");
 
     // create java class in the different package with GreetingController.java
     projectExplorer.waitProjectExplorer();
-    projectExplorer.selectItem(COMMON_PACKAGE);
+    projectExplorer.waitAndSelectItem(COMMON_PACKAGE);
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -86,7 +90,7 @@ public class InheritClassTest {
     editor.waitTabIsPresent("CodenvyTest");
     loader.waitOnClosed();
 
-    projectExplorer.selectItem(COMMON_PACKAGE);
+    projectExplorer.waitAndSelectItem(COMMON_PACKAGE);
     menu.runCommand(
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.New.NEW,
@@ -108,8 +112,8 @@ public class InheritClassTest {
     editor.typeTextIntoEditor(" Code");
     loader.waitOnClosed();
     editor.launchAutocompleteAndWaitContainer();
-    editor.waitTextIntoAutocompleteContainer("CodenvyTest - org.eclipse.qa.examples");
-    editor.enterAutocompleteProposal("CodenvyTest");
+    editor.waitProposalIntoAutocompleteContainer("CodenvyTest - org.eclipse.qa.examples");
+    editor.enterAutocompleteProposal("nvyTest - org.eclipse.qa.examples");
     editor.waitAutocompleteContainerIsClosed();
     editor.waitTextIntoEditor("CodenvyTestInherite extends CodenvyTest");
     loader.waitOnClosed();
@@ -117,27 +121,28 @@ public class InheritClassTest {
 
     editor.selectTabByName("AppController");
     editor.waitActive();
-    editor.setCursorToLine(32);
+    editor.setCursorToLine(33);
     editor.typeTextIntoEditor("Code");
     editor.launchAutocompleteAndWaitContainer();
-    editor.waitTextIntoAutocompleteContainer("CodenvyTest - org.eclipse.qa.examples");
-    editor.waitTextIntoAutocompleteContainer("CodenvyTestInherite - org.eclipse.qa.examples");
-    editor.enterAutocompleteProposal("CodenvyTest");
+    editor.waitProposalIntoAutocompleteContainer("CodenvyTest - org.eclipse.qa.examples");
+    editor.waitProposalIntoAutocompleteContainer("CodenvyTestInherite - org.eclipse.qa.examples");
+    editor.enterAutocompleteProposal("nvyTest - org.eclipse.qa.examples");
     editor.waitAutocompleteContainerIsClosed();
 
     editor.waitTextIntoEditor("CodenvyTest");
     editor.typeTextIntoEditor(" codenvyTest = n");
     editor.launchAutocompleteAndWaitContainer();
     editor.waitAutocompleteContainer();
-    editor.waitTextIntoAutocompleteContainer("new");
-    editor.typeTextIntoEditor(Keys.ENTER.toString());
+    editor.waitProposalIntoAutocompleteContainer("numGuessByUser : String");
+    editor.enterAutocompleteProposal("umGuessByUser : String");
 
     editor.typeTextIntoEditor(" Code");
-    editor.waitCodeAssistMarkers(ERROR_MARKER);
+    editor.waitTextIntoEditor("CodenvyTest codenvyTest = numGuessByUser Code");
+    editor.waitCodeAssistMarkers(ERROR);
     editor.launchAutocompleteAndWaitContainer();
-    editor.waitTextIntoAutocompleteContainer("CodenvyTest - org.eclipse.qa.examples");
-    editor.waitTextIntoAutocompleteContainer("CodenvyTestInherite - org.eclipse.qa.examples");
-    editor.enterAutocompleteProposal("CodenvyTestInherite");
+    editor.waitProposalIntoAutocompleteContainer("CodenvyTest - org.eclipse.qa.examples");
+    editor.waitProposalIntoAutocompleteContainer("CodenvyTestInherite - org.eclipse.qa.examples");
+    editor.enterAutocompleteProposal("nvyTestInherite - org.eclipse.qa.examples");
     editor.waitAutocompleteContainerIsClosed();
     editor.typeTextIntoEditor(";");
     editor.waitTextIntoEditor(

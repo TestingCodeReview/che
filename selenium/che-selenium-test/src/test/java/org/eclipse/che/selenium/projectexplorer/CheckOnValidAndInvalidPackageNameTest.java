@@ -1,25 +1,28 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.projectexplorer;
 
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuFirstLevelItems.NEW;
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.SubMenuNew.JAVA_PACKAGE;
 import static org.testng.Assert.fail;
 
 import com.google.inject.Inject;
 import java.net.URL;
 import java.nio.file.Paths;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
-import org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
@@ -42,6 +45,7 @@ public class CheckOnValidAndInvalidPackageNameTest {
   @Inject private TestWorkspace testWorkspace;
   @Inject private Ide ide;
   @Inject private ProjectExplorer projectExplorer;
+  @Inject private Consoles console;
   @Inject private Loader loader;
   @Inject private AskForValueDialog askForValueDialog;
   @Inject private TestProjectServiceClient testProjectServiceClient;
@@ -55,6 +59,9 @@ public class CheckOnValidAndInvalidPackageNameTest {
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
     ide.open(testWorkspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    console.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
+
     projectExplorer.waitItem(PROJECT_NAME);
     projectExplorer.quickExpandWithJavaScript();
     loader.waitOnClosed();
@@ -64,7 +71,8 @@ public class CheckOnValidAndInvalidPackageNameTest {
   public void createValidPackageNameInJavaFolderTest(String packageName) {
     createPackageByPath(PROJECT_NAME + PATH_TO_JAVA_FOLDER, packageName);
 
-    projectExplorer.waitItemInVisibleArea(packageName);
+    projectExplorer.waitVisibilityByName(packageName);
+    console.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     projectExplorer.openItemByVisibleNameInExplorer(packageName);
   }
 
@@ -72,16 +80,15 @@ public class CheckOnValidAndInvalidPackageNameTest {
   public void createValidPackageNameInRootPackageTest(String packageName) {
     createPackageByPath(PROJECT_NAME + PATH_TO_JAVA_FOLDER + ROOT_PACKAGE, packageName + PREFIX);
 
-    projectExplorer.waitItemInVisibleArea(packageName + PREFIX);
+    projectExplorer.waitVisibilityByName(packageName + PREFIX);
     projectExplorer.openItemByVisibleNameInExplorer(packageName + PREFIX);
   }
 
   @Test(dataProvider = "invalidPackageNames", priority = 2)
   public void createInvalidPackageNameInJavaFolderTest(String packageName) {
     projectExplorer.openContextMenuByPathSelectedItem(PROJECT_NAME + PATH_TO_JAVA_FOLDER);
-    projectExplorer.clickOnItemInContextMenu(TestProjectExplorerContextMenuConstants.NEW);
-    projectExplorer.clickOnNewContextMenuItem(
-        TestProjectExplorerContextMenuConstants.SubMenuNew.JAVA_PACKAGE);
+    projectExplorer.clickOnItemInContextMenu(NEW);
+    projectExplorer.clickOnNewContextMenuItem(JAVA_PACKAGE);
     askForValueDialog.waitFormToOpen();
     askForValueDialog.typeAndWaitText(packageName);
     if (!askForValueDialog.waitErrorMessage()) {
@@ -97,9 +104,8 @@ public class CheckOnValidAndInvalidPackageNameTest {
   public void createInvalidPackageNameInRootPackageTest(String packageName) {
     projectExplorer.openContextMenuByPathSelectedItem(
         PROJECT_NAME + PATH_TO_JAVA_FOLDER + ROOT_PACKAGE);
-    projectExplorer.clickOnItemInContextMenu(TestProjectExplorerContextMenuConstants.NEW);
-    projectExplorer.clickOnNewContextMenuItem(
-        TestProjectExplorerContextMenuConstants.SubMenuNew.JAVA_PACKAGE);
+    projectExplorer.clickOnItemInContextMenu(NEW);
+    projectExplorer.clickOnNewContextMenuItem(JAVA_PACKAGE);
     askForValueDialog.waitFormToOpen();
     askForValueDialog.typeAndWaitText(packageName);
     if (!askForValueDialog.waitErrorMessage()) {
@@ -114,10 +120,9 @@ public class CheckOnValidAndInvalidPackageNameTest {
   private void createPackageByPath(String packagePath, String packageName) {
     projectExplorer.openContextMenuByPathSelectedItem(packagePath);
     projectExplorer.waitContextMenu();
-    projectExplorer.clickOnItemInContextMenu(TestProjectExplorerContextMenuConstants.NEW);
+    projectExplorer.clickOnItemInContextMenu(NEW);
     projectExplorer.waitContextMenu();
-    projectExplorer.clickOnNewContextMenuItem(
-        TestProjectExplorerContextMenuConstants.SubMenuNew.JAVA_PACKAGE);
+    projectExplorer.clickOnNewContextMenuItem(JAVA_PACKAGE);
     askForValueDialog.waitFormToOpen();
     askForValueDialog.typeAndWaitText(packageName);
     askForValueDialog.clickOkBtn();

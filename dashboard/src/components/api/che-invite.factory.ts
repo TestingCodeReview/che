@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,9 @@ interface IInviteResource<T> extends ng.resource.IResourceClass<T> {
  * @author Ann Shumilova
  */
 export class CheInvite implements che.api.ICheInvite {
+
+  static $inject = ['$q', '$resource'];
+
   /**
    * Angular promise service.
    */
@@ -42,7 +46,6 @@ export class CheInvite implements che.api.ICheInvite {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($q: ng.IQService, $resource: ng.resource.IResourceService) {
     this.$q = $q;

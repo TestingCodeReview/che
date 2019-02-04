@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,6 +13,7 @@ package org.eclipse.che.ide.api.editor.filetype;
 
 import com.google.inject.Singleton;
 import java.util.List;
+import javax.inject.Inject;
 import org.eclipse.che.ide.api.resources.VirtualFile;
 import org.eclipse.che.ide.util.loging.Log;
 
@@ -23,12 +25,19 @@ import org.eclipse.che.ide.util.loging.Log;
 @Singleton
 public class MultipleMethodFileIdentifier implements FileTypeIdentifier {
 
-  private final FileNameFileTypeIdentifier fileNameFileTypeIdentifier =
-      new FileNameFileTypeIdentifier();
-  private final ExtensionFileTypeIdentifier extensionFileTypeIdentifier =
-      new ExtensionFileTypeIdentifier();
-  private final FirstLineFileTypeIdentifier firstLineFileTypeIdentifier =
-      new FirstLineFileTypeIdentifier();
+  private final FileNameFileTypeIdentifier fileNameFileTypeIdentifier;
+  private final ExtensionFileTypeIdentifier extensionFileTypeIdentifier;
+  private final FirstLineFileTypeIdentifier firstLineFileTypeIdentifier;
+
+  @Inject
+  public MultipleMethodFileIdentifier(
+      FileNameFileTypeIdentifier fileNameFileTypeIdentifier,
+      ExtensionFileTypeIdentifier extensionFileTypeIdentifier,
+      FirstLineFileTypeIdentifier firstLineFileTypeIdentifier) {
+    this.fileNameFileTypeIdentifier = fileNameFileTypeIdentifier;
+    this.extensionFileTypeIdentifier = extensionFileTypeIdentifier;
+    this.firstLineFileTypeIdentifier = firstLineFileTypeIdentifier;
+  }
 
   public void registerNewExtension(String extension, List<String> contentTypes) {
     extensionFileTypeIdentifier.registerNewExtension(extension, contentTypes);

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,6 +21,9 @@ import {EditProjectService} from '../edit-project.service';
  * @author Oleksii Kurinnyi
  */
 export class ProjectMetadataController {
+
+  static $inject = ['$scope', 'projectMetadataService', 'projectSourceSelectorService', 'editProjectService'];
+
   /**
    * Project metadata service.
    */
@@ -41,7 +45,11 @@ export class ProjectMetadataController {
    * Original template name provided from parent controller.
    * Provided by parent controller.
    */
+  /* tslint:disable */
   private templateName: string;
+
+  private projectForm: ng.IFormController;
+  /* tslint:enable */
   /**
    * Callback to check uniqueness of project name.
    * Provided by parent controller.
@@ -54,9 +62,9 @@ export class ProjectMetadataController {
 
   /**
    * Default constructor that is using resource injection
-   * @ngInject for Dependency injection
    */
-  constructor($scope: ng.IScope, projectMetadataService: ProjectMetadataService, projectSourceSelectorService: ProjectSourceSelectorService, editProjectService: EditProjectService) {
+  constructor($scope: ng.IScope, projectMetadataService: ProjectMetadataService, projectSourceSelectorService: ProjectSourceSelectorService,
+     editProjectService: EditProjectService) {
 
     this.projectMetadataService = projectMetadataService;
     this.projectSourceSelectorService = projectSourceSelectorService;

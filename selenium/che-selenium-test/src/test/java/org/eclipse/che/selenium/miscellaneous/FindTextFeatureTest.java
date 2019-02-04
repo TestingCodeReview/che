@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,11 +13,13 @@ package org.eclipse.che.selenium.miscellaneous;
 
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
+import static org.eclipse.che.commons.lang.NameGenerator.generate;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Edit.EDIT;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Edit.FIND;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Workspace.CREATE_PROJECT;
 import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Workspace.WORKSPACE;
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOAD_PAGE_TIMEOUT_SEC;
+import static org.eclipse.che.selenium.core.project.ProjectTemplates.MAVEN_SPRING;
 import static org.eclipse.che.selenium.pageobject.Wizard.SamplesName.WEB_JAVA_PETCLINIC;
 import static org.openqa.selenium.Keys.ARROW_DOWN;
 import static org.openqa.selenium.Keys.ARROW_RIGHT;
@@ -28,11 +31,10 @@ import static org.testng.Assert.assertTrue;
 import com.google.inject.Inject;
 import java.net.URL;
 import java.nio.file.Paths;
-import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
-import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.utils.WaitUtils;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
+import org.eclipse.che.selenium.pageobject.CheTerminal;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.ConfigureClasspath;
 import org.eclipse.che.selenium.pageobject.Consoles;
@@ -45,46 +47,44 @@ import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.PanelSelector;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Wizard;
-import org.eclipse.che.selenium.pageobject.machineperspective.MachineTerminal;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Aleksandr Shmaraev */
 public class FindTextFeatureTest {
 
-  private static final String PROJECT_NAME = NameGenerator.generate("project", 4);
+  private static final String PROJECT_NAME = generate("project", 4);
   private static final int SUM_FOUND_OCCURRENCES = 313;
 
   @Inject private TestWorkspace workspace;
   @Inject private Ide ide;
-  @Inject private ProjectExplorer projectExplorer;
+  @Inject protected ProjectExplorer projectExplorer;
   @Inject private Loader loader;
   @Inject private CodenvyEditor editor;
-  @Inject private Menu menu;
+  @Inject protected Menu menu;
   @Inject private ConfigureClasspath configureClasspath;
-  @Inject private MachineTerminal terminal;
-  @Inject private FindText findTextPage;
+  @Inject private CheTerminal terminal;
+  @Inject protected FindText findTextPage;
   @Inject private TestProjectServiceClient testProjectServiceClient;
   @Inject private Consoles consoles;
   @Inject private PanelSelector panelSelector;
-  @Inject private NotificationsPopupPanel notificationsPopupPanel;
-  @Inject private Wizard wizard;
+  @Inject protected NotificationsPopupPanel notificationsPopupPanel;
+  @Inject protected Wizard wizard;
 
   @BeforeClass
   public void setUp() throws Exception {
     URL resource = getClass().getResource("/projects/java-multimodule");
     testProjectServiceClient.importProject(
-        workspace.getId(),
-        Paths.get(resource.toURI()),
-        PROJECT_NAME,
-        ProjectTemplates.MAVEN_SPRING);
+        workspace.getId(), Paths.get(resource.toURI()), PROJECT_NAME, MAVEN_SPRING);
+
     ide.open(workspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
   }
 
   @Test
   public void checkFindTextForm() {
     projectExplorer.waitProjectExplorer();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
 
     // Open the Find Text form from menu
     menu.runCommand(EDIT, FIND);
@@ -120,17 +120,17 @@ public class FindTextFeatureTest {
     String fileNameCreatedFromTerminal = "readme.con";
 
     projectExplorer.waitProjectExplorer();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
 
     //  Check that the Processes tab is opened
     if (!consoles.processesMainAreaIsOpen()) {
-      panelSelector.selectPanelTypeFromPanelSelector(PanelSelector.PanelTypes.LEFT_BOTTOM);
+      panelSelector.selectPanelTypeFromPanelSelector(PanelSelector.PanelTypes.LEFT_BOTTOM_ID);
     }
     consoles.clickOnProcessesButton();
 
     // Create a file from terminal
-    terminal.waitTerminalTab();
-    terminal.selectTerminalTab();
+    terminal.waitFirstTerminalTab();
+    terminal.selectFirstTerminalTab();
     createFileInTerminal(fileNameCreatedFromTerminal);
     WaitUtils.sleepQuietly(LOAD_PAGE_TIMEOUT_SEC);
 
@@ -157,7 +157,7 @@ public class FindTextFeatureTest {
     WaitUtils.sleepQuietly(LOAD_PAGE_TIMEOUT_SEC);
 
     // Check that created from API file found by "Feature" text
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(EDIT, FIND);
     findTextPage.waitFindTextMainFormIsOpen();
     findTextPage.typeTextIntoFindField("Feature");
@@ -198,7 +198,7 @@ public class FindTextFeatureTest {
         format("/%s/my-lib/src/main/java/hello/SayHello.java", PROJECT_NAME);
 
     projectExplorer.waitProjectExplorer();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
 
     // Check that no occurrences found
     menu.runCommand(EDIT, FIND);
@@ -220,7 +220,7 @@ public class FindTextFeatureTest {
     findTextPage.waitFindInfoPanelIsClosed();
 
     // Find files with 'String' text. Open 'guess_num.jsp' file and check cursor position
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     findTextPage.launchFindFormByKeyboard();
     findTextPage.waitFindTextMainFormIsOpen();
     findTextPage.typeTextIntoFindField("String");
@@ -239,23 +239,23 @@ public class FindTextFeatureTest {
     findTextPage.sendCommandByKeyboardInFindInfoPanel(ARROW_RIGHT.toString());
     findTextPage.selectItemInFindInfoPanel(
         pathToQuessNumFile,
-        "25:    java.lang.String attempt = (java.lang.String)request.getAttribute(\"num\");");
+        "26:    java.lang.String attempt = (java.lang.String)request.getAttribute(\"num\");");
     findTextPage.sendCommandByKeyboardInFindInfoPanel(ENTER.toString());
     editor.waitActive();
     editor.waitActiveTabFileName("guess_num.jsp");
     editor.waitTextIntoEditor("String");
-    assertEquals(editor.getPositionVisible(), 25);
+    assertEquals(editor.getPositionVisible(), 26);
 
     // Check that the Find Info panel state restored
     consoles.closeProcessesArea();
     findTextPage.waitFindInfoPanelIsClosed();
-    panelSelector.selectPanelTypeFromPanelSelector(PanelSelector.PanelTypes.LEFT_BOTTOM);
+    panelSelector.selectPanelTypeFromPanelSelector(PanelSelector.PanelTypes.LEFT_BOTTOM_ID);
     findTextPage.waitFindInfoPanelIsOpen();
 
     // Open 'SayHello.java' file and check cursor position
     findTextPage.selectItemInFindInfoPanel(
         pathToQuessNumFile,
-        "25:    java.lang.String attempt = (java.lang.String)request.getAttribute(\"num\");");
+        "26:    java.lang.String attempt = (java.lang.String)request.getAttribute(\"num\");");
     findTextPage.sendCommandByKeyboardInFindInfoPanel(ARROW_DOWN.toString());
     findTextPage.sendCommandByKeyboardInFindInfoPanel(ARROW_DOWN.toString());
     findTextPage.sendCommandByKeyboardInFindInfoPanel(ARROW_RIGHT.toString());
@@ -264,11 +264,11 @@ public class FindTextFeatureTest {
     findTextPage.sendCommandByKeyboardInFindInfoPanel(ARROW_RIGHT.toString());
     findTextPage.sendCommandByKeyboardInFindInfoPanel(ARROW_DOWN.toString());
     findTextPage.selectItemInFindInfoPanelByDoubleClick(
-        pathToSayHelloFile, "20:    public String sayHello(String name)");
+        pathToSayHelloFile, "21:    public String sayHello(String name)");
     editor.waitActive();
     editor.waitActiveTabFileName("SayHello");
     editor.waitTextIntoEditor("String");
-    assertEquals(editor.getPositionVisible(), 20);
+    assertEquals(editor.getPositionVisible(), 21);
 
     editor.closeAllTabsByContextMenu();
   }
@@ -289,7 +289,7 @@ public class FindTextFeatureTest {
             PROJECT_NAME);
 
     projectExplorer.waitProjectExplorer();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
 
     // Find text with whole world feature is disabled
     findTextPage.launchFindFormByKeyboard();
@@ -303,7 +303,7 @@ public class FindTextFeatureTest {
     findTextPage.waitExpectedTextInFindInfoPanel(asList(expectedText.split("\n")));
 
     // Find text with whole world feature is enabled
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(EDIT, FIND);
     findTextPage.waitFindTextMainFormIsOpen();
     findTextPage.typeTextIntoFindField("uess");
@@ -335,9 +335,9 @@ public class FindTextFeatureTest {
             PROJECT_NAME);
 
     projectExplorer.waitProjectExplorer();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     projectExplorer.quickExpandWithJavaScript();
-    projectExplorer.selectItem(path1);
+    projectExplorer.waitAndSelectItem(path1);
 
     menu.runCommand(EDIT, FIND);
     findTextPage.waitFindTextMainFormIsOpen();
@@ -348,7 +348,7 @@ public class FindTextFeatureTest {
     findTextPage.clickOnSearchButtonMainForm();
     findTextPage.waitExpectedTextInFindInfoPanel(asList(expectedText1.split("\n")));
 
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     findTextPage.launchFindFormByKeyboard();
     findTextPage.waitFindTextMainFormIsOpen();
     findTextPage.typeTextIntoFindField("hello");
@@ -387,7 +387,7 @@ public class FindTextFeatureTest {
             PROJECT_NAME);
 
     projectExplorer.waitProjectExplorer();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
 
     // Find text with '*.java' file mask
     menu.runCommand(EDIT, FIND);
@@ -403,7 +403,7 @@ public class FindTextFeatureTest {
     findTextPage.waitExpectedTextIsNotPresentInFindInfoPanel(expectedText2);
 
     // Find text with '*.jsp' file mask
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     findTextPage.launchFindFormByKeyboard();
     findTextPage.waitFindTextMainFormIsOpen();
     findTextPage.typeTextIntoFindField("String");
@@ -428,7 +428,7 @@ public class FindTextFeatureTest {
     wizard.selectProjectAndCreate(WEB_JAVA_PETCLINIC, "web-java-petclinic");
     notificationsPopupPanel.waitProgressPopupPanelClose();
     projectExplorer.waitItem("web-java-petclinic");
-    projectExplorer.selectItem("web-java-petclinic");
+    projectExplorer.waitAndSelectItem("web-java-petclinic");
 
     findTextPage.launchFindFormByKeyboard();
     findTextPage.waitFindTextMainFormIsOpen();
@@ -473,10 +473,10 @@ public class FindTextFeatureTest {
   }
 
   private void createFileInTerminal(String fileName) {
-    terminal.typeIntoTerminal("cd " + PROJECT_NAME + ENTER);
-    terminal.typeIntoTerminal("df > " + fileName + ENTER);
-    terminal.typeIntoTerminal("cat " + fileName + ENTER);
-    terminal.typeIntoTerminal("ls" + ENTER);
-    terminal.waitExpectedTextIntoTerminal(fileName);
+    terminal.typeIntoActiveTerminal("cd " + PROJECT_NAME + ENTER);
+    terminal.typeIntoActiveTerminal("df > " + fileName + ENTER);
+    terminal.typeIntoActiveTerminal("cat " + fileName + ENTER);
+    terminal.typeIntoActiveTerminal("ls" + ENTER);
+    terminal.waitTextInFirstTerminal(fileName);
   }
 }

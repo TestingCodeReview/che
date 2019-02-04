@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,10 +13,7 @@ package org.eclipse.che.ide.ext.git.client.compare.revisionslist;
 
 import com.google.gwt.cell.client.TextCell;
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
 import com.google.gwt.event.dom.client.DoubleClickEvent;
-import com.google.gwt.event.dom.client.DoubleClickHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.cellview.client.CellTable;
@@ -24,7 +22,6 @@ import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.TextArea;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.view.client.SelectionChangeEvent;
 import com.google.gwt.view.client.SingleSelectionModel;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -118,13 +115,12 @@ public class RevisionListViewImpl extends Window implements RevisionListView {
   /** {@inheritDoc} */
   @Override
   public void close() {
-    onClose();
+    hide();
   }
 
   @Override
-  protected void onClose() {
+  protected void onHide() {
     selectionModel.clear();
-    super.onClose();
   }
 
   /** {@inheritDoc} */
@@ -172,54 +168,29 @@ public class RevisionListViewImpl extends Window implements RevisionListView {
     revisions.addColumn(authorColumn, locale.viewCompareRevisionTableAuthorTitle());
     revisions.addColumn(titleColumn, locale.viewCompareRevisionTableTitleTitle());
 
-    selectionModel = new SingleSelectionModel<Revision>();
+    selectionModel = new SingleSelectionModel<>();
     selectionModel.addSelectionChangeHandler(
-        new SelectionChangeEvent.Handler() {
-          @Override
-          public void onSelectionChange(SelectionChangeEvent event) {
-            description.setText(selectionModel.getSelectedObject().getMessage());
-            delegate.onRevisionSelected(selectionModel.getSelectedObject());
-          }
+        event -> {
+          description.setText(selectionModel.getSelectedObject().getMessage());
+          delegate.onRevisionSelected(selectionModel.getSelectedObject());
         });
     revisions.setSelectionModel(selectionModel);
 
     revisions.addDomHandler(
-        new DoubleClickHandler() {
-          @Override
-          public void onDoubleClick(DoubleClickEvent event) {
-            delegate.onRevisionDoubleClicked();
-          }
-        },
-        DoubleClickEvent.getType());
+        event -> delegate.onRevisionDoubleClicked(), DoubleClickEvent.getType());
 
     this.revisionsPanel.add(revisions);
   }
 
   private void createButtons() {
     btnClose =
-        createButton(
-            locale.buttonClose(),
-            "git-compare-revision-close",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onCloseClicked();
-              }
-            });
-    addButtonToFooter(btnClose);
+        addFooterButton(
+            locale.buttonClose(), "git-compare-revision-close", event -> delegate.onCloseClicked());
 
     btnCompare =
-        createButton(
+        addFooterButton(
             locale.buttonCompare(),
             "git-compare-revision-compare",
-            new ClickHandler() {
-
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onCompareClicked();
-              }
-            });
-    addButtonToFooter(btnCompare);
+            event -> delegate.onCompareClicked());
   }
 }

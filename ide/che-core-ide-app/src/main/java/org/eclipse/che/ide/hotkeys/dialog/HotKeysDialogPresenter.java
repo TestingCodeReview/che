@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -98,7 +99,7 @@ public class HotKeysDialogPresenter implements HotKeysDialogView.ActionDelegate 
     view.setData(categories);
     view.setSchemes(selectedSchemeId, keyBindingAgent.getSchemes());
     view.renderKeybindings();
-    view.show();
+    view.showDialog();
   }
 
   private List<HotKeyItem> getIDEHotKey() {
@@ -136,12 +137,12 @@ public class HotKeysDialogPresenter implements HotKeysDialogView.ActionDelegate 
   @Override
   public void onSaveClicked() {
     keyBindingAgent.setActive(selectedSchemeId);
-    view.hide();
+    view.hideDialog();
   }
 
   @Override
   public void onCloseClicked() {
-    view.hide();
+    view.hideDialog();
   }
 
   @Override
@@ -191,7 +192,7 @@ public class HotKeysDialogPresenter implements HotKeysDialogView.ActionDelegate 
   }
 
   private static native void openWindowForPrinting(String htmlTemplate, JsoArray<Node> nodes) /*-{
-        var printWindow = $wnd.open("about:blank", "", "width=650,height=800");
+        var printWindow = window.open("about:blank", "", "width=650,height=800");
         printWindow.document.write(htmlTemplate);
         var container = printWindow.document.getElementById("key-bindings-container");
         for (var node in nodes) {

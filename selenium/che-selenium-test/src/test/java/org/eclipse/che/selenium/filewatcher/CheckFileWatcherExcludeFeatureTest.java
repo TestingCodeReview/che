@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,8 +12,8 @@
 package org.eclipse.che.selenium.filewatcher;
 
 import static java.lang.String.format;
-import static org.eclipse.che.selenium.pageobject.ProjectExplorer.FileWatcherExcludeOperations.ADD_TO_FILE_WATCHER_EXCLUDES;
-import static org.eclipse.che.selenium.pageobject.ProjectExplorer.FileWatcherExcludeOperations.REMOVE_FROM_FILE_WATCHER_EXCLUDES;
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuFirstLevelItems.ADD_TO_FILE_WATCHER_EXCLUDES;
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuFirstLevelItems.REMOVE_FROM_FILE_WATCHER_EXCLUDES;
 
 import com.google.inject.Inject;
 import java.nio.file.Paths;
@@ -20,8 +21,10 @@ import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
+import org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuItems;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
+import org.eclipse.che.selenium.pageobject.CheTerminal;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Events;
@@ -29,7 +32,6 @@ import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
-import org.eclipse.che.selenium.pageobject.machineperspective.MachineTerminal;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -43,7 +45,7 @@ public class CheckFileWatcherExcludeFeatureTest {
   @Inject private SeleniumWebDriver seleniumWebDriver;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private TestWorkspace testWorkspace;
-  @Inject private MachineTerminal terminal;
+  @Inject private CheTerminal terminal;
   @Inject private CodenvyEditor editor;
   @Inject private Consoles consoles;
   @Inject private Loader loader;
@@ -66,7 +68,7 @@ public class CheckFileWatcherExcludeFeatureTest {
         TestMenuCommandsConstants.Project.PROJECT,
         TestMenuCommandsConstants.Project.SHOW_HIDE_HIDDEN_FILES);
     projectExplorer.quickExpandWithJavaScript();
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     doFileWatcherExcludeOperation(PROJECT_NAME + "/" + "pom.xml", ADD_TO_FILE_WATCHER_EXCLUDES);
     projectExplorer.clickOnRefreshTreeButton();
   }
@@ -80,7 +82,8 @@ public class CheckFileWatcherExcludeFeatureTest {
   public void checkFileWatcherIgnoreFileAfterIncludingAndExcludingFileWatching() throws Exception {
     String fileNameForExcluding = "pom.xml";
     String pathToExcludedFile = PROJECT_NAME + "/" + fileNameForExcluding;
-    projectExplorer.waitItemInVisibleArea(FILE_WATCHER_IGNORE_FILE_NAME);
+    projectExplorer.waitItem(PROJECT_NAME + "/.che");
+    projectExplorer.quickExpandWithJavaScript();
     projectExplorer.openItemByVisibleNameInExplorer(FILE_WATCHER_IGNORE_FILE_NAME);
     editor.waitActive();
     editor.waitTextIntoEditor(fileNameForExcluding);
@@ -159,8 +162,8 @@ public class CheckFileWatcherExcludeFeatureTest {
     consoles.clickOnProcessesButton();
   }
 
-  private void doFileWatcherExcludeOperation(String itemName, String typeOfOperation) {
-    projectExplorer.selectItem(itemName);
+  private void doFileWatcherExcludeOperation(String itemName, ContextMenuItems typeOfOperation) {
+    projectExplorer.waitAndSelectItem(itemName);
     projectExplorer.openContextMenuByPathSelectedItem(itemName);
     projectExplorer.waitContextMenu();
     projectExplorer.clickOnItemInContextMenu(typeOfOperation);

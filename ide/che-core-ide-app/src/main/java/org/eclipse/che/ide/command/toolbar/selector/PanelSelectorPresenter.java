@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,7 +29,6 @@ import org.eclipse.che.ide.api.parts.PerspectiveManager;
 public class PanelSelectorPresenter implements Presenter, PanelSelectorView.ActionDelegate {
 
   private PanelSelectorView view;
-
   private PerspectiveManager perspectiveManager;
 
   @Inject
@@ -140,6 +140,9 @@ public class PanelSelectorPresenter implements Presenter, PanelSelectorView.Acti
     }
 
     updateButtonState();
+
+    // set focus to the active editor if it exists
+    editorPartStack.openPreviousActivePart();
   }
 
   /** Updates icon for panel selector button displaying the current state of panels. */

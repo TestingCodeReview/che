@@ -1,9 +1,10 @@
 //
-// Copyright (c) 2012-2017 Red Hat, Inc.
-// All rights reserved. This program and the accompanying materials
-// are made available under the terms of the Eclipse Public License v1.0
-// which accompanies this distribution, and is available at
-// http://www.eclipse.org/legal/epl-v10.html
+// Copyright (c) 2012-2018 Red Hat, Inc.
+// This program and the accompanying materials are made
+// available under the terms of the Eclipse Public License 2.0
+// which is available at https://www.eclipse.org/legal/epl-2.0/
+//
+// SPDX-License-Identifier: EPL-2.0
 //
 // Contributors:
 //   Red Hat, Inc. - initial API and implementation
@@ -54,6 +55,9 @@ var (
 
 	// LogsEndpointReconnectPeriodSec how much time(seconds) is between logs endpoint reconnect attempts.
 	LogsEndpointReconnectPeriodSec int
+
+	// SelfSignedCertificateFilePath path to certificate file that should be used while connection establishing
+	SelfSignedCertificateFilePath string
 )
 
 func init() {
@@ -97,7 +101,7 @@ func init() {
 		&runtimeIDRaw,
 		"runtime-id",
 		"",
-		"The identifier of the runtime in format 'workspace:environment:owner'",
+		"The identifier of the runtime in format 'workspace:environment:ownerId'",
 	)
 	flag.StringVar(
 		&MachineName,
@@ -125,6 +129,12 @@ func init() {
 		10,
 		`Time(in seconds) between attempts to reconnect to push-logs-endpoint.
 	Bootstrapper tries to reconnect to push-logs-endpoint when previously established connection lost`,
+	)
+	flag.StringVar(
+		&SelfSignedCertificateFilePath,
+		"cacert",
+		"",
+		"Path to Certificate that should be used while connection establishing",
 	)
 }
 
@@ -156,9 +166,9 @@ func Parse() {
 	}
 	parts := strings.Split(runtimeIDRaw, ":")
 	if len(parts) != 3 {
-		log.Fatalf("Expected runtime id to be in format 'workspace:env:owner'")
+		log.Fatalf("Expected runtime id to be in format 'workspace:env:ownerId'")
 	}
-	RuntimeID = booter.RuntimeID{Workspace: parts[0], Environment: parts[1], Owner: parts[2]}
+	RuntimeID = booter.RuntimeID{Workspace: parts[0], Environment: parts[1], OwnerId: parts[2]}
 
 	// machine-name
 	if len(MachineName) == 0 {
@@ -179,10 +189,13 @@ func Print() {
 	log.Printf("  Push endpoint: %s", PushStatusesEndpoint)
 	log.Printf("  Push logs endpoint: %s", PushLogsEndpoint)
 	log.Printf("  Auth enabled: %t", AuthEnabled)
+	if (SelfSignedCertificateFilePath != "") {
+		log.Printf("  Self signed certificate %s", SelfSignedCertificateFilePath)
+	}
 	log.Print("  Runtime ID:")
 	log.Printf("    Workspace: %s", RuntimeID.Workspace)
 	log.Printf("    Environment: %s", RuntimeID.Environment)
-	log.Printf("    Owner: %s", RuntimeID.Owner)
+	log.Printf("    OwnerId: %s", RuntimeID.OwnerId)
 	log.Printf("  Machine name: %s", MachineName)
 	log.Printf("  Installer timeout: %dseconds", InstallerTimeoutSec)
 	log.Printf("  Check servers period: %dseconds", CheckServersPeriodSec)

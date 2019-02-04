@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -23,6 +24,10 @@ import {AddImportProjectService} from '../add-import-project.service';
  * @author Oleksii Kurinnyi
  */
 export class ImportGithubProjectController {
+
+  static $inject = ['$q', '$mdDialog', '$location', '$browser', '$scope', 'githubPopup', 'cheBranding', 'githubOrganizationNameResolver',
+'importGithubProjectService', 'cheListHelperFactory', 'addImportProjectService', 'keycloakAuth'];
+
   /**
    * Promises service.
    */
@@ -115,10 +120,9 @@ export class ImportGithubProjectController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor ($q: ng.IQService, $mdDialog: ng.material.IDialogService, $location: ng.ILocationService,
-               $browser: ng.IBrowserService, $scope: ng.IScope, githubPopup: any, cheBranding: CheBranding,
+               $browser: any, $scope: ng.IScope, githubPopup: any, cheBranding: CheBranding,
                githubOrganizationNameResolver: any, importGithubProjectService: ImportGithubProjectService,
                cheListHelperFactory: che.widget.ICheListHelperFactory, addImportProjectService: AddImportProjectService, keycloakAuth: any) {
     this.$q = $q;
@@ -201,11 +205,20 @@ export class ImportGithubProjectController {
     this.importGithubProjectService.onRepositorySelected(this.selectedRepositories);
   }
 
+  private storeRedirectUri(encodeHash) {
+    var redirectUri = location.href;
+    if (location.hash && encodeHash) {
+      redirectUri = redirectUri.substring(0, location.href.indexOf('#'));
+      redirectUri += (redirectUri.indexOf('?') == -1 ? '?' : '&') + 'redirect_fragment=' + encodeURIComponent(location.hash.substring(1));
+    }
+    window.sessionStorage.setItem('oidcIdeRedirectUrl', redirectUri);
+  }
+
   /**
    * Shows authentication popup window.
    */
   authenticateWithGitHub(): void {
-    if (!this.importGithubProjectService.getIsGitHubOAuthProviderAvailable()) {
+    if (!this.keycloakAuth.isPresent && !this.importGithubProjectService.getIsGitHubOAuthProviderAvailable()) {
       this.$mdDialog.show({
         controller: 'NoGithubOauthDialogController',
         controllerAs: 'noGithubOauthDialogController',
@@ -222,6 +235,7 @@ export class ImportGithubProjectController {
         let token = '&token=' + this.keycloakAuth.keycloak.token;
         this.openGithubPopup(token);
       }).error(() => {
+        window.sessionStorage.setItem('oidcDashboardRedirectUrl', location.href);
         this.keycloakAuth.keycloak.login();
       });
     } else {
@@ -235,18 +249,21 @@ export class ImportGithubProjectController {
    * @param {string} token
    */
   openGithubPopup(token: string): void {
+    // given URL http://example.com - returns port => 80 (or 443 with https), which causes wrong redirect URL value:
+    let port = (this.$location.port() === 80 || this.$location.port() === 443) ? '' : ':' + this.$location.port();
     const redirectUrl = this.$location.protocol() + '://'
-      + this.$location.host() + ':'
-      + this.$location.port()
+      + this.$location.host()
+      + port
       + (this.$browser as any).baseHref()
       + 'gitHubCallback.html';
-    this.githubPopup.open('/api/oauth/authenticate'
+    let link = '/api/oauth/authenticate'
       + '?oauth_provider=github'
       + '&scope=' + ['user', 'repo', 'write:public_key'].join(',')
       + '&userId=' + this.importGithubProjectService.getCurrentUserId()
       + token
       + '&redirect_after_login='
-      + redirectUrl,
+      + redirectUrl;
+    this.githubPopup.open(link,
       {
         width: 1020,
         height: 618

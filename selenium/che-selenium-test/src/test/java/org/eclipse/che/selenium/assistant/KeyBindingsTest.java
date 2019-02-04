@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -24,6 +25,7 @@ import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.utils.WaitUtils;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
+import org.eclipse.che.selenium.pageobject.CheTerminal;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
@@ -33,7 +35,6 @@ import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.NavigateToFile;
 import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
-import org.eclipse.che.selenium.pageobject.machineperspective.MachineTerminal;
 import org.openqa.selenium.Keys;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -51,7 +52,7 @@ public class KeyBindingsTest {
   @Inject private KeyBindings keyBindings;
   @Inject private NavigateToFile navigateToFile;
   @Inject private NotificationsPopupPanel notificationsPopupPanel;
-  @Inject private MachineTerminal terminal;
+  @Inject private CheTerminal terminal;
   @Inject private Consoles consoles;
   @Inject private TestProjectServiceClient projectServiceClient;
 
@@ -71,13 +72,14 @@ public class KeyBindingsTest {
   public void enterKeyCombinationTest() throws Exception {
     projectExplorer.waitItem(PROJECT_NAME);
     projectExplorer.openItemByPath(PROJECT_NAME);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     notificationsPopupPanel.waitProgressPopupPanelClose();
     loader.waitOnClosed();
     keyBindings.enterKeyCombination(Keys.CONTROL, Keys.ALT, Keys.getKeyFromUnicode('n'));
     navigateToFile.waitFormToOpen();
     navigateToFile.closeNavigateToFileForm();
     keyBindings.enterKeyCombination(Keys.ALT, Keys.F12);
-    terminal.waitTerminalTab();
+    terminal.waitFirstTerminalTab();
     WaitUtils.sleepQuietly(1);
     consoles.closeTerminalIntoConsoles();
     consoles.closeProcessesArea();
@@ -89,7 +91,7 @@ public class KeyBindingsTest {
     menu.runCommand(
         TestMenuCommandsConstants.Assistant.ASSISTANT,
         TestMenuCommandsConstants.Assistant.KEY_BINDINGS);
-    keyBindings.checkSearchResultKeyBinding("open", 6);
+    keyBindings.checkSearchResultKeyBinding("open", 4);
     keyBindings.clickOkButton();
   }
 

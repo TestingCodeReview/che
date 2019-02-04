@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,63 +16,67 @@ import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAI
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import com.google.web.bindery.event.shared.EventBus;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import org.eclipse.che.api.languageserver.shared.model.LanguageDescription;
+import org.eclipse.che.api.languageserver.shared.model.LanguageRegex;
 import org.eclipse.che.api.promises.client.Promise;
+import org.eclipse.che.api.promises.client.PromiseProvider;
 import org.eclipse.che.ide.api.filetypes.FileType;
 import org.eclipse.che.ide.api.filetypes.FileTypeRegistry;
 import org.eclipse.che.ide.api.notification.NotificationManager;
+import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.resources.VirtualFile;
 import org.eclipse.che.ide.ui.loaders.request.LoaderFactory;
 import org.eclipse.che.ide.ui.loaders.request.MessageLoader;
-import org.eclipse.che.plugin.languageserver.ide.service.LanguageServerRegistryJsonRpcClient;
-import org.eclipse.che.plugin.languageserver.ide.service.LanguageServerRegistryServiceClient;
+import org.eclipse.che.plugin.languageserver.ide.service.LanguageServerServiceClient;
 import org.eclipse.lsp4j.ServerCapabilities;
 
 /** @author Anatoliy Bazko */
 @Singleton
 public class LanguageServerRegistry {
-  private final LanguageServerRegistryJsonRpcClient jsonRpcClient;
   private LoaderFactory loaderFactory;
   private NotificationManager notificationManager;
 
-  private final Map<FileType, LanguageDescription> registeredFileTypes = new ConcurrentHashMap<>();
+  private final Map<FileType, LanguageRegex> registeredFileTypes = new ConcurrentHashMap<>();
   private final FileTypeRegistry fileTypeRegistry;
+  private final LanguageServerServiceClient languageServerServiceClient;
+  private final PromiseProvider promiseProvider;
 
   @Inject
   public LanguageServerRegistry(
-      EventBus eventBus,
       LoaderFactory loaderFactory,
       NotificationManager notificationManager,
-      LanguageServerRegistryJsonRpcClient jsonRpcClient,
-      LanguageServerRegistryServiceClient client,
-      FileTypeRegistry fileTypeRegistry) {
+      FileTypeRegistry fileTypeRegistry,
+      LanguageServerServiceClient languageServerServiceClient,
+      PromiseProvider promiseProvider) {
 
     this.loaderFactory = loaderFactory;
     this.notificationManager = notificationManager;
-    this.jsonRpcClient = jsonRpcClient;
     this.fileTypeRegistry = fileTypeRegistry;
+    this.languageServerServiceClient = languageServerServiceClient;
+    this.promiseProvider = promiseProvider;
   }
 
-  public Promise<ServerCapabilities> getOrInitializeServer(String projectPath, VirtualFile file) {
+  public Promise<ServerCapabilities> getOrInitializeServer(VirtualFile file) {
     // call initialize service
     final MessageLoader loader =
         loaderFactory.newLoader("Initializing Language Server for " + file.getName());
     loader.show();
-    return jsonRpcClient
-        .initializeServer(file.getLocation().toString())
-        .then(
-            (ServerCapabilities arg) -> {
+    String wsPath = file.getLocation().toString();
+    return languageServerServiceClient
+        .initialize(wsPath)
+        .thenPromise(
+            serverCapabilities -> {
               loader.hide();
-              return arg;
+              return promiseProvider.resolve(serverCapabilities);
             })
         .catchError(
-            arg -> {
+            promiseError -> {
               notificationManager.notify(
                   "Initializing Language Server for " + file.getName(),
-                  arg.getMessage(),
+                  promiseError.getMessage(),
                   FAIL,
                   EMERGE_MODE);
               loader.hide();
@@ -85,9 +90,24 @@ public class LanguageServerRegistry {
    * @param type
    * @param description
    */
-  public void registerFileType(FileType type, LanguageDescription description) {
-    fileTypeRegistry.registerFileType(type);
+  public void registerFileType(FileType type, LanguageRegex description) {
     registeredFileTypes.put(type, description);
+  }
+
+  /**
+   * Remove given File Type from registry.
+   *
+   * @param fileType the file type for removing
+   */
+  public void unRegister(FileType fileType) {
+    if (fileType != null) {
+      registeredFileTypes.remove(fileType);
+    }
+  }
+
+  /** Returns the set of all registered file types. */
+  public Set<FileType> getRegisteredFileTypes() {
+    return new HashSet<>(registeredFileTypes.keySet());
   }
 
   /**
@@ -96,11 +116,19 @@ public class LanguageServerRegistry {
    * @param file
    * @return
    */
-  public LanguageDescription getLanguageDescription(VirtualFile file) {
-    FileType fileType = fileTypeRegistry.getFileTypeByFile(file);
-    if (fileType == null) {
-      return null;
-    }
+  public LanguageRegex getLanguageFilter(VirtualFile file) {
+    FileType fileType = fileTypeRegistry.getFileTypeByFileName(file.getName());
     return registeredFileTypes.get(fileType);
+  }
+
+  /**
+   * Provide ability to check if language is registered for given resource
+   *
+   * @param resource resource to check
+   * @return {@code true} if given resource is file and language is registered for given resource,
+   *     {@code false} otherwise
+   */
+  public boolean isLsRegistered(Resource resource) {
+    return resource.isFile() && getLanguageFilter(resource.asFile()) != null;
   }
 }

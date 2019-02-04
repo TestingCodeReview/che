@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -26,9 +27,11 @@ import {OrganizationsConfigService} from './organizations-config.service';
 import {OrganizationNotFound} from './organization-details/organization-not-found/organization-not-found.directive';
 import {OrganizationSelectMembersDialogController} from './organization-details/organization-select-members-dialog/organization-select-members-dialog.controller';
 import {OrganizationMemberItem} from './organization-details/organization-select-members-dialog/organization-member-item/organization-member-item.directive';
+import {ListOrganizationWorkspaces} from './organization-details/organization-workspaces/list-organization-workspaces.directive';
+import {ListOrganizationWorkspacesController} from './organization-details/organization-workspaces/list-organization-workspaces.controller';
 
 /**
- * The configuration of teams, defines controllers, directives and routing.
+ * The configuration of organizations, defines controllers, directives and routing.
  *
  * @author Oleksii Orel
  */
@@ -63,6 +66,9 @@ export class OrganizationsConfig {
     register.controller('OrganizationSelectMembersDialogController', OrganizationSelectMembersDialogController);
     register.directive('organizationMemberItem', OrganizationMemberItem);
 
+    register.controller('ListOrganizationWorkspacesController', ListOrganizationWorkspacesController);
+    register.directive('listOrganizationWorkspaces', ListOrganizationWorkspaces);
+
     const organizationDetailsLocationProvider = {
       title: (params: any) => {
         return params.organizationName;
@@ -91,7 +97,7 @@ export class OrganizationsConfig {
     };
 
     // config routes
-    register.app.config(($routeProvider: che.route.IRouteProvider) => {
+    register.app.config(['$routeProvider', ($routeProvider: che.route.IRouteProvider) => {
       $routeProvider.accessWhen('/organizations', {
         title: 'organizations',
         templateUrl: 'app/organizations/organizations.html',
@@ -101,6 +107,6 @@ export class OrganizationsConfig {
         .accessWhen('/admin/create-organization', createOrganizationLocationProvider)
         .accessWhen('/admin/create-organization/:parentQualifiedName*', createOrganizationLocationProvider)
         .accessWhen('/organization/:organizationName*', organizationDetailsLocationProvider);
-    });
+    }]);
   }
 }

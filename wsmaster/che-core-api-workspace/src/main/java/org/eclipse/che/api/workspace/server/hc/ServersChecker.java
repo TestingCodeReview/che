@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,20 +12,23 @@
 package org.eclipse.che.api.workspace.server.hc;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.inject.assistedinject.Assisted;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.Timer;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.ws.rs.core.UriBuilder;
 import org.eclipse.che.api.core.model.workspace.runtime.RuntimeIdentity;
 import org.eclipse.che.api.core.model.workspace.runtime.Server;
@@ -38,21 +42,17 @@ import org.eclipse.che.api.workspace.server.token.MachineTokenProvider;
  * @author Alexander Garagatyi
  */
 public class ServersChecker {
-  // workaround to set correct paths for servers readiness checks
-  // TODO replace with checks set in server config
-  private static final Map<String, String> LIVENESS_CHECKS_PATHS =
-      ImmutableMap.of(
-          "wsagent/http", "/api/",
-          "exec-agent/http", "/process",
-          "terminal", "/");
   private final RuntimeIdentity runtimeIdentity;
   private final String machineName;
   private final Map<String, ? extends Server> servers;
   private final MachineTokenProvider machineTokenProvider;
+  private final int serverPingSuccessThreshold;
+  private final long serverPingIntervalMillis;
+  private final Set<String> livenessProbes;
 
   private Timer timer;
   private long resultTimeoutSeconds;
-  private CompletableFuture result;
+  private CompletableFuture<?> result;
 
   /**
    * Creates instance of this class.
@@ -65,23 +65,32 @@ public class ServersChecker {
       @Assisted RuntimeIdentity runtimeIdentity,
       @Assisted String machineName,
       @Assisted Map<String, ? extends Server> servers,
-      MachineTokenProvider machineTokenProvider) {
+      MachineTokenProvider machineTokenProvider,
+      @Named("che.workspace.server.ping_success_threshold") int serverPingSuccessThreshold,
+      @Named("che.workspace.server.ping_interval_milliseconds") long serverPingInterval,
+      @Named("che.workspace.server.liveness_probes") String[] livenessProbes) {
     this.runtimeIdentity = runtimeIdentity;
     this.machineName = machineName;
     this.servers = servers;
     this.timer = new Timer("ServersChecker", true);
     this.machineTokenProvider = machineTokenProvider;
+    this.serverPingSuccessThreshold = serverPingSuccessThreshold;
+    this.serverPingIntervalMillis = serverPingInterval;
+    this.livenessProbes =
+        Arrays.stream(livenessProbes).map(String::trim).collect(Collectors.toSet());
   }
 
   /**
-   * Asynchronously starts checking readiness of servers of a machine.
+   * Asynchronously starts checking readiness of servers of a machine. Method {@link #await()} waits
+   * the result of this asynchronous check.
    *
    * @param serverReadinessHandler consumer which will be called with server reference as the
    *     argument when server become available
    * @throws InternalInfrastructureException if check of a server failed due to an unexpected error
    * @throws InfrastructureException if check of a server failed due to an error
    */
-  public void startAsync(Consumer<String> serverReadinessHandler) throws InfrastructureException {
+  public CompletableFuture<?> startAsync(Consumer<String> serverReadinessHandler)
+      throws InfrastructureException {
     timer = new Timer("ServersChecker", true);
     List<ServerChecker> serverCheckers = getServerCheckers();
     // should be completed with an exception if a server considered unavailable
@@ -110,6 +119,7 @@ public class ServersChecker {
     for (ServerChecker serverChecker : serverCheckers) {
       serverChecker.start();
     }
+    return result;
   }
 
   /**
@@ -158,7 +168,7 @@ public class ServersChecker {
     for (Map.Entry<String, ? extends Server> serverEntry : servers.entrySet()) {
       // TODO replace with correct behaviour
       // workaround needed because we don't have server readiness check in the model
-      if (LIVENESS_CHECKS_PATHS.containsKey(serverEntry.getKey())) {
+      if (livenessProbes.contains(serverEntry.getKey())) {
         checkers.add(getChecker(serverEntry.getKey(), serverEntry.getValue()));
       }
     }
@@ -168,36 +178,59 @@ public class ServersChecker {
   private ServerChecker getChecker(String serverRef, Server server) throws InfrastructureException {
     // TODO replace with correct behaviour
     // workaround needed because we don't have server readiness check in the model
-    String livenessCheckPath = LIVENESS_CHECKS_PATHS.get(serverRef);
     // Create server readiness endpoint URL
     URL url;
+    String token;
     try {
-      // TODO: ws -> http is workaround used for terminal websocket server,
-      // should be removed after server checks added to model
-      url =
-          UriBuilder.fromUri(server.getUrl().replaceFirst("^ws", "http"))
-              .replacePath(livenessCheckPath)
-              .queryParam("token", machineTokenProvider.getToken(runtimeIdentity.getWorkspaceId()))
-              .build()
-              .toURL();
+      String serverUrl = server.getUrl();
+
+      if ("terminal".equals(serverRef)) {
+        serverUrl = serverUrl.replaceFirst("^ws", "http").replaceFirst("/pty$", "/");
+      }
+
+      if ("wsagent/http".equals(serverRef) && !serverUrl.endsWith("/")) {
+        // add trailing slash if it is not present
+        serverUrl = serverUrl + '/';
+      }
+
+      token =
+          machineTokenProvider.getToken(
+              runtimeIdentity.getOwnerId(), runtimeIdentity.getWorkspaceId());
+      url = UriBuilder.fromUri(serverUrl).build().toURL();
     } catch (MalformedURLException e) {
       throw new InternalInfrastructureException(
           "Server " + serverRef + " URL is invalid. Error: " + e.getMessage(), e);
     }
 
-    return doCreateChecker(url, serverRef);
+    return doCreateChecker(url, serverRef, token);
   }
 
   @VisibleForTesting
-  ServerChecker doCreateChecker(URL url, String serverRef) {
+  ServerChecker doCreateChecker(URL url, String serverRef, String token) {
     // TODO add readiness endpoint to terminal and remove this
     // workaround needed because terminal server doesn't have endpoint to check it readiness
     if ("terminal".equals(serverRef)) {
       return new TerminalHttpConnectionServerChecker(
-          url, machineName, serverRef, 3, 180, TimeUnit.SECONDS, timer);
+          url,
+          machineName,
+          serverRef,
+          serverPingIntervalMillis,
+          TimeUnit.SECONDS.toMillis(180),
+          serverPingSuccessThreshold,
+          TimeUnit.MILLISECONDS,
+          timer,
+          token);
     }
     // TODO do not hardcode timeouts, use server conf instead
     return new HttpConnectionServerChecker(
-        url, machineName, serverRef, 3, 180, TimeUnit.SECONDS, timer);
+        url,
+        machineName,
+        serverRef,
+        serverPingIntervalMillis,
+        TimeUnit.SECONDS.toMillis(180),
+        serverPingSuccessThreshold,
+        TimeUnit.MILLISECONDS,
+        timer,
+        token);
   }
 }

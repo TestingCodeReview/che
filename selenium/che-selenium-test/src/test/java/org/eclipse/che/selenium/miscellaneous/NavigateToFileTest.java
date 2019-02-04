@@ -1,17 +1,25 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.miscellaneous;
 
+import static java.lang.String.format;
+import static org.eclipse.che.selenium.core.TestGroup.FLAKY;
+import static org.eclipse.che.selenium.core.constant.TestCommandsConstants.CUSTOM;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Assistant.ASSISTANT;
+import static org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants.Assistant.NAVIGATE_TO_FILE;
+import static org.eclipse.che.selenium.core.project.ProjectTemplates.MAVEN_SIMPLE;
 import static org.eclipse.che.selenium.core.utils.WaitUtils.sleepQuietly;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
@@ -21,20 +29,17 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.eclipse.che.selenium.core.client.TestCommandServiceClient;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
-import org.eclipse.che.selenium.core.constant.TestCommandsConstants;
-import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
-import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.NavigateToFile;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
-import org.eclipse.che.selenium.pageobject.git.Git;
 import org.eclipse.che.selenium.pageobject.intelligent.CommandsPalette;
-import org.eclipse.che.selenium.pageobject.machineperspective.MachineTerminal;
+import org.openqa.selenium.WebDriverException;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -54,55 +59,48 @@ public class NavigateToFileTest {
   @Inject private Ide ide;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Loader loader;
-  @Inject private MachineTerminal terminal;
   @Inject private CodenvyEditor editor;
   @Inject private NavigateToFile navigateToFile;
   @Inject private Menu menu;
   @Inject private TestProjectServiceClient testProjectServiceClient;
-  @Inject private Git git;
-  @Inject private AskDialog askDialog;
   @Inject private TestCommandServiceClient testCommandServiceClient;
   @Inject private CommandsPalette commandsPalette;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void setUp() throws Exception {
     URL resource = getClass().getResource("/projects/guess-project");
     testProjectServiceClient.importProject(
-        workspace.getId(),
-        Paths.get(resource.toURI()),
-        PROJECT_NAME,
-        ProjectTemplates.MAVEN_SIMPLE);
+        workspace.getId(), Paths.get(resource.toURI()), PROJECT_NAME, MAVEN_SIMPLE);
 
     testProjectServiceClient.importProject(
-        workspace.getId(),
-        Paths.get(resource.toURI()),
-        PROJECT_NAME_2,
-        ProjectTemplates.MAVEN_SIMPLE);
+        workspace.getId(), Paths.get(resource.toURI()), PROJECT_NAME_2, MAVEN_SIMPLE);
     testCommandServiceClient.createCommand(
-        String.format("touch /projects/%s/%s", PROJECT_NAME_2, FILE_CREATED_FROM_CONSOLE),
+        format("touch /projects/%s/%s", PROJECT_NAME_2, FILE_CREATED_FROM_CONSOLE),
         COMMAND_FOR_FILE_CREATION,
-        TestCommandsConstants.CUSTOM,
+        CUSTOM,
         workspace.getId());
     ide.open(workspace);
-    projectExplorer.waitProjectExplorer();
+    consoles.waitJDTLSStartedMessage();
+    ide.waitOpenedWorkspaceIsReadyToUse();
     projectExplorer.waitItem(PROJECT_NAME);
     projectExplorer.waitItem(PROJECT_NAME_2);
   }
 
-  @Test(dataProvider = "dataForCheckingTheSameFileInDifferentProjects")
+  @Test(dataProvider = "dataForCheckingTheSameFileInDifferentProjects", groups = FLAKY)
   public void shouldNavigateToFileForFirstProject(
       String inputValueForChecking, Map<Integer, String> expectedValues) {
     // Open the project one and check function 'Navigate To File'
     launchNavigateToFileAndCheckResults(inputValueForChecking, expectedValues, 1);
   }
 
-  @Test(dataProvider = "dataForCheckingTheSameFileInDifferentProjects")
+  @Test(dataProvider = "dataForCheckingTheSameFileInDifferentProjects", groups = FLAKY)
   public void shouldDoNavigateToFileForSecondProject(
       String inputValueForChecking, Map<Integer, String> expectedValues) {
     launchNavigateToFileAndCheckResults(inputValueForChecking, expectedValues, 2);
   }
 
-  @Test(dataProvider = "dataForCheckingFilesCreatedWithoutIDE")
+  @Test(dataProvider = "dataToNavigateToFileCreatedOutsideIDE", groups = FLAKY)
   public void shouldNavigateToFileWithJustCreatedFiles(
       String inputValueForChecking, Map<Integer, String> expectedValues) throws Exception {
 
@@ -126,6 +124,16 @@ public class NavigateToFileTest {
     assertTrue(navigateToFile.getText().isEmpty());
   }
 
+  @Test(dataProvider = "dataToCheckNavigateByNameWithSpecialSymbols")
+  public void shouldDisplayFilesFoundByMask(
+      String inputValueForChecking, Map<Integer, String> expectedValues) {
+    launchNavigateToFileFromUIAndTypeValue(inputValueForChecking);
+    navigateToFile.waitSuggestedPanel();
+    waitExpectedItemsInNavigateToFileDropdown(expectedValues);
+    navigateToFile.closeNavigateToFileForm();
+    navigateToFile.waitFormToClose();
+  }
+
   private void addHiddenFoldersAndFileThroughProjectService() throws Exception {
     testProjectServiceClient.createFolder(
         workspace.getId(), PROJECT_NAME + "/" + HIDDEN_FOLDER_NAME);
@@ -146,15 +154,22 @@ public class NavigateToFileTest {
 
     // extract the path (without opened class)
     String dropdownVerificationPath = expectedItems.get(numValueFromDropDawnList).split(" ")[1];
-
     String openedFileWithExtension = expectedItems.get(numValueFromDropDawnList).split(" ")[0];
 
     // extract the name of opened files that display in a tab (the ".java" extension are not shown
     // in tabs)
     String openedFileNameInTheTab = openedFileWithExtension.replace(".java", "");
     launchNavigateToFileFromUIAndTypeValue(navigatingValue);
-    waitExpectedItemsInNavigateToFileDropdawn(expectedItems);
-    navigateToFile.selectFileByName(dropdownVerificationPath);
+    navigateToFile.waitSuggestedPanel();
+    waitExpectedItemsInNavigateToFileDropdown(expectedItems);
+
+    try {
+      navigateToFile.selectFileByName(dropdownVerificationPath);
+    } catch (WebDriverException ex) {
+      // remove try-catch block after issue has been resolved
+      fail("Known random failure https://github.com/eclipse/che/issues/8465", ex);
+    }
+
     editor.waitActive();
     editor.getAssociatedPathFromTheTab(openedFileNameInTheTab);
     editor.closeFileByNameWithSaving(openedFileNameInTheTab);
@@ -162,21 +177,19 @@ public class NavigateToFileTest {
 
   private void launchNavigateToFileFromUIAndTypeValue(String navigatingValue) {
     loader.waitOnClosed();
-    menu.runCommand(
-        TestMenuCommandsConstants.Assistant.ASSISTANT,
-        TestMenuCommandsConstants.Assistant.NAVIGATE_TO_FILE);
+    menu.runCommand(ASSISTANT, NAVIGATE_TO_FILE);
     navigateToFile.waitFormToOpen();
     loader.waitOnClosed();
     navigateToFile.typeSymbolInFileNameField(navigatingValue);
     loader.waitOnClosed();
   }
 
-  private void waitExpectedItemsInNavigateToFileDropdawn(Map<Integer, String> expectedItems) {
+  private void waitExpectedItemsInNavigateToFileDropdown(Map<Integer, String> expectedItems) {
     expectedItems
         .values()
         .stream()
         .map(it -> it.toString())
-        .forEach(it -> navigateToFile.waitListOfFilesNames(it));
+        .forEach(it -> Assert.assertTrue(navigateToFile.isFilenameSuggested(it)));
   }
 
   @DataProvider
@@ -189,12 +202,6 @@ public class NavigateToFileTest {
             2, "AppController.java (/NavigateFile_2/src/main/java/org/eclipse/qa/examples)")
       },
       {
-        "i",
-        ImmutableMap.of(
-            1, "index.jsp (/NavigateFile/src/main/webapp)",
-            2, "index.jsp (/NavigateFile_2/src/main/webapp)")
-      },
-      {
         "R",
         ImmutableMap.of(
             1, "README.md (/NavigateFile)",
@@ -204,12 +211,48 @@ public class NavigateToFileTest {
   }
 
   @DataProvider
-  private Object[][] dataForCheckingFilesCreatedWithoutIDE() {
+  private Object[][] dataToNavigateToFileCreatedOutsideIDE() {
     return new Object[][] {
       {
         "c",
         ImmutableMap.of(
             1, "createdFrom.api (/NavigateFile)", 2, "createdFrom.con (/NavigateFile_2)")
+      }
+    };
+  }
+
+  @DataProvider
+  private Object[][] dataToCheckNavigateByNameWithSpecialSymbols() {
+    return new Object[][] {
+      {
+        "*.java",
+        ImmutableMap.of(
+            1, "AppController.java (/NavigateFile/src/main/java/org/eclipse/qa/examples)",
+            2, "AppController.java (/NavigateFile_2/src/main/java/org/eclipse/qa/examples)")
+      },
+      {
+        "ind*.jsp",
+        ImmutableMap.of(
+            1, "index.jsp (/NavigateFile/src/main/webapp)",
+            2, "index.jsp (/NavigateFile_2/src/main/webapp)")
+      },
+      {
+        "*R*.md",
+        ImmutableMap.of(
+            1, "README.md (/NavigateFile)",
+            2, "README.md (/NavigateFile_2)")
+      },
+      {
+        "we?.xml",
+        ImmutableMap.of(
+            1, "web.xml (/NavigateFile/src/main/webapp/WEB-INF)",
+            2, "web.xml (/NavigateFile_2/src/main/webapp/WEB-INF)")
+      },
+      {
+        "gu?ss_n?m.j?p",
+        ImmutableMap.of(
+            1, "guess_num.jsp (/NavigateFile/src/main/webapp/WEB-INF/jsp)",
+            2, "guess_num.jsp (/NavigateFile_2/src/main/webapp/WEB-INF/jsp)")
       }
     };
   }

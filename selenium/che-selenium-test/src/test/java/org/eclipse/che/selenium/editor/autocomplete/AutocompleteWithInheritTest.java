@@ -1,17 +1,20 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.editor.autocomplete;
 
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.ERROR_MARKER;
-import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkersType.TASK_MARKER_OVERVIEW;
+import static org.eclipse.che.selenium.core.TestGroup.UNDER_REPAIR;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.ERROR;
+import static org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator.TASK_OVERVIEW;
+import static org.testng.Assert.fail;
 
 import com.google.inject.Inject;
 import java.net.URL;
@@ -21,20 +24,27 @@ import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.CodenvyEditor.MarkerLocator;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.MavenPluginStatusBar;
 import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.openqa.selenium.Keys;
+import org.openqa.selenium.TimeoutException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Musienko Maxim */
+@Test(groups = UNDER_REPAIR)
 public class AutocompleteWithInheritTest {
   private static final String PROJECT_NAME =
       NameGenerator.generate(AutocompleteWithInheritTest.class.getSimpleName(), 4);
   private static final String BASE_CLASS = "AppController";
   private static final String EXTENDED_CLASS = "InheritClass";
+  private static final Logger LOG = LoggerFactory.getLogger(AutocompleteWithInheritTest.class);
 
   private static final String contentAfterFix =
       "public class InheritClass extends AppController {\n"
@@ -53,6 +63,7 @@ public class AutocompleteWithInheritTest {
   @Inject private CodenvyEditor editor;
   @Inject private MavenPluginStatusBar mavenPluginStatusBar;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -62,35 +73,37 @@ public class AutocompleteWithInheritTest {
         Paths.get(resource.toURI()),
         PROJECT_NAME,
         ProjectTemplates.MAVEN_SPRING);
+
     ide.open(workspace);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
   }
 
   @Test
-  public void updateDependencyWithInheritTest() {
+  public void updateDependencyWithInheritTest() throws Exception {
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
     mavenPluginStatusBar.waitClosingInfoPanel();
-
-    projectExplorer.selectItem(PROJECT_NAME);
-    projectExplorer.quickExpandWithJavaScript();
-
-    projectExplorer.openItemByVisibleNameInExplorer("AppController.java");
-    editor.waitAllMarkersDisappear(ERROR_MARKER);
-
+    projectExplorer.expandPathInProjectExplorerAndOpenFile(
+        PROJECT_NAME + "/src/main/java/example", BASE_CLASS + ".java");
+    editor.waitAllMarkersInvisibility(ERROR);
     projectExplorer.openItemByVisibleNameInExplorer(EXTENDED_CLASS + ".java");
-    editor.returnFocusInCurrentLine();
-    editor.waitMarkerInPosition(ERROR_MARKER, 13);
-    editor.setCursorToLine(13);
+    editor.waitMarkerInPosition(MarkerLocator.ERROR, 14);
+    editor.setCursorToLine(14);
     editor.launchPropositionAssistPanel();
-    editor.waitTextIntoFixErrorProposition("Add constructor 'InheritClass(int,String)'");
+    try {
+      editor.waitTextIntoFixErrorProposition("Add constructor 'InheritClass(int,String)'");
+    } catch (TimeoutException ex) {
+      // remove try-catch block after issue has been resolved
+      fail("Known permanent failure https://github.com/eclipse/eclipse.jdt.ls/issues/767");
+    }
     editor.selectFirstItemIntoFixErrorPropByEnter();
     editor.waitTextIntoEditor(contentAfterFix);
-    editor.waitMarkerDisappears(ERROR_MARKER, 13);
-    editor.waitMarkerInPosition(TASK_MARKER_OVERVIEW, 18);
+    editor.waitMarkerInvisibility(ERROR, 14);
+    editor.waitMarkerInPosition(TASK_OVERVIEW, 19);
     editor.waitTabFileWithSavedStatus(EXTENDED_CLASS);
     editor.selectTabByName(BASE_CLASS);
     loader.waitOnClosed();
-    editor.selectLineAndDelete(24);
+    editor.selectLineAndDelete(25);
     editor.typeTextIntoEditor("int testString;");
     editor.typeTextIntoEditor(Keys.ARROW_DOWN.toString());
     editor.typeTextIntoEditor(Keys.ARROW_DOWN.toString());
@@ -100,7 +113,7 @@ public class AutocompleteWithInheritTest {
     editor.waitTabFileWithSavedStatus(BASE_CLASS);
     editor.selectTabByName(EXTENDED_CLASS);
     loader.waitOnClosed();
-    editor.setCursorToLine(16);
+    editor.setCursorToLine(17);
     editor.typeTextIntoEditor(Keys.END.toString());
     editor.typeTextIntoEditor(Keys.HOME.toString());
     editor.typeTextIntoEditor(Keys.DELETE.toString());
@@ -108,6 +121,6 @@ public class AutocompleteWithInheritTest {
     editor.launchPropositionAssistPanel();
     editor.waitTextIntoFixErrorProposition("Change type of 'testString' to 'int'");
     editor.selectFirstItemIntoFixErrorPropByDoubleClick();
-    editor.waitAllMarkersDisappear(ERROR_MARKER);
+    editor.waitAllMarkersInvisibility(ERROR);
   }
 }

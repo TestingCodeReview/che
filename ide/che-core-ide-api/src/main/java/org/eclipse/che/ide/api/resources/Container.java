@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -52,7 +53,7 @@ public interface Container extends Resource {
    * @throws IllegalStateException if during resource search failed has been occurred. Reasons
    *     include:
    *     <ul>
-   *       <li>Resource with path '/project_path' doesn't exists
+   *       <li>Resource with path '/project_path' doesn't exist
    *       <li>Resource with path '/project_path' isn't a project
    *       <li>Not a file
    *     </ul>
@@ -73,7 +74,7 @@ public interface Container extends Resource {
    * @throws IllegalStateException if during resource search failed has been occurred. Reasons
    *     include:
    *     <ul>
-   *       <li>Resource with path '/project_path' doesn't exists
+   *       <li>Resource with path '/project_path' doesn't exist
    *       <li>Resource with path '/project_path' isn't a project
    *       <li>Not a file
    *     </ul>
@@ -94,7 +95,7 @@ public interface Container extends Resource {
    * @throws IllegalStateException if during resource search failed has been occurred. Reasons
    *     include:
    *     <ul>
-   *       <li>Resource with path '/project_path' doesn't exists
+   *       <li>Resource with path '/project_path' doesn't exist
    *       <li>Resource with path '/project_path' isn't a project
    *       <li>Not a container
    *     </ul>
@@ -115,7 +116,7 @@ public interface Container extends Resource {
    * @throws IllegalStateException if during resource search failed has been occurred. Reasons
    *     include:
    *     <ul>
-   *       <li>Resource with path '/project_path' doesn't exists
+   *       <li>Resource with path '/project_path' doesn't exist
    *       <li>Resource with path '/project_path' isn't a project
    *       <li>Not a container
    *     </ul>
@@ -124,6 +125,25 @@ public interface Container extends Resource {
    * @since 4.4.0
    */
   Promise<Optional<Container>> getContainer(String relativePath);
+
+  /**
+   * Returns the {@code Promise} with handle to the resource identified by the given path in this
+   * container.
+   *
+   * <p>The supplied path should represent relative path to resource.
+   *
+   * @param relativePath the path of the member resource
+   * @return the {@code Promise} with the handle of the member resource
+   * @throws IllegalStateException if during resource search failed has been occurred. Reasons
+   *     include:
+   *     <ul>
+   *       <li>Resource with path '/project_path' doesn't exist
+   *       <li>Resource with path '/project_path' isn't a project
+   *     </ul>
+   *
+   * @see #getFile(Path)
+   */
+  Promise<Optional<Resource>> getResource(Path relativePath);
 
   /**
    * Returns the {@code Promise} with array of existing member resources (projects, folders and

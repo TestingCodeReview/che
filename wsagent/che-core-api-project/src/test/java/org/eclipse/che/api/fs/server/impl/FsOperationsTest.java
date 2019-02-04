@@ -1,25 +1,29 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.api.fs.server.impl;
 
+import static org.apache.commons.io.FileUtils.readFileToByteArray;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
 import com.google.common.io.Files;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.Random;
 import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -34,6 +38,11 @@ public class FsOperationsTest {
   private static final String DIR_NAME = "dirname";
   private static final String PARENT_NAME = "parent";
   private static final String TEXT_MESSAGE = "text message";
+  private static final byte[] BINARY_MESSAGE = new byte[20];
+
+  static {
+    new Random().nextBytes(BINARY_MESSAGE);
+  }
 
   private final FsOperations fsOperations = new FsOperations();
 
@@ -418,7 +427,7 @@ public class FsOperationsTest {
   }
 
   @Test
-  public void shouldUpdateFile() throws Exception {
+  public void shouldUpdateTextFile() throws Exception {
     String expected = TEXT_MESSAGE;
 
     file = new File(rootDir, FILE_NAME);
@@ -431,6 +440,23 @@ public class FsOperationsTest {
     fsOperations.update(file.toPath(), IOUtils.toInputStream(expected));
 
     String actual = FileUtils.readFileToString(file);
+    assertEquals(actual, expected);
+  }
+
+  @Test
+  public void shouldUpdateBinaryFile() throws Exception {
+    byte[] expected = BINARY_MESSAGE;
+
+    file = new File(rootDir, FILE_NAME);
+    assertTrue(file.createNewFile());
+    assertTrue(file.exists());
+    assertTrue(file.isFile());
+
+    assertNotEquals(readFileToByteArray(file), expected);
+
+    fsOperations.update(file.toPath(), new ByteArrayInputStream(expected));
+
+    byte[] actual = readFileToByteArray(file);
     assertEquals(actual, expected);
   }
 

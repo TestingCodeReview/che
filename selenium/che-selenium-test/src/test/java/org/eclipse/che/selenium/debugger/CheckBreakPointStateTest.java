@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,7 @@ import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
+import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Loader;
 import org.eclipse.che.selenium.pageobject.Menu;
@@ -48,6 +50,7 @@ public class CheckBreakPointStateTest {
   @Inject private AskDialog askDialog;
   @Inject private TestProjectServiceClient testProjectServiceClient;
   @Inject private SeleniumWebDriver seleniumWebDriver;
+  @Inject private Consoles consoles;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -61,6 +64,7 @@ public class CheckBreakPointStateTest {
         ws.getId(), Paths.get(resource.toURI()), PROJECT_NAME_2, ProjectTemplates.MAVEN_SPRING);
 
     ide.open(ws);
+    consoles.waitJDTLSProjectResolveFinishedMessage(PROJECT_NAME);
     projectExplorer.waitItem(PROJECT_NAME);
     projectExplorer.waitItem(PROJECT_NAME_2);
     projectExplorer.quickExpandWithJavaScript();
@@ -72,7 +76,7 @@ public class CheckBreakPointStateTest {
         "AdditonalClass.java:7\n" + "AdditonalClass.java:9";
 
     String expectedBreakpointsForGreetingClass =
-        "AppController.java:29\n" + "AppController.java:30\n" + "AppController.java:31";
+        "AppController.java:30\n" + "AppController.java:31\n" + "AppController.java:32";
 
     projectExplorer.openItemByPath(PATH_TO_PROJECT_WITH_TWO_CLASSES + "AdditonalClass.java");
     editor.waitActive();
@@ -80,7 +84,7 @@ public class CheckBreakPointStateTest {
     editor.setInactiveBreakpoint(9);
     debugPanel.openDebugPanel();
     debugPanel.waitContentInBreakPointPanel(expectedBreakpointsForAdditionalClass);
-    projectExplorer.selectItem(PATH_TO_PROJECT_WITH_TWO_CLASSES + "AdditonalClass.java");
+    projectExplorer.waitAndSelectItem(PATH_TO_PROJECT_WITH_TWO_CLASSES + "AdditonalClass.java");
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     loader.waitOnClosed();
     askDialog.confirmAndWaitClosed();
@@ -88,12 +92,12 @@ public class CheckBreakPointStateTest {
         PATH_TO_PROJECT_WITH_TWO_CLASSES + "AdditonalClass.java");
     debugPanel.waitBreakPointsPanelIsEmpty();
     projectExplorer.openItemByPath(PATH_TO_PROJECT_WITH_TWO_CLASSES + "AppController.java");
-    editor.setInactiveBreakpoint(29);
     editor.setInactiveBreakpoint(30);
     editor.setInactiveBreakpoint(31);
+    editor.setInactiveBreakpoint(32);
     debugPanel.openDebugPanel();
     debugPanel.waitContentInBreakPointPanel(expectedBreakpointsForGreetingClass);
-    projectExplorer.selectItem(PROJECT_NAME_2 + "/src/main/java");
+    projectExplorer.waitAndSelectItem(PROJECT_NAME_2 + "/src/main/java");
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     loader.waitOnClosed();
     askDialog.confirmAndWaitClosed();
@@ -106,15 +110,15 @@ public class CheckBreakPointStateTest {
   @Test(priority = 1)
   public void checkStateAfterDeletionProject() {
     String expectedBreakpointsForGreetingClass =
-        "AppController.java:29\n" + "AppController.java:31\n" + "AppController.java:34";
+        "AppController.java:30\n" + "AppController.java:32\n" + "AppController.java:35";
     projectExplorer.openItemByPath(PATH_TO_PROJECT_WITH_ONE_CLASS + "AppController.java");
     editor.setCursorToLine(35);
-    editor.setInactiveBreakpoint(29);
-    editor.setInactiveBreakpoint(31);
-    editor.setInactiveBreakpoint(34);
+    editor.setInactiveBreakpoint(30);
+    editor.setInactiveBreakpoint(32);
+    editor.setInactiveBreakpoint(35);
     debugPanel.openDebugPanel();
     debugPanel.waitContentInBreakPointPanel(expectedBreakpointsForGreetingClass);
-    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitAndSelectItem(PROJECT_NAME);
     menu.runCommand(TestMenuCommandsConstants.Edit.EDIT, TestMenuCommandsConstants.Edit.DELETE);
     loader.waitOnClosed();
     askDialog.confirmAndWaitClosed();

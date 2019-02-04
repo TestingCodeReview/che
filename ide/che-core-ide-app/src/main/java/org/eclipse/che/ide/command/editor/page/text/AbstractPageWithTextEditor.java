@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -103,16 +104,15 @@ public abstract class AbstractPageWithTextEditor extends AbstractCommandEditorPa
   protected void initialize() {
     initialValue = getCommandPropertyValue();
 
-    setContent(initialValue);
-  }
-
-  /** Sets editor's content. */
-  private void setContent(String content) {
-    VirtualFile file = new SyntheticFile(editedCommand.getName() + getType(), content);
-
-    editor.init(
-        new EditorInputImpl(fileTypeRegistry.getFileTypeByFile(file), file),
-        new OpenEditorCallbackImpl());
+    Document document = editor.getDocument();
+    if (document != null) {
+      document.replace(0, document.getContentsCharCount(), initialValue);
+    } else {
+      VirtualFile file = new SyntheticFile(editedCommand.getName() + getType(), initialValue);
+      editor.init(
+          new EditorInputImpl(fileTypeRegistry.getFileTypeByFile(file), file),
+          new OpenEditorCallbackImpl());
+    }
   }
 
   @Override

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -28,6 +29,7 @@ import org.eclipse.che.ide.api.workspace.event.WorkspaceStartingEvent;
 import org.eclipse.che.ide.api.workspace.event.WorkspaceStoppedEvent;
 import org.eclipse.che.ide.api.workspace.event.WorkspaceStoppingEvent;
 import org.eclipse.che.ide.context.AppContextImpl;
+import org.eclipse.che.ide.util.loging.Log;
 import org.eclipse.che.ide.workspace.WorkspaceServiceClient;
 
 /**
@@ -64,20 +66,26 @@ class WorkspaceStatusEventHandler {
         .getWorkspace(appContext.getWorkspaceId())
         .then(
             workspace -> {
-              // Update workspace model in AppContext before firing an event.
-              // Because AppContext always must return an actual workspace model.
-              ((AppContextImpl) appContext).setWorkspace(workspace);
+              try {
+                // Update workspace model in AppContext before firing an event.
+                // Because AppContext always must return an actual workspace model.
+                ((AppContextImpl) appContext).setWorkspace(workspace);
 
-              if (event.getStatus() == STARTING) {
-                eventBus.fireEvent(new WorkspaceStartingEvent());
-              } else if (event.getStatus() == RUNNING) {
-                eventBus.fireEvent(new WorkspaceRunningEvent());
-              } else if (event.getStatus() == STOPPING) {
-                eventBus.fireEvent(new WorkspaceStoppingEvent());
-              } else if (event.getStatus() == STOPPED) {
-                eventBus.fireEvent(
-                    new WorkspaceStoppedEvent(
-                        event.getError() != null, nullToEmpty(event.getError())));
+                if (event.getStatus() == STARTING) {
+                  eventBus.fireEvent(new WorkspaceStartingEvent());
+                } else if (event.getStatus() == RUNNING) {
+                  eventBus.fireEvent(new WorkspaceRunningEvent());
+                } else if (event.getStatus() == STOPPING) {
+                  WorkspaceStoppingEvent stoppingEvent = new WorkspaceStoppingEvent();
+                  stoppingEvent.setReason(event.getError());
+                  eventBus.fireEvent(stoppingEvent);
+                } else if (event.getStatus() == STOPPED) {
+                  eventBus.fireEvent(
+                      new WorkspaceStoppedEvent(
+                          event.getError() != null, nullToEmpty(event.getError())));
+                }
+              } catch (Exception e) {
+                Log.error(WorkspaceStatusEventHandler.class, "Error: " + e.getMessage(), e);
               }
             });
   }

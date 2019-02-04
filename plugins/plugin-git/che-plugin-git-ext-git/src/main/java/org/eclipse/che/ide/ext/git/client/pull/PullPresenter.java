@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.git.client.pull;
 
-import static org.eclipse.che.api.core.ErrorCodes.MERGE_CONFLICT;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_LOCAL;
 import static org.eclipse.che.api.git.shared.BranchListMode.LIST_REMOTE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.FLOAT_MODE;
@@ -169,15 +169,11 @@ public class PullPresenter extends GitAuthActionPresenter implements PullView.Ac
               if (response.getCommandOutput().contains("Already up-to-date")) {
                 notification.setTitle(locale.pullUpToDate());
               } else {
-                project.synchronize();
                 notification.setTitle(locale.pullSuccess(view.getRepositoryUrl()));
               }
             })
         .catchError(
             error -> {
-              if (getErrorCode(error.getCause()) == MERGE_CONFLICT) {
-                project.synchronize();
-              }
               notification.setStatus(FAIL);
               handleError(error.getCause(), PULL_COMMAND_NAME, notification);
             });

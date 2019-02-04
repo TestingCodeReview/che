@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,22 +13,16 @@ package org.eclipse.che.multiuser.keycloak.server.dao;
 
 import static java.util.Objects.requireNonNull;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import javax.inject.Inject;
-import javax.inject.Named;
-import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
-import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.user.server.model.impl.ProfileImpl;
 import org.eclipse.che.api.user.server.spi.ProfileDao;
 import org.eclipse.che.commons.env.EnvironmentContext;
-import org.eclipse.che.multiuser.keycloak.shared.KeycloakConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.che.multiuser.keycloak.server.KeycloakProfileRetriever;
 
 /**
  * Fetches user profile from Keycloack server.
@@ -36,24 +31,17 @@ import org.slf4j.LoggerFactory;
  * @author Sergii Leshchenko
  */
 public class KeycloakProfileDao implements ProfileDao {
-  private static final Logger LOG = LoggerFactory.getLogger(KeycloakProfileDao.class);
 
-  private final String keyclockCurrentUserInfoUrl;
-  private final HttpJsonRequestFactory requestFactory;
+  private final KeycloakProfileRetriever keycloakProfileRetriever;
 
   @Inject
-  public KeycloakProfileDao(
-      @Named(KeycloakConstants.AUTH_SERVER_URL_SETTING) String authServerUrl,
-      @Named(KeycloakConstants.REALM_SETTING) String realm,
-      HttpJsonRequestFactory requestFactory) {
-    this.requestFactory = requestFactory;
-    this.keyclockCurrentUserInfoUrl =
-        authServerUrl + "/realms/" + realm + "/protocol/openid-connect/userinfo";
+  public KeycloakProfileDao(KeycloakProfileRetriever keycloakProfileRetriever) {
+    this.keycloakProfileRetriever = keycloakProfileRetriever;
   }
 
   @Override
   public void create(ProfileImpl profile) throws ServerException, ConflictException {
-    // this method intentionally left blank
+    throw new ServerException("Given operation doesn't supported on current configured storage.");
   }
 
   @Override
@@ -75,15 +63,9 @@ public class KeycloakProfileDao implements ProfileDao {
           "It's not allowed to get foreign profile on current configured storage.");
     }
 
-    Map<String, String> keycloakUserAttributes;
     // Retrieving own profile
-    try {
-      keycloakUserAttributes =
-          requestFactory.fromUrl(keyclockCurrentUserInfoUrl).request().asProperties();
-    } catch (IOException | ApiException e) {
-      LOG.warn("Exception during retrieval of the Keycloak user profile", e);
-      throw new ServerException("Exception during retrieval of the Keycloak user profile", e);
-    }
+    Map<String, String> keycloakUserAttributes =
+        keycloakProfileRetriever.retrieveKeycloakAttributes();
 
     return new ProfileImpl(userId, mapAttributes(keycloakUserAttributes));
   }

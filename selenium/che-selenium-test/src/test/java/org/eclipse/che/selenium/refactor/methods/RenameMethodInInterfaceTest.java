@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,14 +12,13 @@
 package org.eclipse.che.selenium.refactor.methods;
 
 import com.google.inject.Inject;
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Random;
+import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
 import org.eclipse.che.selenium.core.utils.WaitUtils;
@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 public class RenameMethodInInterfaceTest {
   private static final Logger LOG = LoggerFactory.getLogger(RenameMethodInInterfaceTest.class);
   private static final String nameOfProject =
-      RenameMethodInInterfaceTest.class.getSimpleName() + new Random().nextInt(9999);
+      NameGenerator.generate(RenameMethodInInterfaceTest.class.getSimpleName(), 3);
   private static final String pathToPackageInChePrefix =
       nameOfProject + "/src" + "/main" + "/java" + "/renameMethodsInInterface";
   private static final String expectedWarnMessForFail5 =
@@ -75,6 +75,8 @@ public class RenameMethodInInterfaceTest {
         nameOfProject,
         ProjectTemplates.MAVEN_SIMPLE);
     ide.open(workspace);
+    ide.waitOpenedWorkspaceIsReadyToUse();
+    consoles.waitJDTLSProjectResolveFinishedMessage(nameOfProject);
     projectExplorer.waitVisibleItem(nameOfProject);
     consoles.closeProcessesArea();
     projectExplorer.quickExpandWithJavaScript();
@@ -82,7 +84,7 @@ public class RenameMethodInInterfaceTest {
   }
 
   @BeforeMethod
-  public void expandTreeOfProject(Method testName) throws IOException {
+  public void expandTreeOfProject(Method testName) {
     try {
       setFieldsForTest(testName.getName());
     } catch (Exception e) {
@@ -102,53 +104,53 @@ public class RenameMethodInInterfaceTest {
 
   @Test
   public void test0() {
-    doRefactoringWithKeys(17, 10, "k");
+    doRefactoringWithKeys(18, 10, "k");
   }
 
   @Test(priority = 1)
   public void test12() {
-    doRefactoringWithKeys(13, 6, "k");
+    doRefactoringWithKeys(14, 6, "k");
   }
 
   @Test(priority = 2)
   public void test20() {
-    doRefactoringWithKeys(13, 10, "k");
+    doRefactoringWithKeys(14, 10, "k");
   }
 
   @Test(priority = 3)
   public void test31() {
-    doRefactoringWithKeys(13, 6, "k");
+    doRefactoringWithKeys(14, 6, "k");
   }
 
   @Test(priority = 4)
   public void test44() {
-    doRefactoringWithKeys(13, 10, "k");
+    doRefactoringWithKeys(14, 10, "k");
   }
 
   @Test(priority = 5)
   public void testAnnotation1() {
-    doRefactorByWizard(23, 8, "number");
+    doRefactorByWizard(24, 8, "number");
     editor.waitTextIntoEditor(contentFromOutA);
   }
 
   @Test(priority = 6)
   public void testFail5() {
-    doRefactorByWizardWithExpectedWarningMessage(13, 10, "k", expectedWarnMessForFail5);
+    doRefactorByWizardWithExpectedWarningMessage(14, 10, "k", expectedWarnMessForFail5);
   }
 
   @Test(priority = 7)
   public void testFail12() {
-    doRefactorByWizardWithExpectedWarningMessage(14, 17, "k", expectedWarnMessForFail12);
+    doRefactorByWizardWithExpectedWarningMessage(15, 17, "k", expectedWarnMessForFail12);
   }
 
   @Test(priority = 8)
   public void testFail33() {
-    doRefactorByWizardWithExpectedWarningMessage(13, 12, "toString", expectedErrMessForFail33);
+    doRefactorByWizardWithExpectedWarningMessage(14, 12, "toString", expectedErrMessForFail33);
   }
 
   @Test(priority = 9)
   public void testGenerics01() {
-    doRefactoringWithKeys(18, 24, "zYXteg");
+    doRefactoringWithKeys(19, 24, "zYXteg");
 
     editor.waitTextIntoEditor(contentFromOutA);
   }
@@ -156,7 +158,7 @@ public class RenameMethodInInterfaceTest {
   private void doRefactoringWithKeys(
       int cursorPositionLine, int cursorPositionChar, String newName) {
     prepareProjectForRefactor(cursorPositionLine, cursorPositionChar);
-    editor.launchRefactorFormFromEditor();
+    editor.launchLocalRefactor();
     editor.typeTextIntoEditor(newName);
     editor.typeTextIntoEditor(Keys.ENTER.toString());
     loader.waitOnClosed();
@@ -165,13 +167,16 @@ public class RenameMethodInInterfaceTest {
 
   private void doRefactorByWizard(int cursorPositionLine, int cursorPositionChar, String newName) {
     prepareProjectForRefactor(cursorPositionLine, cursorPositionChar);
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameMethodFormIsOpen();
-    refactor.typeNewName(newName);
+    refactor.typeAndWaitNewName(newName);
     refactor.sendKeysIntoField(Keys.ARROW_LEFT.toString());
     refactor.sendKeysIntoField(Keys.ARROW_LEFT.toString());
     refactor.clickOkButtonRefactorForm();
+    loader.waitOnClosed();
+    refactor.waitRenameMethodFormIsClosed();
+    loader.waitOnClosed();
+    editor.waitTextIntoEditor(contentFromOutA);
   }
 
   private void doRefactorByWizardWithExpectedWarningMessage(
@@ -181,10 +186,9 @@ public class RenameMethodInInterfaceTest {
       String expectedWarningMessage) {
 
     prepareProjectForRefactor(cursorPositionLine, cursorPositionChar);
-    editor.launchRefactorFormFromEditor();
-    editor.launchRefactorFormFromEditor();
+    editor.launchRefactorForm();
     refactor.waitRenameMethodFormIsOpen();
-    refactor.typeNewName(newName);
+    refactor.typeAndWaitNewName(newName);
     WaitUtils.sleepQuietly(1);
     refactor.sendKeysIntoField(Keys.ARROW_LEFT.toString());
     refactor.sendKeysIntoField(Keys.ARROW_LEFT.toString());

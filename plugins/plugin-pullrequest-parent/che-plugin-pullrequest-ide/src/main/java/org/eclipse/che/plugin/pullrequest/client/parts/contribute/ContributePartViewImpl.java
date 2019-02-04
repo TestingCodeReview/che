@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,6 +13,7 @@ package org.eclipse.che.plugin.pullrequest.client.parts.contribute;
 
 import static com.google.gwt.dom.client.Style.Cursor.POINTER;
 import static com.google.gwt.dom.client.Style.Unit.PX;
+import static org.vectomatic.dom.svg.ui.SVGButtonBase.SVGFaceName.UP;
 
 import com.google.gwt.event.dom.client.ChangeEvent;
 import com.google.gwt.event.dom.client.ChangeHandler;
@@ -129,16 +131,18 @@ public class ContributePartViewImpl extends BaseView<ContributePartView.ActionDe
     setTitle(messages.contributePartTitle());
 
     this.contributeButtonText = contributeButton.getText();
-    this.contributeButton.addStyleName(buttonLoaderResources.Css().buttonLoader());
+    this.contributeButton.addStyleName(buttonLoaderResources.buttonLoaderCss().buttonLoader());
 
     this.refreshContributionBranchNameListButton.getElement().getStyle().setWidth(23, PX);
     this.refreshContributionBranchNameListButton.getElement().getStyle().setHeight(20, PX);
     this.refreshContributionBranchNameListButton.getElement().getStyle().setCursor(POINTER);
+    this.refreshContributionBranchNameListButton.showFace(UP);
     this.refreshContributionBranchNameListButton
         .getElement()
         .getStyle()
         .setProperty("fill", "#dbdbdb");
 
+    this.refreshContributionBranchNameListButton.ensureDebugId("refreshContributionBranchButton");
     this.statusSection.setVisible(false);
     this.newContributionSection.setVisible(false);
     this.contributionTitle

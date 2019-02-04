@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (c) 2015-2017 Red Hat, Inc.
-    All rights reserved. This program and the accompanying materials
-    are made available under the terms of the Eclipse Public License v1.0
-    which accompanies this distribution, and is available at
-    http://www.eclipse.org/legal/epl-v10.html
+    Copyright (c) 2015-2018 Red Hat, Inc.
+    This program and the accompanying materials are made
+    available under the terms of the Eclipse Public License 2.0
+    which is available at https://www.eclipse.org/legal/epl-2.0/
+
+    SPDX-License-Identifier: EPL-2.0
 
     Contributors:
       Red Hat, Inc. - initial API and implementation
@@ -16,12 +17,11 @@
     <parent>
         <artifactId>che-parent</artifactId>
         <groupId>org.eclipse.che</groupId>
-        <version>6.0.0-M4-SNAPSHOT</version>
+        <version>6.18.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <groupId>org.eclipse.che.dashboard</groupId>
     <artifactId>che-dashboard-war</artifactId>
-    <version>6.0.0-M4-SNAPSHOT</version>
     <packaging>war</packaging>
     <name>Che Dashboard :: Web App</name>
     <inceptionYear>2015</inceptionYear>
@@ -35,6 +35,15 @@
     <build>
         <finalName>dashboard-war</finalName>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>node_modules/**/*.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-war-plugin</artifactId>
@@ -178,10 +187,6 @@
                         <configuration>
                             <filesets>
                                 <fileset>
-                                    <directory>${basedir}/bower_components</directory>
-                                    <followSymlinks>false</followSymlinks>
-                                </fileset>
-                                <fileset>
                                     <directory>${basedir}/node_modules</directory>
                                     <followSymlinks>false</followSymlinks>
                                 </fileset>
@@ -192,6 +197,22 @@
                         <artifactId>maven-antrun-plugin</artifactId>
                         <executions>
                             <execution>
+                                <id>install-yarn</id>
+                                <phase>compile</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <!-- install yarn -->
+                                        <exec dir="${basedir}" executable="npm" failonerror="true">
+                                            <arg value="install" />
+                                            <arg value="yarn" />
+                                        </exec>
+                                    </target>
+                                </configuration>
+                            </execution>
+                            <execution>
                                 <id>build-dashboard</id>
                                 <phase>compile</phase>
                                 <goals>
@@ -200,7 +221,7 @@
                                 <configuration>
                                     <target>
                                         <!-- build user dashboard -->
-                                        <exec dir="${basedir}" executable="npm" failonerror="true">
+                                        <exec dir="${basedir}" executable="node_modules/yarn/bin/yarn" failonerror="true">
                                             <arg value="install" />
                                         </exec>
                                         <!-- Change base HREF of the application that will be hosted on /dashboard -->
@@ -220,7 +241,7 @@
                                 <configuration>
                                     <target unless="skipTests">
                                         <!-- Run unit tests -->
-                                        <exec dir="${basedir}" executable="npm" failonerror="true">
+                                        <exec dir="${basedir}" executable="node_modules/yarn/bin/yarn" failonerror="true">
                                             <arg value="run" />
                                             <arg value="test" />
                                         </exec>

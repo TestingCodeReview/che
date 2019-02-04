@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -31,6 +32,8 @@ public class NameUtilsTest {
   private static String[] INVALID_FILENAMES =
       new String[] {"\0", "a/b", "/", "\\", "*", "?", "|", "<", ">", "I<3Math.png", ""};
 
+  private static String[] VALID_COMMAND_NAMES = new String[] {"build", "project: build"};
+
   @Test(dataProvider = "ValidFilenames")
   public void validFilenamesShouldGetValidated(String validFilename) {
     assertTrue(validFilename + " is supposed to be valid", NameUtils.checkFileName(validFilename));
@@ -55,6 +58,13 @@ public class NameUtilsTest {
         NameUtils.checkFileName(invalidFolderName));
   }
 
+  @Test(dataProvider = "ValidCommandNames")
+  public void validCommandNamesShouldGetValidated(String validCommandName) {
+    assertTrue(
+        validCommandName + " is supposed to be valid",
+        NameUtils.isValidCommandName(validCommandName));
+  }
+
   @Test
   public void getFileExtension() {
     assertEquals("txt", NameUtils.getFileExtension("123.txt"));
@@ -70,6 +80,11 @@ public class NameUtilsTest {
   @DataProvider(name = "InvalidFilenames")
   public Object[][] getInvalidFilenames() {
     return toDataProviderData(INVALID_FILENAMES);
+  }
+
+  @DataProvider(name = "ValidCommandNames")
+  public Object[][] getValidCommandNames() {
+    return toDataProviderData(VALID_COMMAND_NAMES);
   }
 
   private Object[][] toDataProviderData(String[] strings) {

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,7 +13,9 @@ package org.eclipse.che.api.git;
 
 import static com.google.common.collect.Sets.newConcurrentHashSet;
 import static java.nio.file.Files.isDirectory;
+import static java.nio.file.Paths.get;
 import static java.util.regex.Pattern.compile;
+import static org.eclipse.che.api.fs.server.WsPathUtils.SEPARATOR;
 import static org.eclipse.che.api.fs.server.WsPathUtils.absolutize;
 import static org.eclipse.che.api.project.shared.dto.event.GitCheckoutEventDto.Type.BRANCH;
 import static org.eclipse.che.api.project.shared.dto.event.GitCheckoutEventDto.Type.REVISION;
@@ -34,9 +37,11 @@ import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerConfigurator;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestTransmitter;
 import org.eclipse.che.api.fs.server.FsManager;
+import org.eclipse.che.api.fs.server.PathTransformer;
 import org.eclipse.che.api.project.server.ProjectManager;
 import org.eclipse.che.api.project.shared.dto.event.GitCheckoutEventDto;
 import org.eclipse.che.api.project.shared.dto.event.GitCheckoutEventDto.Type;
+import org.eclipse.che.api.search.server.excludes.HiddenItemPathMatcher;
 import org.eclipse.che.api.watcher.server.FileWatcherManager;
 import org.slf4j.Logger;
 
@@ -54,6 +59,8 @@ public class GitCheckoutDetector {
   private final FileWatcherManager manager;
   private final FsManager fsManager;
   private final ProjectManager projectManager;
+  private final PathTransformer pathTransformer;
+  private final HiddenItemPathMatcher hiddenItemPathMatcher;
 
   private final Set<String> endpointIds = newConcurrentHashSet();
 
@@ -64,11 +71,15 @@ public class GitCheckoutDetector {
       RequestTransmitter transmitter,
       FileWatcherManager manager,
       FsManager fsManager,
-      ProjectManager projectManager) {
+      ProjectManager projectManager,
+      PathTransformer pathTransformer,
+      HiddenItemPathMatcher hiddenItemPathMatcher) {
     this.transmitter = transmitter;
     this.manager = manager;
     this.fsManager = fsManager;
     this.projectManager = projectManager;
+    this.pathTransformer = pathTransformer;
+    this.hiddenItemPathMatcher = hiddenItemPathMatcher;
   }
 
   @Inject
@@ -92,10 +103,17 @@ public class GitCheckoutDetector {
   }
 
   private PathMatcher matcher() {
-    return it ->
-        !isDirectory(it)
-            && HEAD_FILE.equals(it.getFileName().toString())
-            && GIT_DIR.equals(it.getParent().getFileName().toString());
+    return path -> {
+      if (isDirectory(path)
+          || !HEAD_FILE.equals(path.getFileName().toString())
+          || !GIT_DIR.equals(path.getParent().getFileName().toString())) {
+        return false;
+      }
+
+      String wsPath = pathTransformer.transform(path);
+      String projectPath = wsPath.split(SEPARATOR)[1];
+      return !hiddenItemPathMatcher.matches(get(projectPath));
+    };
   }
 
   private Consumer<String> createConsumer() {

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,12 +14,12 @@ package org.eclipse.che.api.watcher.server.impl;
 import static org.eclipse.che.api.watcher.server.impl.FileWatcherUtils.toNormalPath;
 
 import com.google.inject.Inject;
-import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
 import java.util.function.Consumer;
-import javax.inject.Named;
 import javax.inject.Singleton;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 import org.eclipse.che.api.watcher.server.FileWatcherManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,13 +36,13 @@ public class SimpleFileWatcherManager implements FileWatcherManager {
 
   @Inject
   public SimpleFileWatcherManager(
-      @Named("che.user.workspaces.storage") File root,
+      RootDirPathProvider pathProvider,
       FileWatcherByPathValue watcherByPathValue,
       FileWatcherByPathMatcher watcherByPathMatcher,
       FileWatcherExcludePatternsRegistry excludePatternsRegistry) {
     this.fileWatcherByPathMatcher = watcherByPathMatcher;
     this.fileWatcherByPathValue = watcherByPathValue;
-    this.root = root.toPath().normalize().toAbsolutePath();
+    this.root = Paths.get(pathProvider.get()).normalize().toAbsolutePath();
     this.excludePatternsRegistry = excludePatternsRegistry;
   }
 

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -38,11 +39,11 @@ public class GithubUrl {
   /** Subfolder if any */
   private String subfolder;
 
-  /** Dockerfile filename */
-  private String dockerfileFilename;
-
   /** Factory json filename */
   private String factoryFilename;
+
+  /** Devfile filename */
+  private String devfileFilename;
 
   /**
    * Creation of this instance is made by the parser so user may not need to create a new instance
@@ -79,16 +80,16 @@ public class GithubUrl {
   }
 
   /**
-   * Gets dockerfile file name of this github url
+   * Gets devfile file name of this github url
    *
-   * @return the dockerfile file name
+   * @return the devfile file name
    */
-  public String getDockerfileFilename() {
-    return this.dockerfileFilename;
+  public String getDevfileFilename() {
+    return this.devfileFilename;
   }
 
-  protected GithubUrl withDockerfileFilename(String dockerfileFilename) {
-    this.dockerfileFilename = dockerfileFilename;
+  protected GithubUrl withDevfileFilename(String devfileFilename) {
+    this.devfileFilename = devfileFilename;
     return this;
   }
 
@@ -143,32 +144,35 @@ public class GithubUrl {
   }
 
   /**
-   * Provides the location to dockerfile
-   *
-   * @return location of dockerfile in a repository
-   */
-  protected String dockerFileLocation() {
-    return new StringJoiner("/")
-        .add("https://raw.githubusercontent.com")
-        .add(username)
-        .add(repository)
-        .add(branch)
-        .add(dockerfileFilename)
-        .toString();
-  }
-
-  /**
-   * Provides the location to factory json file
+   * Provides location to raw content of the factory json file
    *
    * @return location of factory json file in a repository
    */
-  protected String factoryJsonFileLocation() {
+  protected String factoryFileLocation() {
+    return rawFileLocation(factoryFilename);
+  }
+
+  /**
+   * Provides location to raw content of the devfile yaml file
+   *
+   * @return location of devfile yaml file in a repository
+   */
+  protected String devfileFileLocation() {
+    return rawFileLocation(devfileFilename);
+  }
+
+  /**
+   * Provides location to raw content of specified file
+   *
+   * @return location of specified file in a repository
+   */
+  protected String rawFileLocation(String fileName) {
     return new StringJoiner("/")
         .add("https://raw.githubusercontent.com")
         .add(username)
         .add(repository)
         .add(branch)
-        .add(factoryFilename)
+        .add(fileName)
         .toString();
   }
 

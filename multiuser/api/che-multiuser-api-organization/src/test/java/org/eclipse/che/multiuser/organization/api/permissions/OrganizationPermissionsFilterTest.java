@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -91,7 +94,7 @@ public class OrganizationPermissionsFilterTest {
 
   @BeforeMethod
   public void setUp() throws Exception {
-    when(subject.getUserId()).thenReturn(USER_ID);
+    lenient().when(subject.getUserId()).thenReturn(USER_ID);
 
     when(manager.getById(anyString()))
         .thenReturn(new OrganizationImpl("organization123", "test", null));
@@ -260,8 +263,8 @@ public class OrganizationPermissionsFilterTest {
           throws Exception {
     when(manager.getById(anyString()))
         .thenReturn(new OrganizationImpl("organization123", "test", "parent123"));
-    when(subject.hasPermission(DOMAIN_ID, "parent123", MANAGE_SUBORGANIZATIONS)).thenReturn(false);
-    when(subject.hasPermission(DOMAIN_ID, "organization123", UPDATE)).thenReturn(true);
+    doReturn(false).when(subject).hasPermission(DOMAIN_ID, "parent123", MANAGE_SUBORGANIZATIONS);
+    doReturn(true).when(subject).hasPermission(DOMAIN_ID, "organization123", UPDATE);
 
     final Response response =
         given()
@@ -323,8 +326,8 @@ public class OrganizationPermissionsFilterTest {
           throws Exception {
     when(manager.getById(anyString()))
         .thenReturn(new OrganizationImpl("organization123", "test", "parent123"));
-    when(subject.hasPermission(DOMAIN_ID, "parent123", MANAGE_SUBORGANIZATIONS)).thenReturn(false);
-    when(subject.hasPermission(DOMAIN_ID, "organization123", DELETE)).thenReturn(true);
+    doReturn(false).when(subject).hasPermission(DOMAIN_ID, "parent123", MANAGE_SUBORGANIZATIONS);
+    doReturn(true).when(subject).hasPermission(DOMAIN_ID, "organization123", DELETE);
 
     final Response response =
         given()
@@ -397,9 +400,9 @@ public class OrganizationPermissionsFilterTest {
   }
 
   @Test(
-    expectedExceptions = ForbiddenException.class,
-    expectedExceptionsMessageRegExp = "The user does not have permission to perform this operation"
-  )
+      expectedExceptions = ForbiddenException.class,
+      expectedExceptionsMessageRegExp =
+          "The user does not have permission to perform this operation")
   public void shouldThrowForbiddenExceptionWhenRequestedUnknownMethod() throws Exception {
     final GenericResourceMethod mock = mock(GenericResourceMethod.class);
     Method injectLinks = OrganizationService.class.getMethod("getServiceDescriptor");

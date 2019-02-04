@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -17,9 +18,10 @@ import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.MembersInjector;
 import com.google.inject.Provider;
-import com.google.inject.name.Names;
 import java.lang.reflect.Field;
 import org.eclipse.che.selenium.core.client.TestOrganizationServiceClient;
+import org.eclipse.che.selenium.core.client.TestOrganizationServiceClientFactory;
+import org.eclipse.che.selenium.core.user.AdminTestUser;
 
 /**
  * Injector for custom annotation {@link InjectTestOrganization}.
@@ -48,16 +50,21 @@ public class TestOrganizationInjector<T> implements MembersInjector<T> {
     String name = generateName();
     String parentPrefix = injectTestOrganization.parentPrefix();
 
-    TestOrganizationServiceClient testOrganizationServiceClient =
-        injector.getInstance(Key.get(TestOrganizationServiceClient.class, Names.named("admin")));
+    AdminTestUser adminTestUser = injector.getInstance(Key.get(AdminTestUser.class));
+
+    TestOrganizationServiceClientFactory testOrganizationServiceClient =
+        injector.getInstance(Key.get(TestOrganizationServiceClientFactory.class));
+
+    TestOrganizationServiceClient adminOrganizationServiceClient =
+        testOrganizationServiceClient.create(adminTestUser);
 
     TestOrganization testOrganization;
     try {
       if (parentPrefix.isEmpty()) {
-        testOrganization = new TestOrganization(name, testOrganizationServiceClient);
+        testOrganization = new TestOrganization(name, adminOrganizationServiceClient);
       } else {
         String parentId = findInjectedOrganization(instance, parentPrefix);
-        testOrganization = new TestOrganization(name, parentId, testOrganizationServiceClient);
+        testOrganization = new TestOrganization(name, parentId, adminOrganizationServiceClient);
       }
 
       field.setAccessible(true);

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -11,55 +12,77 @@
 package org.eclipse.che.workspace.infrastructure.openshift;
 
 import com.google.inject.assistedinject.Assisted;
-import java.net.URI;
+import java.util.Optional;
 import javax.inject.Inject;
 import javax.inject.Named;
 import org.eclipse.che.api.core.ValidationException;
 import org.eclipse.che.api.core.model.workspace.runtime.RuntimeIdentity;
 import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
-import org.eclipse.che.api.workspace.server.spi.InternalInfrastructureException;
-import org.eclipse.che.api.workspace.server.spi.RuntimeContext;
 import org.eclipse.che.api.workspace.server.spi.RuntimeInfrastructure;
+import org.eclipse.che.workspace.infrastructure.kubernetes.KubernetesRuntimeContext;
+import org.eclipse.che.workspace.infrastructure.kubernetes.cache.KubernetesRuntimeStateCache;
+import org.eclipse.che.workspace.infrastructure.kubernetes.model.KubernetesRuntimeState;
 import org.eclipse.che.workspace.infrastructure.openshift.environment.OpenShiftEnvironment;
 import org.eclipse.che.workspace.infrastructure.openshift.project.OpenShiftProjectFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** @author Sergii Leshchenko */
-public class OpenShiftRuntimeContext extends RuntimeContext<OpenShiftEnvironment> {
+public class OpenShiftRuntimeContext extends KubernetesRuntimeContext<OpenShiftEnvironment> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(OpenShiftRuntimeContext.class);
 
   private final OpenShiftRuntimeFactory runtimeFactory;
   private final OpenShiftProjectFactory projectFactory;
-  private final String websocketOutputEndpoint;
+  private final KubernetesRuntimeStateCache runtimeStatuses;
 
   @Inject
   public OpenShiftRuntimeContext(
       @Named("che.websocket.endpoint") String cheWebsocketEndpoint,
       OpenShiftProjectFactory projectFactory,
       OpenShiftRuntimeFactory runtimeFactory,
+      KubernetesRuntimeStateCache runtimeStatuses,
       @Assisted OpenShiftEnvironment openShiftEnvironment,
       @Assisted RuntimeIdentity identity,
       @Assisted RuntimeInfrastructure infrastructure)
       throws ValidationException, InfrastructureException {
-    super(openShiftEnvironment, identity, infrastructure);
-    this.projectFactory = projectFactory;
+    super(
+        cheWebsocketEndpoint,
+        projectFactory,
+        null, // should not be used by super class since getRuntime method is overridden
+        runtimeStatuses,
+        openShiftEnvironment,
+        identity,
+        infrastructure);
+    this.runtimeStatuses = runtimeStatuses;
     this.runtimeFactory = runtimeFactory;
-    this.websocketOutputEndpoint = cheWebsocketEndpoint;
-  }
-
-  @Override
-  public URI getOutputChannel() throws InfrastructureException {
-    try {
-      return URI.create(websocketOutputEndpoint);
-    } catch (IllegalArgumentException ex) {
-      throw new InternalInfrastructureException(
-          "Failed to get the output channel.  " + ex.getMessage());
-    }
+    this.projectFactory = projectFactory;
   }
 
   @Override
   public OpenShiftInternalRuntime getRuntime() throws InfrastructureException {
-    return runtimeFactory.create(
-        this,
-        projectFactory.create(getIdentity().getWorkspaceId()),
-        getEnvironment().getWarnings());
+    Optional<KubernetesRuntimeState> runtimeStateOpt = runtimeStatuses.get(getIdentity());
+    String workspaceId = getIdentity().getWorkspaceId();
+
+    if (!runtimeStateOpt.isPresent()) {
+      // there is no cached runtime, create a new one
+      return runtimeFactory.create(this, projectFactory.create(workspaceId));
+    }
+
+    // there is cached runtime, restore cached one
+    KubernetesRuntimeState runtimeState = runtimeStateOpt.get();
+    RuntimeIdentity runtimeId = runtimeState.getRuntimeId();
+    LOG.debug(
+        "Restoring runtime `{}:{}:{}`",
+        runtimeId.getWorkspaceId(),
+        runtimeId.getEnvName(),
+        runtimeId.getOwnerId());
+    OpenShiftInternalRuntime runtime =
+        runtimeFactory.create(
+            this, projectFactory.create(workspaceId, runtimeState.getNamespace()));
+
+    runtime.scheduleRuntimeStateChecks();
+
+    return runtime;
   }
 }

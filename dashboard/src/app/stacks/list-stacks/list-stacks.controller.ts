@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -21,6 +22,9 @@ import {ConfirmDialogService} from '../../../components/service/confirm-dialog/c
  * @author Ann Shumilova
  */
 export class ListStacksController {
+
+  static $inject = ['cheStack', 'cheProfile', '$log', '$mdDialog', 'cheNotification', '$rootScope', 'lodash', '$q', 'confirmDialogService', '$scope', 'cheListHelperFactory'];
+
   cheStack: CheStack;
   cheNotification: CheNotification;
   $log: ng.ILogService;
@@ -42,7 +46,6 @@ export class ListStacksController {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor(cheStack: CheStack, cheProfile: CheProfile, $log: ng.ILogService, $mdDialog: ng.material.IDialogService, cheNotification: CheNotification, $rootScope: ng.IRootScopeService, lodash: any, $q: ng.IQService, confirmDialogService: ConfirmDialogService, $scope: ng.IScope, cheListHelperFactory: che.widget.ICheListHelperFactory) {
     this.cheStack = cheStack;
@@ -124,14 +127,14 @@ export class ListStacksController {
   showSelectStackRecipeDialog($event: MouseEvent): void {
     this.$mdDialog.show({
       targetEvent: $event,
-      controller: 'ImportStackController',
-      controllerAs: 'importStackController',
+      controller: 'BuildStackController',
+      controllerAs: 'buildStackController',
       bindToController: true,
       clickOutsideToClose: true,
       locals: {
         callbackController: this
       },
-      templateUrl: 'app/stacks/list-stacks/import-stack/import-stack.html'
+      templateUrl: 'app/stacks/list-stacks/build-stack/build-stack.html'
     });
   }
 

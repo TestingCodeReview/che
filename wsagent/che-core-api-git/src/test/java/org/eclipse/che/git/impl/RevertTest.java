@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -12,6 +13,7 @@ package org.eclipse.che.git.impl;
 
 import static org.eclipse.che.git.impl.GitTestUtil.addFile;
 import static org.eclipse.che.git.impl.GitTestUtil.cleanupTestRepo;
+import static org.eclipse.che.git.impl.GitTestUtil.connectToGitRepositoryWithContent;
 import static org.eclipse.che.git.impl.GitTestUtil.connectToInitializedGitRepository;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -25,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.eclipse.che.api.git.GitConnection;
 import org.eclipse.che.api.git.GitConnectionFactory;
+import org.eclipse.che.api.git.LogPage;
 import org.eclipse.che.api.git.exception.GitException;
 import org.eclipse.che.api.git.params.AddParams;
 import org.eclipse.che.api.git.params.CommitParams;
@@ -51,9 +54,8 @@ public class RevertTest {
   }
 
   @Test(
-    dataProvider = "GitConnectionFactory",
-    dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class
-  )
+      dataProvider = "GitConnectionFactory",
+      dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class)
   public void testRevertCommit(GitConnectionFactory connectionFactory) throws Exception {
     // given
     GitConnection connection = connectToInitializedGitRepository(connectionFactory, repository);
@@ -79,9 +81,29 @@ public class RevertTest {
   }
 
   @Test(
-    dataProvider = "GitConnectionFactory",
-    dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class
-  )
+      dataProvider = "GitConnectionFactory",
+      dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class)
+  public void ShouldSetAuthorToRevertCommit(GitConnectionFactory connectionFactory)
+      throws Exception {
+    // given
+    GitConnection connection = connectToGitRepositoryWithContent(connectionFactory, repository);
+    // first commit
+    addFile(connection, "test-revert", "blabla\n");
+    connection.add(AddParams.create(AddRequest.DEFAULT_PATTERN));
+    String revision = connection.commit(CommitParams.create("add test-revert file")).getId();
+
+    // when
+    RevertResult result = connection.revert(revision);
+    LogPage log = connection.log(LogParams.create());
+
+    // then
+    assertEquals(log.getCommits().get(0).getAuthor().getName(), "test_name");
+    assertEquals(log.getCommits().get(0).getAuthor().getEmail(), "test@email");
+  }
+
+  @Test(
+      dataProvider = "GitConnectionFactory",
+      dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class)
   public void testConflictsIfDirtyWorkTree(GitConnectionFactory connectionFactory)
       throws Exception {
     // given
@@ -114,9 +136,8 @@ public class RevertTest {
   }
 
   @Test(
-    dataProvider = "GitConnectionFactory",
-    dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class
-  )
+      dataProvider = "GitConnectionFactory",
+      dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class)
   public void testConflictsIfDirtyIndex(GitConnectionFactory connectionFactory) throws Exception {
     // given
     GitConnection connection = connectToInitializedGitRepository(connectionFactory, repository);
@@ -149,9 +170,8 @@ public class RevertTest {
   }
 
   @Test(
-    dataProvider = "GitConnectionFactory",
-    dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class
-  )
+      dataProvider = "GitConnectionFactory",
+      dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class)
   public void testConflictsIfSameLineWasChangedInLaterCommits(
       GitConnectionFactory connectionFactory) throws Exception {
     // given
@@ -187,12 +207,11 @@ public class RevertTest {
   }
 
   @Test(
-    dataProvider = "GitConnectionFactory",
-    dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class,
-    expectedExceptions = GitException.class,
-    expectedExceptionsMessageRegExp =
-        "Cannot revert commit .* because it has 0 parents, only commits with exactly one parent are supported"
-  )
+      dataProvider = "GitConnectionFactory",
+      dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class,
+      expectedExceptions = GitException.class,
+      expectedExceptionsMessageRegExp =
+          "Cannot revert commit .* because it has 0 parents, only commits with exactly one parent are supported")
   public void testExceptionOnRevertFirstCommit(GitConnectionFactory connectionFactory)
       throws Exception {
     // given

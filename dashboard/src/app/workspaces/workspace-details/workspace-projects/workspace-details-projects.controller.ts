@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -15,6 +16,8 @@ import {StackSelectorSvc} from '../../create-workspace/stack-selector/stack-sele
 import {RandomSvc} from '../../../../components/utils/random.service';
 import {WorkspaceDetailsProjectsService} from './workspace-details-projects.service';
 import {WorkspaceDetailsService} from '../workspace-details.service';
+import {CreateWorkspaceSvc} from '../../create-workspace/create-workspace.service';
+import {WorkspaceStatus} from '../../../../components/api/workspace/che-workspace.factory';
 
 /**
  * @ngdoc controller
@@ -25,6 +28,9 @@ import {WorkspaceDetailsService} from '../workspace-details.service';
  * @author Oleksii Kurinnyi
  */
 export class WorkspaceDetailsProjectsCtrl {
+
+  static $inject = ['cheAPI', '$mdDialog', 'confirmDialogService', '$scope', 'cheListHelperFactory', 'stackSelectorSvc', 'randomSvc', 'createWorkspaceSvc', 'workspaceDetailsService', 'workspaceDetailsProjectsService'];
+
   /**
    * Material design Dialog service.
    */
@@ -49,6 +55,14 @@ export class WorkspaceDetailsProjectsCtrl {
    * Service for Project's tab on Workspace Details page.
    */
   private workspaceDetailsProjectsService: WorkspaceDetailsProjectsService;
+  /**
+   * Workspace creation service.
+   */
+  private createWorkspaceSvc: CreateWorkspaceSvc;
+  /**
+   * Workspace details service.
+   */
+  private workspaceDetailsService: WorkspaceDetailsService;
 
   private projectFilter: any;
   private profileCreationDate: any;
@@ -64,14 +78,24 @@ export class WorkspaceDetailsProjectsCtrl {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor(cheAPI: CheAPI, $mdDialog: ng.material.IDialogService, confirmDialogService: ConfirmDialogService, $scope: ng.IScope, cheListHelperFactory: che.widget.ICheListHelperFactory, stackSelectorSvc: StackSelectorSvc, randomSvc: RandomSvc, workspaceDetailsProjectsService: WorkspaceDetailsProjectsService, workspaceDetailsService: WorkspaceDetailsService) {
+  constructor(cheAPI: CheAPI,
+              $mdDialog: ng.material.IDialogService,
+              confirmDialogService: ConfirmDialogService,
+              $scope: ng.IScope,
+              cheListHelperFactory: che.widget.ICheListHelperFactory,
+              stackSelectorSvc: StackSelectorSvc,
+              randomSvc: RandomSvc,
+              createWorkspaceSvc: CreateWorkspaceSvc,
+              workspaceDetailsService: WorkspaceDetailsService,
+              workspaceDetailsProjectsService: WorkspaceDetailsProjectsService) {
     this.$mdDialog = $mdDialog;
     this.confirmDialogService = confirmDialogService;
     this.stackSelectorSvc = stackSelectorSvc;
     this.randomSvc = randomSvc;
     this.workspaceDetailsProjectsService = workspaceDetailsProjectsService;
+    this.createWorkspaceSvc = createWorkspaceSvc;
+    this.workspaceDetailsService = workspaceDetailsService;
 
     const helperId = 'workspace-details-projects';
     this.cheListHelper = cheListHelperFactory.getHelper(helperId);
@@ -167,6 +191,7 @@ export class WorkspaceDetailsProjectsCtrl {
       this.workspaceDetails.config.projects.push(projectTemplate);
     });
 
+    this.createWorkspaceSvc.addProjectCommands(this.workspaceDetails.config, projectTemplates);
     this.projectsOnChange();
   }
 
@@ -233,6 +258,10 @@ export class WorkspaceDetailsProjectsCtrl {
     }
 
     return this.confirmDialogService.showConfirmDialog('Remove projects', content, 'Delete');
+  }
+
+  workspaceIsRunning(): boolean {
+    return this.workspaceDetailsService.getWorkspaceStatus(this.workspaceDetails.id) === WorkspaceStatus[WorkspaceStatus.RUNNING];
   }
 
 }

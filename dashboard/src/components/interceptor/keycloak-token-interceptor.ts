@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -18,6 +19,8 @@ const GITHUB_API = 'api.github.com';
  * @author Oleksii Kurinnyi
  */
 export class KeycloakTokenInterceptor extends HttpInterceptorBase {
+  static $inject = ['$log', '$q', 'keycloakAuth'];
+
   $log: ng.ILogService;
   $q: ng.IQService;
   keycloak: any;
@@ -25,7 +28,6 @@ export class KeycloakTokenInterceptor extends HttpInterceptorBase {
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
   constructor($log: ng.ILogService,
               $q: ng.IQService,
@@ -47,6 +49,11 @@ export class KeycloakTokenInterceptor extends HttpInterceptorBase {
       return config;
     }
 
+    if (config.headers.Authorization) {
+      return config;
+    }
+
+    
     if (this.keycloak && this.keycloak.token) {
       let deferred = this.$q.defer();
       this.keycloak.updateToken(5).success(() => {
@@ -56,6 +63,7 @@ export class KeycloakTokenInterceptor extends HttpInterceptorBase {
       }).error(() => {
         this.$log.log('token refresh failed :' + config.url);
         deferred.reject('Failed to refresh token');
+        window.sessionStorage.setItem('oidcDashboardRedirectUrl', location.href);
         this.keycloak.login();
       });
       return deferred.promise;

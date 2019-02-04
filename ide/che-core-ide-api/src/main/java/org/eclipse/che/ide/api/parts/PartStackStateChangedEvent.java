@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -29,13 +30,33 @@ public class PartStackStateChangedEvent extends GwtEvent<PartStackStateChangedEv
   public static final GwtEvent.Type<Handler> TYPE = new GwtEvent.Type<Handler>();
 
   private PartStack partStack;
+  private boolean isUserInteraction;
 
   public PartStackStateChangedEvent(PartStack partStack) {
+    this(partStack, false);
+  }
+
+  /**
+   * Creates event to notify Part Stack state is changed.
+   *
+   * @param isUserInteraction pass {@code true} when hiding of the Part Stack is caused by user
+   *     action (user clicked 'Hide' button, for example) or {@code false} otherwise
+   */
+  public PartStackStateChangedEvent(PartStack partStack, boolean isUserInteraction) {
     this.partStack = partStack;
+    this.isUserInteraction = isUserInteraction;
   }
 
   public PartStack getPartStack() {
     return partStack;
+  }
+
+  /**
+   * Returns {@code true} when hiding of the Part Stack is caused by user action (user clicked
+   * 'Hide' button, for example) or {@code false} otherwise
+   */
+  public boolean isUserInteraction() {
+    return isUserInteraction;
   }
 
   @Override

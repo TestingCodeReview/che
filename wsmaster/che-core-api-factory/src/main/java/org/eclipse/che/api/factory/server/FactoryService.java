@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -26,7 +27,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +50,7 @@ import org.eclipse.che.api.core.BadRequestException;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.ForbiddenException;
 import org.eclipse.che.api.core.NotFoundException;
+import org.eclipse.che.api.core.Page;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.model.factory.Factory;
 import org.eclipse.che.api.core.model.user.User;
@@ -67,8 +68,6 @@ import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.lang.Pair;
 import org.eclipse.che.commons.lang.URLEncodedUtils;
 import org.eclipse.che.dto.server.DtoFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Defines Factory REST API.
@@ -79,17 +78,13 @@ import org.slf4j.LoggerFactory;
 @Api(value = "/factory", description = "Factory manager")
 @Path("/factory")
 public class FactoryService extends Service {
-  private static final Logger LOG = LoggerFactory.getLogger(FactoryService.class);
 
   /** Error message if there is no plugged resolver. */
-  public static final String ERROR_NO_RESOLVER_AVAILABLE =
-      "Cannot build factory with any of the provided parameters.";
+  public static final String FACTORY_NOT_RESOLVABLE =
+      "Cannot build factory with any of the provided parameters. Please check parameters correctness, and resend query.";
 
   /** Validate query parameter. If true, factory will be validated */
   public static final String VALIDATE_QUERY_PARAMETER = "validate";
-
-  /** Set of resolvers for factories. Injected through an holder. */
-  private final Set<FactoryParametersResolver> factoryParametersResolvers;
 
   private final FactoryManager factoryManager;
   private final UserManager userManager;
@@ -99,6 +94,7 @@ public class FactoryService extends Service {
   private final FactoryAcceptValidator acceptValidator;
   private final FactoryBuilder factoryBuilder;
   private final WorkspaceManager workspaceManager;
+  private final FactoryParametersResolverHolder factoryParametersResolverHolder;
 
   @Inject
   public FactoryService(
@@ -119,8 +115,7 @@ public class FactoryService extends Service {
     this.editValidator = editValidator;
     this.factoryBuilder = factoryBuilder;
     this.workspaceManager = workspaceManager;
-    this.factoryParametersResolvers =
-        factoryParametersResolverHolder.getFactoryParametersResolvers();
+    this.factoryParametersResolverHolder = factoryParametersResolverHolder;
   }
 
   @POST
@@ -148,9 +143,8 @@ public class FactoryService extends Service {
   @Path("/{id}")
   @Produces(APPLICATION_JSON)
   @ApiOperation(
-    value = "Get factory by its identifier",
-    notes = "If validate parameter is not specified, retrieved factory wont be validated"
-  )
+      value = "Get factory by its identifier",
+      notes = "If validate parameter is not specified, retrieved factory wont be validated")
   @ApiResponses({
     @ApiResponse(code = 200, message = "Response contains requested factory entry"),
     @ApiResponse(code = 400, message = "Missed required parameters, failed to validate factory"),
@@ -160,10 +154,10 @@ public class FactoryService extends Service {
   public FactoryDto getFactory(
       @ApiParam(value = "Factory identifier") @PathParam("id") String factoryId,
       @ApiParam(
-            value = "Whether or not to validate values like it is done when accepting the factory",
-            allowableValues = "true, false",
-            defaultValue = "false"
-          )
+              value =
+                  "Whether or not to validate values like it is done when accepting the factory",
+              allowableValues = "true, false",
+              defaultValue = "false")
           @DefaultValue("false")
           @QueryParam("validate")
           Boolean validate)
@@ -179,26 +173,24 @@ public class FactoryService extends Service {
   @Path("/find")
   @Produces(APPLICATION_JSON)
   @ApiOperation(
-    value =
-        "Get factory by attribute, "
-            + "the attribute must match one of the Factory model fields with type 'String', "
-            + "e.g. (factory.name, factory.creator.name)"
-            + " This method is going to be deprecated or limited in scope in 6.0 GA "
-            + "since it's not optimized on backend performance. "
-            + "Expected parameters creator.userId=? or name=?.",
-    notes =
-        "If specify more than one value for a single query parameter then will be taken the first one"
-  )
+      value =
+          "Get factory by attribute, "
+              + "the attribute must match one of the Factory model fields with type 'String', "
+              + "e.g. (factory.name, factory.creator.name)"
+              + " This method is going to be deprecated or limited in scope in 6.0 GA "
+              + "since it's not optimized on backend performance. "
+              + "Expected parameters creator.userId=? or name=?.",
+      notes =
+          "If specify more than one value for a single query parameter then will be taken the first one")
   @ApiResponses({
     @ApiResponse(code = 200, message = "Response contains list requested factories"),
     @ApiResponse(
-      code = 400,
-      message = "When query does not contain at least one attribute to search for"
-    ),
+        code = 400,
+        message = "When query does not contain at least one attribute to search for"),
     @ApiResponse(code = 500, message = "Internal server error")
   })
   @Deprecated
-  public List<FactoryDto> getFactoryByAttribute(
+  public Response getFactoryByAttribute(
       @DefaultValue("0") @QueryParam("skipCount") Integer skipCount,
       @DefaultValue("30") @QueryParam("maxItems") Integer maxItems,
       @Context UriInfo uriInfo)
@@ -224,11 +216,13 @@ public class FactoryService extends Service {
       }
     }
 
-    final List<FactoryDto> factories = new ArrayList<>();
-    for (Factory factory : factoryManager.getByAttribute(maxItems, skipCount, query)) {
-      factories.add(injectLinks(asDto(factory)));
+    Page<? extends Factory> factoriesPage =
+        factoryManager.getByAttribute(maxItems, skipCount, query);
+    List<FactoryDto> list = new ArrayList<>();
+    for (Factory factory : factoriesPage.getItems()) {
+      list.add(injectLinks(asDto(factory)));
     }
-    return factories;
+    return Response.ok().entity(list).header("Link", createLinkHeader(factoriesPage)).build();
   }
 
   @PUT
@@ -236,22 +230,20 @@ public class FactoryService extends Service {
   @Consumes(APPLICATION_JSON)
   @Produces(APPLICATION_JSON)
   @ApiOperation(
-    value = "Update factory information by configuration and specified identifier",
-    notes =
-        "Update factory based on the factory id which is passed in a path parameter. "
-            + "For perform this operation user needs respective rights"
-  )
+      value = "Update factory information by configuration and specified identifier",
+      notes =
+          "Update factory based on the factory id which is passed in a path parameter. "
+              + "For perform this operation user needs respective rights")
   @ApiResponses({
     @ApiResponse(code = 200, message = "Factory successfully updated"),
     @ApiResponse(code = 400, message = "Missed required parameters, parameters are not valid"),
     @ApiResponse(code = 403, message = "User does not have rights to update factory"),
     @ApiResponse(code = 404, message = "Factory to update not found"),
     @ApiResponse(
-      code = 409,
-      message =
-          "Conflict error occurred during factory update"
-              + "(e.g. Factory with such name and creator already exists)"
-    ),
+        code = 409,
+        message =
+            "Conflict error occurred during factory update"
+                + "(e.g. Factory with such name and creator already exists)"),
     @ApiResponse(code = 500, message = "Internal server error")
   })
   public FactoryDto updateFactory(
@@ -272,11 +264,10 @@ public class FactoryService extends Service {
   @DELETE
   @Path("/{id}")
   @ApiOperation(
-    value = "Removes factory by its identifier",
-    notes =
-        "Removes factory based on the factory id which is passed in a path parameter. "
-            + "For perform this operation user needs respective rights"
-  )
+      value = "Removes factory by its identifier",
+      notes =
+          "Removes factory based on the factory id which is passed in a path parameter. "
+              + "For perform this operation user needs respective rights")
   @ApiResponses({
     @ApiResponse(code = 200, message = "Factory successfully removed"),
     @ApiResponse(code = 403, message = "User not authorized to call this operation"),
@@ -284,7 +275,7 @@ public class FactoryService extends Service {
     @ApiResponse(code = 500, message = "Internal server error")
   })
   public void removeFactory(@ApiParam(value = "Factory identifier") @PathParam("id") String id)
-      throws ForbiddenException, ServerException {
+      throws ServerException {
     factoryManager.removeFactory(id);
   }
 
@@ -292,9 +283,8 @@ public class FactoryService extends Service {
   @Path("/workspace/{ws-id}")
   @Produces(APPLICATION_JSON)
   @ApiOperation(
-    value = "Construct factory from workspace",
-    notes = "This call returns a Factory.json that is used to create a factory"
-  )
+      value = "Construct factory from workspace",
+      notes = "This call returns a Factory.json that is used to create a factory")
   @ApiResponses({
     @ApiResponse(code = 200, message = "Response contains requested factory JSON"),
     @ApiResponse(code = 400, message = "Missed required parameters, parameters are not valid"),
@@ -322,9 +312,8 @@ public class FactoryService extends Service {
   @Consumes(APPLICATION_JSON)
   @Produces(APPLICATION_JSON)
   @ApiOperation(
-    value = "Create factory by providing map of parameters",
-    notes = "Get JSON with factory information"
-  )
+      value = "Create factory by providing map of parameters",
+      notes = "Get JSON with factory information")
   @ApiResponses({
     @ApiResponse(code = 200, message = "Factory successfully built from parameters"),
     @ApiResponse(code = 400, message = "Missed required parameters, failed to validate factory"),
@@ -333,30 +322,29 @@ public class FactoryService extends Service {
   public FactoryDto resolveFactory(
       @ApiParam(value = "Parameters provided to create factories") Map<String, String> parameters,
       @ApiParam(
-            value = "Whether or not to validate values like it is done when accepting a Factory",
-            allowableValues = "true,false",
-            defaultValue = "false"
-          )
+              value = "Whether or not to validate values like it is done when accepting a Factory",
+              allowableValues = "true,false",
+              defaultValue = "false")
           @DefaultValue("false")
           @QueryParam(VALIDATE_QUERY_PARAMETER)
           Boolean validate)
-      throws ServerException, BadRequestException {
+      throws BadRequestException, ServerException {
 
     // check parameter
     requiredNotNull(parameters, "Factory build parameters");
 
     // search matching resolver and create factory from matching resolver
-    for (FactoryParametersResolver resolver : factoryParametersResolvers) {
-      if (resolver.accept(parameters)) {
-        final FactoryDto factory = resolver.createFactory(parameters);
-        if (validate) {
-          acceptValidator.validateOnAccept(factory);
-        }
-        return injectLinks(factory);
-      }
+    FactoryDto resolvedFactory =
+        factoryParametersResolverHolder
+            .getFactoryParametersResolver(parameters)
+            .createFactory(parameters);
+    if (resolvedFactory == null) {
+      throw new BadRequestException(FACTORY_NOT_RESOLVABLE);
     }
-    // no match
-    throw new BadRequestException(ERROR_NO_RESOLVER_AVAILABLE);
+    if (validate) {
+      acceptValidator.validateOnAccept(resolvedFactory);
+    }
+    return injectLinks(resolvedFactory);
   }
 
   /** Injects factory links. If factory is named then accept named link will be injected. */
@@ -435,24 +423,32 @@ public class FactoryService extends Service {
     }
   }
 
-  /** Usage of a dedicated class to manage the optional resolvers */
+  /** Usage of a dedicated class to manage the optional service-specific resolvers */
   protected static class FactoryParametersResolverHolder {
 
     /** Optional inject for the resolvers. */
     @com.google.inject.Inject(optional = true)
-    private Set<FactoryParametersResolver> factoryParametersResolvers;
+    @SuppressWarnings("unused")
+    private Set<FactoryParametersResolver> specificFactoryParametersResolvers;
+
+    @Inject private DefaultFactoryParameterResolver defaultFactoryResolver;
 
     /**
-     * Provides the set of resolvers if there are some else return an empty set.
+     * Provides a suitable resolver for the given parameters
      *
-     * @return a non null set
+     * @return suitable service-specific resolver or default one
      */
-    public Set<FactoryParametersResolver> getFactoryParametersResolvers() {
-      if (factoryParametersResolvers != null) {
-        return factoryParametersResolvers;
-      } else {
-        return Collections.emptySet();
+    public FactoryParametersResolver getFactoryParametersResolver(Map<String, String> parameters) {
+      if (specificFactoryParametersResolvers == null) {
+        return defaultFactoryResolver;
       }
+      for (FactoryParametersResolver factoryParametersResolver :
+          specificFactoryParametersResolvers) {
+        if (factoryParametersResolver.accept(parameters)) {
+          return factoryParametersResolver;
+        }
+      }
+      return defaultFactoryResolver;
     }
   }
 

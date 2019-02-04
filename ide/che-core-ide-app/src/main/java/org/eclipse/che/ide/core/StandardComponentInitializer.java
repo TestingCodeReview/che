@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -20,6 +21,7 @@ import static org.eclipse.che.ide.actions.EditorActions.SPLIT_HORIZONTALLY;
 import static org.eclipse.che.ide.actions.EditorActions.SPLIT_VERTICALLY;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_ASSISTANT;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_CENTER_TOOLBAR;
+import static org.eclipse.che.ide.api.action.IdeActions.GROUP_COMMAND_EXPLORER_CONTEXT_MENU;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_CONSOLES_TREE_CONTEXT_MENU;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_EDIT;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_EDITOR_CONTEXT_MENU;
@@ -34,6 +36,7 @@ import static org.eclipse.che.ide.api.action.IdeActions.GROUP_PROFILE;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_PROJECT;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_RECENT_FILES;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_RIGHT_MAIN_MENU;
+import static org.eclipse.che.ide.api.action.IdeActions.GROUP_RIGHT_STATUS_PANEL;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_RIGHT_TOOLBAR;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_TOOLBAR_CONTROLLER;
 import static org.eclipse.che.ide.api.action.IdeActions.GROUP_WORKSPACE;
@@ -71,6 +74,7 @@ import org.eclipse.che.ide.actions.HotKeysListAction;
 import org.eclipse.che.ide.actions.ImportProjectAction;
 import org.eclipse.che.ide.actions.LinkWithEditorAction;
 import org.eclipse.che.ide.actions.NavigateToFileAction;
+import org.eclipse.che.ide.actions.NewXmlFileAction;
 import org.eclipse.che.ide.actions.OpenFileAction;
 import org.eclipse.che.ide.actions.ProjectConfigurationAction;
 import org.eclipse.che.ide.actions.RedoAction;
@@ -116,6 +120,8 @@ import org.eclipse.che.ide.api.keybinding.KeyBindingAgent;
 import org.eclipse.che.ide.api.keybinding.KeyBuilder;
 import org.eclipse.che.ide.api.parts.Perspective;
 import org.eclipse.che.ide.api.parts.PerspectiveManager;
+import org.eclipse.che.ide.command.actions.MoveCommandAction;
+import org.eclipse.che.ide.command.actions.RenameCommandAction;
 import org.eclipse.che.ide.command.editor.CommandEditorProvider;
 import org.eclipse.che.ide.command.palette.ShowCommandsPaletteAction;
 import org.eclipse.che.ide.devmode.DevModeOffAction;
@@ -140,9 +146,14 @@ import org.eclipse.che.ide.part.editor.recent.OpenRecentFilesAction;
 import org.eclipse.che.ide.part.explorer.project.TreeResourceRevealer;
 import org.eclipse.che.ide.part.explorer.project.synchronize.ProjectConfigSynchronized;
 import org.eclipse.che.ide.processes.NewTerminalAction;
+import org.eclipse.che.ide.processes.OpenInTerminalAction;
 import org.eclipse.che.ide.processes.actions.CloseConsoleAction;
+import org.eclipse.che.ide.processes.actions.DisplayMachineOutputAction;
+import org.eclipse.che.ide.processes.actions.PreviewSSHAction;
 import org.eclipse.che.ide.processes.actions.ReRunProcessAction;
 import org.eclipse.che.ide.processes.actions.StopProcessAction;
+import org.eclipse.che.ide.processes.loading.ShowWorkspaceStatusAction;
+import org.eclipse.che.ide.processes.runtime.ShowRuntimeInfoAction;
 import org.eclipse.che.ide.resources.action.CopyResourceAction;
 import org.eclipse.che.ide.resources.action.CutResourceAction;
 import org.eclipse.che.ide.resources.action.PasteResourceAction;
@@ -154,8 +165,8 @@ import org.eclipse.che.ide.ui.toolbar.MainToolbar;
 import org.eclipse.che.ide.ui.toolbar.ToolbarPresenter;
 import org.eclipse.che.ide.util.browser.UserAgent;
 import org.eclipse.che.ide.util.input.KeyCodeMap;
+import org.eclipse.che.ide.workspace.StartWorkspaceAction;
 import org.eclipse.che.ide.workspace.StopWorkspaceAction;
-import org.eclipse.che.ide.xml.NewXmlFileAction;
 import org.vectomatic.dom.svg.ui.SVGImage;
 import org.vectomatic.dom.svg.ui.SVGResource;
 
@@ -193,6 +204,7 @@ public class StandardComponentInitializer {
   public static final String SHOW_REFERENCE = "showReference";
   public static final String SHOW_COMMANDS_PALETTE = "showCommandsPalette";
   public static final String NEW_TERMINAL = "newTerminal";
+  public static final String OPEN_IN_TERMINAL = "openInTerminal";
   public static final String PROJECT_EXPLORER_DISPLAYING_MODE = "projectExplorerDisplayingMode";
   public static final String COMMAND_EXPLORER_DISPLAYING_MODE = "commandExplorerDisplayingMode";
   public static final String FIND_RESULT_DISPLAYING_MODE = "findResultDisplayingMode";
@@ -343,7 +355,13 @@ public class StandardComponentInitializer {
 
   @Inject private SoftWrapAction softWrapAction;
 
+  @Inject private StartWorkspaceAction startWorkspaceAction;
+
   @Inject private StopWorkspaceAction stopWorkspaceAction;
+
+  @Inject private ShowWorkspaceStatusAction showWorkspaceStatusAction;
+
+  @Inject private ShowRuntimeInfoAction showRuntimeInfoAction;
 
   @Inject private RunCommandAction runCommandAction;
 
@@ -354,6 +372,10 @@ public class StandardComponentInitializer {
   @Inject private StopProcessAction stopProcessAction;
 
   @Inject private CloseConsoleAction closeConsoleAction;
+
+  @Inject private DisplayMachineOutputAction displayMachineOutputAction;
+
+  @Inject private PreviewSSHAction previewSSHAction;
 
   @Inject private ShowConsoleTreeAction showConsoleTreeAction;
 
@@ -380,6 +402,14 @@ public class StandardComponentInitializer {
   @Inject private EditorDisplayingModeAction editorDisplayingModeAction;
 
   @Inject private TerminalDisplayingModeAction terminalDisplayingModeAction;
+
+  @Inject private RenameCommandAction renameCommandAction;
+
+  @Inject private MoveCommandAction moveCommandAction;
+
+  @Inject private OpenInTerminalAction openInTerminalAction;
+
+  @Inject private FreeDiskSpaceStatusBarAction freeDiskSpaceStatusBarAction;
 
   @Inject
   @Named("XMLFileType")
@@ -507,7 +537,9 @@ public class StandardComponentInitializer {
     workspaceGroup.add(downloadWsAction);
 
     workspaceGroup.addSeparator();
+    workspaceGroup.add(startWorkspaceAction);
     workspaceGroup.add(stopWorkspaceAction);
+    workspaceGroup.add(showWorkspaceStatusAction);
 
     // Project (New Menu)
     DefaultActionGroup projectGroup = (DefaultActionGroup) actionManager.getAction(GROUP_PROJECT);
@@ -523,10 +555,10 @@ public class StandardComponentInitializer {
     newGroup.addSeparator();
 
     actionManager.registerAction(NEW_FILE, newFileAction);
-    newGroup.addAction(newFileAction);
+    newGroup.addAction(newFileAction, Constraints.FIRST);
 
     actionManager.registerAction("newFolder", newFolderAction);
-    newGroup.addAction(newFolderAction);
+    newGroup.addAction(newFolderAction, new Constraints(AFTER, NEW_FILE));
 
     newGroup.addSeparator();
 
@@ -677,7 +709,9 @@ public class StandardComponentInitializer {
     helpGroup.addSeparator();
 
     // Processes panel actions
+    actionManager.registerAction("startWorkspace", startWorkspaceAction);
     actionManager.registerAction("stopWorkspace", stopWorkspaceAction);
+    actionManager.registerAction("showWorkspaceStatus", showWorkspaceStatusAction);
     actionManager.registerAction("runCommand", runCommandAction);
     actionManager.registerAction("newTerminal", newTerminalAction);
 
@@ -718,6 +752,8 @@ public class StandardComponentInitializer {
     mainContextMenuGroup.add(newGroup, FIRST);
     mainContextMenuGroup.addSeparator();
     mainContextMenuGroup.add(resourceOperation);
+    mainContextMenuGroup.add(openInTerminalAction);
+    actionManager.registerAction(OPEN_IN_TERMINAL, openInTerminalAction);
 
     DefaultActionGroup partMenuGroup =
         (DefaultActionGroup) actionManager.getAction(GROUP_PART_MENU);
@@ -773,12 +809,22 @@ public class StandardComponentInitializer {
         (DefaultActionGroup) actionManager.getAction(GROUP_RIGHT_TOOLBAR);
     toolbarPresenter.bindRightGroup(rightToolbarGroup);
 
+    actionManager.registerAction("showServers", showRuntimeInfoAction);
+
     // Consoles tree context menu group
     DefaultActionGroup consolesTreeContextMenu =
         (DefaultActionGroup) actionManager.getAction(GROUP_CONSOLES_TREE_CONTEXT_MENU);
+    consolesTreeContextMenu.add(showRuntimeInfoAction);
+    consolesTreeContextMenu.add(newTerminalAction);
     consolesTreeContextMenu.add(reRunProcessAction);
     consolesTreeContextMenu.add(stopProcessAction);
     consolesTreeContextMenu.add(closeConsoleAction);
+
+    actionManager.registerAction("displayMachineOutput", displayMachineOutputAction);
+    consolesTreeContextMenu.add(displayMachineOutputAction);
+
+    actionManager.registerAction("previewSSH", previewSSHAction);
+    consolesTreeContextMenu.add(previewSSHAction);
 
     // Editor context menu group
     DefaultActionGroup editorTabContextMenu =
@@ -827,6 +873,18 @@ public class StandardComponentInitializer {
     editorContextMenuGroup.addSeparator();
     editorContextMenuGroup.add(revealResourceAction);
 
+    DefaultActionGroup commandExplorerMenuGroup = new DefaultActionGroup(actionManager);
+    actionManager.registerAction(GROUP_COMMAND_EXPLORER_CONTEXT_MENU, commandExplorerMenuGroup);
+
+    actionManager.registerAction("renameCommand", renameCommandAction);
+    commandExplorerMenuGroup.add(renameCommandAction);
+    actionManager.registerAction("moveCommand", moveCommandAction);
+    commandExplorerMenuGroup.add(moveCommandAction);
+
+    DefaultActionGroup rightStatusPanelGroup =
+        (DefaultActionGroup) actionManager.getAction(GROUP_RIGHT_STATUS_PANEL);
+    rightStatusPanelGroup.add(freeDiskSpaceStatusBarAction);
+
     // Define hot-keys
     keyBinding
         .getGlobal()
@@ -859,6 +917,9 @@ public class StandardComponentInitializer {
     keyBinding
         .getGlobal()
         .addKey(new KeyBuilder().alt().charCode(KeyCodeMap.F12).build(), NEW_TERMINAL);
+    keyBinding
+        .getGlobal()
+        .addKey(new KeyBuilder().alt().shift().charCode(KeyCodeMap.F12).build(), OPEN_IN_TERMINAL);
 
     keyBinding.getGlobal().addKey(new KeyBuilder().alt().charCode('N').build(), NEW_FILE);
     keyBinding.getGlobal().addKey(new KeyBuilder().alt().charCode('x').build(), CREATE_PROJECT);
@@ -873,33 +934,69 @@ public class StandardComponentInitializer {
     keyBinding.getGlobal().addKey(new KeyBuilder().action().charCode('z').build(), UNDO);
     keyBinding.getGlobal().addKey(new KeyBuilder().action().charCode('y').build(), REDO);
 
-    keyBinding
-        .getGlobal()
-        .addKey(
-            new KeyBuilder().action().alt().charCode('1').build(),
-            PROJECT_EXPLORER_DISPLAYING_MODE);
+    if (UserAgent.isMac()) {
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().control().charCode('1').build(),
+              PROJECT_EXPLORER_DISPLAYING_MODE);
 
-    keyBinding
-        .getGlobal()
-        .addKey(new KeyBuilder().action().alt().charCode('2').build(), EVENT_LOGS_DISPLAYING_MODE);
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().control().charCode('2').build(),
+              EVENT_LOGS_DISPLAYING_MODE);
 
-    keyBinding
-        .getGlobal()
-        .addKey(new KeyBuilder().action().alt().charCode('3').build(), FIND_RESULT_DISPLAYING_MODE);
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().control().charCode('3').build(),
+              FIND_RESULT_DISPLAYING_MODE);
 
-    keyBinding
-        .getGlobal()
-        .addKey(
-            new KeyBuilder().action().alt().charCode('4').build(),
-            COMMAND_EXPLORER_DISPLAYING_MODE);
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().control().charCode('4').build(),
+              COMMAND_EXPLORER_DISPLAYING_MODE);
 
-    keyBinding
-        .getGlobal()
-        .addKey(new KeyBuilder().alt().charCode('E').build(), EDITOR_DISPLAYING_MODE);
+      keyBinding
+          .getGlobal()
+          .addKey(new KeyBuilder().action().charCode('E').build(), EDITOR_DISPLAYING_MODE);
 
-    keyBinding
-        .getGlobal()
-        .addKey(new KeyBuilder().alt().charCode('T').build(), TERMINAL_DISPLAYING_MODE);
+      keyBinding
+          .getGlobal()
+          .addKey(new KeyBuilder().action().charCode('T').build(), TERMINAL_DISPLAYING_MODE);
+    } else {
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().alt().charCode('1').build(),
+              PROJECT_EXPLORER_DISPLAYING_MODE);
+
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().alt().charCode('2').build(), EVENT_LOGS_DISPLAYING_MODE);
+
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().alt().charCode('3').build(), FIND_RESULT_DISPLAYING_MODE);
+
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().alt().charCode('4').build(),
+              COMMAND_EXPLORER_DISPLAYING_MODE);
+
+      keyBinding
+          .getGlobal()
+          .addKey(new KeyBuilder().alt().charCode('E').build(), EDITOR_DISPLAYING_MODE);
+
+      keyBinding
+          .getGlobal()
+          .addKey(new KeyBuilder().alt().charCode('T').build(), TERMINAL_DISPLAYING_MODE);
+    }
 
     keyBinding
         .getGlobal()

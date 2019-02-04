@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -13,36 +14,38 @@ package org.eclipse.che.ide.command.execute;
 import static org.eclipse.che.ide.util.StringUtils.join;
 
 import com.google.inject.Inject;
+import com.google.web.bindery.event.shared.EventBus;
 import java.util.List;
 import java.util.function.Consumer;
 import javax.inject.Singleton;
+import org.eclipse.che.agent.exec.shared.dto.DtoWithPid;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessLogsRequestDto;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessLogsResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessRequestDto;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessesRequestDto;
+import org.eclipse.che.agent.exec.shared.dto.GetProcessesResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessKillRequestDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessKillResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessStartRequestDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessStartResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessSubscribeRequestDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessSubscribeResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessUnSubscribeRequestDto;
+import org.eclipse.che.agent.exec.shared.dto.ProcessUnSubscribeResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.UpdateSubscriptionRequestDto;
+import org.eclipse.che.agent.exec.shared.dto.UpdateSubscriptionResponseDto;
+import org.eclipse.che.agent.exec.shared.dto.event.ProcessDiedEventDto;
+import org.eclipse.che.agent.exec.shared.dto.event.ProcessStartedEventDto;
+import org.eclipse.che.agent.exec.shared.dto.event.ProcessStdErrEventDto;
+import org.eclipse.che.agent.exec.shared.dto.event.ProcessStdOutEventDto;
 import org.eclipse.che.api.core.jsonrpc.commons.JsonRpcPromise;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestTransmitter;
 import org.eclipse.che.api.core.model.workspace.config.Command;
 import org.eclipse.che.ide.api.command.exec.ExecAgentCommandManager;
 import org.eclipse.che.ide.api.command.exec.ExecAgentConsumer;
 import org.eclipse.che.ide.api.command.exec.ExecAgentEventManager;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessLogsRequestDto;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessLogsResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessRequestDto;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessesRequestDto;
-import org.eclipse.che.ide.api.command.exec.dto.GetProcessesResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessKillRequestDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessKillResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessStartRequestDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessStartResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessSubscribeRequestDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessSubscribeResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessUnSubscribeRequestDto;
-import org.eclipse.che.ide.api.command.exec.dto.ProcessUnSubscribeResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.UpdateSubscriptionRequestDto;
-import org.eclipse.che.ide.api.command.exec.dto.UpdateSubscriptionResponseDto;
-import org.eclipse.che.ide.api.command.exec.dto.event.DtoWithPid;
-import org.eclipse.che.ide.api.command.exec.dto.event.ProcessDiedEventDto;
-import org.eclipse.che.ide.api.command.exec.dto.event.ProcessStartedEventDto;
-import org.eclipse.che.ide.api.command.exec.dto.event.ProcessStdErrEventDto;
-import org.eclipse.che.ide.api.command.exec.dto.event.ProcessStdOutEventDto;
+import org.eclipse.che.ide.api.workspace.event.WorkspaceStoppedEvent;
 import org.eclipse.che.ide.dto.DtoFactory;
 import org.eclipse.che.ide.util.loging.Log;
 
@@ -67,10 +70,15 @@ public class JsonRpcExecAgentCommandManager implements ExecAgentCommandManager {
 
   @Inject
   protected JsonRpcExecAgentCommandManager(
-      DtoFactory dtoFactory, RequestTransmitter transmitter, ExecAgentEventManager eventManager) {
+      DtoFactory dtoFactory,
+      RequestTransmitter transmitter,
+      ExecAgentEventManager eventManager,
+      EventBus eventBus) {
     this.dtoFactory = dtoFactory;
     this.transmitter = transmitter;
     this.eventManager = eventManager;
+
+    eventBus.addHandler(WorkspaceStoppedEvent.TYPE, event -> eventManager.cleanAllConsumers());
   }
 
   @Override

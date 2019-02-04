@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
@@ -22,6 +23,7 @@ import org.eclipse.che.ide.api.constraints.Constraints;
 import org.eclipse.che.ide.api.extension.Extension;
 import org.eclipse.che.ide.api.keybinding.KeyBindingAgent;
 import org.eclipse.che.ide.api.keybinding.KeyBuilder;
+import org.eclipse.che.ide.util.browser.UserAgent;
 import org.eclipse.che.plugin.pullrequest.client.actions.ContributePartDisplayingModeAction;
 
 /**
@@ -58,9 +60,18 @@ public class ContributionExtension {
     toolWindowGroup.add(
         contributePartDisplayingModeAction, new Constraints(BEFORE, EDITOR_DISPLAYING_MODE));
 
-    keyBinding
-        .getGlobal()
-        .addKey(
-            new KeyBuilder().action().alt().charCode('6').build(), CONTRIBUTE_PART_DISPLAYING_MODE);
+    if (UserAgent.isMac()) {
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().control().charCode('6').build(),
+              CONTRIBUTE_PART_DISPLAYING_MODE);
+    } else {
+      keyBinding
+          .getGlobal()
+          .addKey(
+              new KeyBuilder().action().alt().charCode('6').build(),
+              CONTRIBUTE_PART_DISPLAYING_MODE);
+    }
   }
 }

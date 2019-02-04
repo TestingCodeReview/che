@@ -1,19 +1,22 @@
-/**
- * ***************************************************************************** Copyright (c) 2016
- * Rogue Wave Software, Inc. All rights reserved. This program and the accompanying materials are
- * made available under the terms of the Eclipse Public License v1.0 which accompanies this
- * distribution, and is available at http://www.eclipse.org/legal/epl-v10.html
+/*
+ * Copyright (c) 2016 Rogue Wave Software, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
  *
- * <p>Contributors: Rogue Wave Software, Inc. - initial API and implementation
- * *****************************************************************************
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *   Rogue Wave Software, Inc. - initial API and implementation
  */
 package org.eclipse.che.plugin.testing.phpunit.server;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.inject.Inject;
-import javax.inject.Named;
+import org.eclipse.che.api.project.server.impl.RootDirPathProvider;
 import org.eclipse.che.api.testing.server.framework.TestRunner;
 import org.eclipse.che.api.testing.shared.TestDetectionContext;
 import org.eclipse.che.api.testing.shared.TestExecutionContext;
@@ -40,8 +43,8 @@ public class PHPUnitTestRunner implements TestRunner {
   private final PHPUnitTestEngine testEngine;
 
   @Inject
-  public PHPUnitTestRunner(@Named("che.user.workspaces.storage") File projectsRoot) {
-    testEngine = new PHPUnitTestEngine(projectsRoot);
+  public PHPUnitTestRunner(RootDirPathProvider pathProvider) {
+    testEngine = new PHPUnitTestEngine(new File(pathProvider.get()));
   }
 
   /** {@inheritDoc} */
@@ -69,7 +72,7 @@ public class PHPUnitTestRunner implements TestRunner {
   }
 
   @Override
-  public ProcessHandler execute(TestExecutionContext context) {
+  public ProcessHandler execute(TestExecutionContext context) throws IOException {
     return testEngine.executeTests(context);
   }
 }

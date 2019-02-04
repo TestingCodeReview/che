@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.selenium.debugger;
+
+import static org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants.ContextMenuCommandGoals.COMMON_GOAL;
 
 import com.google.inject.Inject;
 import java.io.IOException;
@@ -18,6 +21,7 @@ import java.nio.file.Paths;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
+import org.eclipse.che.selenium.core.utils.WaitUtils;
 import org.eclipse.che.selenium.core.workspace.InjectTestWorkspace;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.core.workspace.WorkspaceTemplate;
@@ -41,13 +45,11 @@ import org.testng.annotations.Test;
 public class PhpProjectDebuggingTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(PhpProjectDebuggingTest.class);
-  private static final String PROJECT = "php-tests";
+  protected static final String PROJECT = "php-tests";
   private static final String PATH_TO_INDEX_PHP = PROJECT + "/index.php";
   private static final String PATH_TO_LIB_PHP = PROJECT + "/lib.php";
 
   private static final String DEBUG_PHP_SCRIPT_COMMAND_NAME = "debug php script";
-  private static final String START_APACHE_COMMAND_NAME = "start apache";
-  private static final String STOP_APACHE_COMMAND_NAME = "stop apache";
   private static final int NON_DEFAULT_DEBUG_PORT = 10140;
   private static final String START_DEBUG_PARAMETERS =
       "?start_debug=1&debug_host=localhost&debug_port=" + NON_DEFAULT_DEBUG_PORT;
@@ -57,7 +59,7 @@ public class PhpProjectDebuggingTest {
 
   @Inject private Ide ide;
 
-  @Inject private ProjectExplorer projectExplorer;
+  @Inject protected ProjectExplorer projectExplorer;
   @Inject private Loader loader;
   @Inject private DebugPanel debugPanel;
   @Inject private PhpDebugConfig debugConfig;
@@ -87,7 +89,7 @@ public class PhpProjectDebuggingTest {
   public void startDebug() {
     // goto root item in the Project Explorer to have proper value of ${current.project.path} when
     // executing maven command.
-    projectExplorer.selectItem(PROJECT);
+    projectExplorer.waitAndSelectItem(PROJECT);
   }
 
   @AfterMethod
@@ -95,8 +97,7 @@ public class PhpProjectDebuggingTest {
     debugPanel.removeAllBreakpoints();
     menu.runCommand(
         TestMenuCommandsConstants.Run.RUN_MENU, TestMenuCommandsConstants.Run.END_DEBUG_SESSION);
-    projectExplorer.invokeCommandWithContextMenu(
-        ProjectExplorer.CommandsGoal.COMMON, PROJECT, STOP_APACHE_COMMAND_NAME);
+    invokeStopCommandWithContextMenu();
 
     // remove debug configuration
     menu.runCommand(
@@ -105,7 +106,7 @@ public class PhpProjectDebuggingTest {
     debugConfig.removeConfig(PROJECT);
   }
 
-  @Test(priority = 0)
+  @Test
   public void shouldDebugCliPhpScriptFromFirstLine() {
     // when
     menu.runCommand(
@@ -118,7 +119,7 @@ public class PhpProjectDebuggingTest {
         TestMenuCommandsConstants.Run.DEBUG,
         getXpathForDebugConfigurationMenuItem());
 
-    notificationPopup.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
+    notificationPopup.waitExpectedMessageOnProgressPanelAndClose("Remote debugger connected");
 
     projectExplorer.openItemByPath(PATH_TO_LIB_PHP);
     editor.setBreakpoint(14);
@@ -126,7 +127,7 @@ public class PhpProjectDebuggingTest {
 
     projectExplorer.openItemByPath(PATH_TO_INDEX_PHP);
     projectExplorer.invokeCommandWithContextMenu(
-        ProjectExplorer.CommandsGoal.COMMON, PROJECT, DEBUG_PHP_SCRIPT_COMMAND_NAME);
+        COMMON_GOAL, PROJECT, DEBUG_PHP_SCRIPT_COMMAND_NAME);
 
     debugPanel.openDebugPanel();
 
@@ -153,7 +154,7 @@ public class PhpProjectDebuggingTest {
   }
 
   @Test(priority = 1)
-  public void shouldDebugWebPhpScriptFromNonDefaultPortAndNotFromFirstLine() throws IOException {
+  public void shouldDebugWebPhpScriptFromNonDefaultPortAndNotFromFirstLine() {
     // when
     menu.runCommand(
         TestMenuCommandsConstants.Run.RUN_MENU,
@@ -165,7 +166,7 @@ public class PhpProjectDebuggingTest {
         TestMenuCommandsConstants.Run.DEBUG,
         getXpathForDebugConfigurationMenuItem());
 
-    notificationPopup.waitExpectedMessageOnProgressPanelAndClosed(
+    notificationPopup.waitExpectedMessageOnProgressPanelAndClose(
         String.format(
             "Remote debugger connected\nConnected to: Zend Debugger, port: %s.",
             NON_DEFAULT_DEBUG_PORT));
@@ -175,8 +176,7 @@ public class PhpProjectDebuggingTest {
     editor.closeAllTabs();
 
     projectExplorer.openItemByPath(PATH_TO_INDEX_PHP);
-    projectExplorer.invokeCommandWithContextMenu(
-        ProjectExplorer.CommandsGoal.COMMON, PROJECT, START_APACHE_COMMAND_NAME);
+    invokeStartCommandWithContextMenu();
 
     startWebPhpScriptInDebugMode();
 
@@ -184,6 +184,7 @@ public class PhpProjectDebuggingTest {
 
     // then
     editor.waitTabFileWithSavedStatus("lib.php");
+
     editor.waitActiveBreakpoint(14);
     debugPanel.waitDebugHighlightedText("return \"Hello, $name\"");
     debugPanel.waitTextInVariablesPanel("$name=\"man\"");
@@ -203,6 +204,12 @@ public class PhpProjectDebuggingTest {
    */
   private void startWebPhpScriptInDebugMode() {
     final String previewUrl = consoles.getPreviewUrl() + START_DEBUG_PARAMETERS;
+
+    // it needs when the test is running on the che6-ocp platform
+    if (previewUrl.contains("route")) {
+      WaitUtils.sleepQuietly(10);
+    }
+
     new Thread(
             () -> {
               try {
@@ -225,5 +232,13 @@ public class PhpProjectDebuggingTest {
     return String.format(
         "//*[@id=\"%1$s/%2$s\" or @id=\"topmenu/Run/Debug/Debug '%2$s'\"]",
         TestMenuCommandsConstants.Run.DEBUG, PROJECT);
+  }
+
+  protected void invokeStartCommandWithContextMenu() {
+    projectExplorer.invokeCommandWithContextMenu(COMMON_GOAL, PROJECT, "start apache");
+  }
+
+  protected void invokeStopCommandWithContextMenu() {
+    projectExplorer.invokeCommandWithContextMenu(COMMON_GOAL, PROJECT, "stop apache");
   }
 }

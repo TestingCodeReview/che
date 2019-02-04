@@ -1,24 +1,25 @@
 /*
- * Copyright (c) 2015-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2015-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 'use strict';
-import {IEnvironmentManagerMachine} from '../../../../components/api/environment/environment-manager-machine';
-import {EnvironmentManager} from '../../../../components/api/environment/environment-manager';
 import {CheAgent} from '../../../../components/api/che-agent.factory';
+import { IEnvironmentManagerMachine } from '../../../../components/api/environment/environment-manager-machine';
 
 export interface IAgentItem extends che.IAgent {
   isEnabled: boolean;
+  isLatest: boolean;
 }
 
 /** List of the locked agents which shouldn't be switched by user */
-const LOCKED_AGENTS: Array<string> = ['org.eclipse.che.ws-agent', 'com.codenvy.rsync_in_machine', 'com.codenvy.external_rsync'];
+const LOCKED_AGENTS: Array<string> = ['com.codenvy.rsync_in_machine', 'com.codenvy.external_rsync'];
 const LATEST: string = 'latest';
 /**
  * @ngdoc controller
@@ -27,40 +28,70 @@ const LATEST: string = 'latest';
  * @author Oleksii Orel
  */
 export class MachineAgentsController {
+
+  static $inject = ['$scope', 'cheAgent', '$timeout', '$q'];
+
   onChange: Function;
+  isPluginsEnabled: boolean;
   agentOrderBy = 'name';
-  agentsList: Array<IAgentItem>;
+  agentItemsList: Array<IAgentItem>;
 
   private cheAgent: CheAgent;
-  private selectedMachine: IEnvironmentManagerMachine;
-  private environmentManager: EnvironmentManager;
-  private agents: Array<string>;
-
+  private $timeout: ng.ITimeoutService;
+  private timeoutPromise: ng.IPromise<any>;
+  private machine: IEnvironmentManagerMachine;
+  private machineAgentsList: Array<string>;
+  private availableAgents: Array<che.IAgent>;
+  private agentsToUpdate: Array<IAgentItem> = [];
 
   /**
    * Default constructor that is using resource
-   * @ngInject for Dependency injection
    */
-  constructor($scope: ng.IScope, cheAgent: CheAgent) {
+  constructor($scope: ng.IScope, cheAgent: CheAgent, $timeout: ng.ITimeoutService, $q: ng.IQService) {
     this.cheAgent = cheAgent;
+    this.$timeout = $timeout;
 
-    cheAgent.fetchAgents().then(() => {
-      this.agents = this.selectedMachine ? this.environmentManager.getAgents(this.selectedMachine) : [];
+    this.availableAgents = cheAgent.getAgents();
+    const availableAgentsDefer = $q.defer();
+    if (this.availableAgents && this.availableAgents.length) {
+      availableAgentsDefer.resolve();
+    } else {
+      cheAgent.fetchAgents().then(() => {
+        this.availableAgents = cheAgent.getAgents();
+        availableAgentsDefer.resolve();
+      });
+    }
+
+    let resolved = false;
+    const machineAgentsDefer = $q.defer();
+    const deRegistrationFn = $scope.$watch(() => {
+      return this.machine && this.machine.installers;
+    }, (newAgentsList: string[]) => {
+      if (!resolved && newAgentsList && newAgentsList.length) {
+        machineAgentsDefer.resolve();
+        resolved = true;
+
+        this.machineAgentsList = angular.copy(newAgentsList);
+        return;
+      }
+
+      if (angular.equals(newAgentsList, this.machineAgentsList)) {
+        return;
+      }
+
+      this.machineAgentsList = angular.copy(newAgentsList);
       this.buildAgentsList();
     });
 
-    const deRegistrationFn = $scope.$watch(() => {
-      return angular.isDefined(this.environmentManager) && this.selectedMachine;
-    }, (selectedMachine: IEnvironmentManagerMachine) => {
-      if (!selectedMachine) {
-        return;
-      }
-      this.agents = this.environmentManager.getAgents(selectedMachine);
+    $q.all([availableAgentsDefer.promise, machineAgentsDefer.promise]).then(() => {
       this.buildAgentsList();
-    }, true);
+    }) ;
 
     $scope.$on('$destroy', () => {
       deRegistrationFn();
+      if (this.timeoutPromise) {
+        this.$timeout.cancel(this.timeoutPromise);
+      }
     });
   }
 
@@ -68,9 +99,12 @@ export class MachineAgentsController {
    * Builds agents list.
    */
   buildAgentsList(): void {
-    const agents = this.cheAgent.getAgents();
-    this.agentsList = agents.map((agentItem: IAgentItem) => {
-      this.checkEnabled(agentItem);
+    if (!this.machineAgentsList) {
+      return;
+    }
+
+    this.agentItemsList = this.availableAgents.map((agentItem: IAgentItem) => {
+      this.checkAgentLatestVersion(agentItem);
       return agentItem;
     });
   }
@@ -80,13 +114,27 @@ export class MachineAgentsController {
    * @param agent {IAgentItem}
    */
   updateAgent(agent: IAgentItem): void {
-    if (agent.isEnabled) {
-      this.agents.push(agent.id);
-    } else {
-      this.agents.splice(this.agents.indexOf(agent.id), 1);
-    }
-    this.environmentManager.setAgents(this.selectedMachine, this.agents);
-    this.onChange();
+    this.$timeout.cancel(this.timeoutPromise);
+
+    this.agentsToUpdate.push(agent);
+
+    this.timeoutPromise = this.$timeout(() => {
+      this.agentsToUpdate.forEach((agent: IAgentItem) => {
+        const index = this.machineAgentsList.indexOf(agent.id);
+        if (agent.isEnabled) {
+          if (index === -1) {
+            this.machineAgentsList.push(agent.id);
+          }
+        } else if (index >= 0) {
+          this.machineAgentsList.splice(index, 1);
+        }
+      });
+      this.agentsToUpdate.length = 0;
+      this.machine.installers = angular.copy(this.machineAgentsList);
+
+      this.buildAgentsList();
+      this.onChange();
+    }, 500);
   }
 
   /**
@@ -104,8 +152,8 @@ export class MachineAgentsController {
    * @param agentItem {IAgentItem}
    */
   checkEnabled(agentItem: IAgentItem): void {
-    for (let i = 0; i < this.agents.length; i++) {
-      let agent = this.agents[i];
+    for (let i = 0; i < this.machineAgentsList.length; i++) {
+      let agent = this.machineAgentsList[i];
       // try to extract agent's version in format id:version:
       let groups = agent.match(/[^:]+(:(.+)){0,1}/);
       let id;
@@ -122,13 +170,8 @@ export class MachineAgentsController {
         agentItem.isEnabled = true;
         return;
       } else if (agentItem.id === id && (!version || version === LATEST)) {
-        let latestAgent = this.cheAgent.getAgent(id);
-        if (latestAgent && latestAgent.version === agentItem.version) {
-          agentItem.isEnabled = true;
-          return;
-        } else if (!latestAgent) {
-          this.fetchAgentLatestVersion(agentItem);
-        }
+        agentItem.isEnabled = agentItem.isLatest;
+        return;
       }
     }
 
@@ -140,9 +183,16 @@ export class MachineAgentsController {
    *
    * @param {IAgentItem} agentItem agent to check on latest version
    */
-  private fetchAgentLatestVersion(agentItem: IAgentItem): void {
-    this.cheAgent.fetchAgent(agentItem.id).then((agent: che.IAgent) => {
-      agentItem.isEnabled = agentItem.version === agent.version;
-    });
+  private checkAgentLatestVersion(agentItem: IAgentItem): void {
+    let latestAgent = this.cheAgent.getAgent(agentItem.id);
+    if (latestAgent && latestAgent.version === agentItem.version) {
+      agentItem.isLatest = true;
+      this.checkEnabled(agentItem);
+    } else if (!latestAgent) {
+      this.cheAgent.fetchAgent(agentItem.id).then((agent: che.IAgent) => {
+        agentItem.isLatest = agentItem.version === agent.version;
+        this.checkEnabled(agentItem);
+      });
+    }
   }
 }

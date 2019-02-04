@@ -1,15 +1,18 @@
 /*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * Copyright (c) 2012-2018 Red Hat, Inc.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
  *
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
 package org.eclipse.che.ide.ext.java.client.inject;
 
+import static com.google.gwt.inject.client.multibindings.GinMultibinder.newSetBinder;
+import static org.eclipse.che.ide.ext.java.client.JavaResources.INSTANCE;
 import static org.eclipse.che.ide.ext.java.client.action.OrganizeImportsAction.JAVA_ORGANIZE_IMPORT_ID;
 
 import com.google.gwt.inject.client.AbstractGinModule;
@@ -19,9 +22,11 @@ import com.google.gwt.inject.client.multibindings.GinMultibinder;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import com.google.inject.name.Named;
+import org.eclipse.che.api.languageserver.shared.model.LanguageDescription;
 import org.eclipse.che.ide.api.command.CommandType;
 import org.eclipse.che.ide.api.extension.ExtensionGinModule;
 import org.eclipse.che.ide.api.filetypes.FileType;
+import org.eclipse.che.ide.api.filetypes.FileTypeRegistry.FileTypeProvider;
 import org.eclipse.che.ide.api.macro.Macro;
 import org.eclipse.che.ide.api.preferences.PreferencePagePresenter;
 import org.eclipse.che.ide.api.preferences.PreferencesManager;
@@ -29,7 +34,6 @@ import org.eclipse.che.ide.api.reference.FqnProvider;
 import org.eclipse.che.ide.api.resources.RenamingSupport;
 import org.eclipse.che.ide.api.resources.ResourceInterceptor;
 import org.eclipse.che.ide.ext.java.client.CurrentClassFQN_Macro;
-import org.eclipse.che.ide.ext.java.client.JavaResources;
 import org.eclipse.che.ide.ext.java.client.action.OrganizeImportsAction;
 import org.eclipse.che.ide.ext.java.client.action.ProposalAction;
 import org.eclipse.che.ide.ext.java.client.command.JavaCommandType;
@@ -37,13 +41,15 @@ import org.eclipse.che.ide.ext.java.client.command.valueproviders.ClasspathMacro
 import org.eclipse.che.ide.ext.java.client.command.valueproviders.MainClassMacro;
 import org.eclipse.che.ide.ext.java.client.command.valueproviders.OutputDirMacro;
 import org.eclipse.che.ide.ext.java.client.command.valueproviders.SourcepathMacro;
+import org.eclipse.che.ide.ext.java.client.diagnostics.PomDiagnosticsRequestor;
 import org.eclipse.che.ide.ext.java.client.documentation.QuickDocPresenter;
 import org.eclipse.che.ide.ext.java.client.documentation.QuickDocumentation;
+import org.eclipse.che.ide.ext.java.client.inject.factories.ProgressWidgetFactory;
 import org.eclipse.che.ide.ext.java.client.inject.factories.PropertyWidgetFactory;
-import org.eclipse.che.ide.ext.java.client.navigation.service.JavaNavigationService;
-import org.eclipse.che.ide.ext.java.client.navigation.service.JavaNavigationServiceImpl;
 import org.eclipse.che.ide.ext.java.client.newsourcefile.NewJavaSourceFileView;
 import org.eclipse.che.ide.ext.java.client.newsourcefile.NewJavaSourceFileViewImpl;
+import org.eclipse.che.ide.ext.java.client.progressor.ProgressView;
+import org.eclipse.che.ide.ext.java.client.progressor.ProgressViewImpl;
 import org.eclipse.che.ide.ext.java.client.project.classpath.valueproviders.pages.ClasspathPagePresenter;
 import org.eclipse.che.ide.ext.java.client.project.classpath.valueproviders.pages.libraries.LibEntryPresenter;
 import org.eclipse.che.ide.ext.java.client.project.classpath.valueproviders.pages.sources.SourceEntryPresenter;
@@ -51,9 +57,9 @@ import org.eclipse.che.ide.ext.java.client.reference.JavaFqnProvider;
 import org.eclipse.che.ide.ext.java.client.resource.ClassInterceptor;
 import org.eclipse.che.ide.ext.java.client.resource.JavaSourceRenameValidator;
 import org.eclipse.che.ide.ext.java.client.resource.SourceFolderInterceptor;
-import org.eclipse.che.ide.ext.java.client.search.JavaSearchJsonRpcClient;
-import org.eclipse.che.ide.ext.java.client.search.JavaSearchService;
-import org.eclipse.che.ide.ext.java.client.search.node.NodeFactory;
+import org.eclipse.che.ide.ext.java.client.search.FindUsagesView;
+import org.eclipse.che.ide.ext.java.client.search.FindUsagesViewImpl;
+import org.eclipse.che.ide.ext.java.client.service.CustomNotificationReceiver;
 import org.eclipse.che.ide.ext.java.client.settings.compiler.ErrorsWarningsPreferenceManager;
 import org.eclipse.che.ide.ext.java.client.settings.compiler.JavaCompilerPreferenceManager;
 import org.eclipse.che.ide.ext.java.client.settings.compiler.JavaCompilerPreferencePresenter;
@@ -78,6 +84,9 @@ public class JavaGinModule extends AbstractGinModule {
   @Override
   protected void configure() {
     install(new FormatterGinModule());
+    newSetBinder(binder(), LanguageDescription.class)
+        .addBinding()
+        .toProvider(JavaLanguageDescriptionProvider.class);
 
     GinMapBinder<String, ProposalAction> proposalActionMapBinder =
         GinMapBinder.newMapBinder(binder(), String.class, ProposalAction.class);
@@ -85,8 +94,8 @@ public class JavaGinModule extends AbstractGinModule {
 
     bind(NewJavaSourceFileView.class).to(NewJavaSourceFileViewImpl.class).in(Singleton.class);
     bind(QuickDocumentation.class).to(QuickDocPresenter.class).in(Singleton.class);
-    bind(JavaNavigationService.class).to(JavaNavigationServiceImpl.class);
-    bind(JavaSearchService.class).to(JavaSearchJsonRpcClient.class);
+
+    bind(PomDiagnosticsRequestor.class).asEagerSingleton();
 
     GinMultibinder.newSetBinder(binder(), NodeInterceptor.class)
         .addBinding()
@@ -115,16 +124,24 @@ public class JavaGinModule extends AbstractGinModule {
         GinMapBinder.newMapBinder(binder(), String.class, FqnProvider.class);
     fqnProviders.addBinding("maven").to(JavaFqnProvider.class);
 
+    install(
+        new GinFactoryModuleBuilder()
+            .build(org.eclipse.che.ide.ext.java.client.navigation.filestructure.NodeFactory.class));
     install(new GinFactoryModuleBuilder().build(JavaNodeFactory.class));
     install(
         new GinFactoryModuleBuilder()
             .implement(PropertyWidget.class, PropertyWidgetImpl.class)
             .build(PropertyWidgetFactory.class));
 
-    install(new GinFactoryModuleBuilder().build(NodeFactory.class));
     install(
         new GinFactoryModuleBuilder()
-            .build(org.eclipse.che.ide.ext.java.client.navigation.factory.NodeFactory.class));
+            .implement(ProgressView.class, ProgressViewImpl.class)
+            .build(ProgressWidgetFactory.class));
+
+    install(
+        new GinFactoryModuleBuilder()
+            .build(org.eclipse.che.ide.ext.java.client.search.NodeFactory.class));
+    bind(FindUsagesView.class).to(FindUsagesViewImpl.class);
 
     GinMultibinder<PreferencePagePresenter> settingsBinder =
         GinMultibinder.newSetBinder(binder(), PreferencePagePresenter.class);
@@ -151,33 +168,35 @@ public class JavaGinModule extends AbstractGinModule {
     GinMultibinder.newSetBinder(binder(), RenamingSupport.class)
         .addBinding()
         .to(JavaSourceRenameValidator.class);
+
+    bind(CustomNotificationReceiver.class).asEagerSingleton();
   }
 
   @Provides
   @Singleton
   @Named("JavaFileType")
-  protected FileType provideJavaFile() {
-    return new FileType(JavaResources.INSTANCE.javaFile(), "java");
+  protected FileType provideJavaFile(FileTypeProvider fileTypeProvider) {
+    return fileTypeProvider.getByExtension(INSTANCE.javaFile(), "java");
   }
 
   @Provides
   @Singleton
   @Named("JavaClassFileType")
-  protected FileType provideJavaClassFile() {
-    return new FileType(JavaResources.INSTANCE.javaFile(), "class");
+  protected FileType provideJavaClassFile(FileTypeProvider fileTypeProvider) {
+    return fileTypeProvider.getByExtension(INSTANCE.javaFile(), "class");
   }
 
   @Provides
   @Singleton
   @Named("JspFileType")
-  protected FileType provideJspFile() {
-    return new FileType(JavaResources.INSTANCE.jspFile(), "jsp");
+  protected FileType provideJspFile(FileTypeProvider fileTypeProvider) {
+    return fileTypeProvider.getByExtension(INSTANCE.jspFile(), "jsp");
   }
 
   @Provides
   @Singleton
   @Named("JsfFileType")
-  protected FileType provideJsfFile() {
-    return new FileType(JavaResources.INSTANCE.jsfFile(), "jsf");
+  protected FileType provideJsfFile(FileTypeProvider fileTypeProvider) {
+    return fileTypeProvider.getByExtension(INSTANCE.jsfFile(), "jsf");
   }
 }
