@@ -11,6 +11,10 @@ test-output/
 maven-eclipse.xml
 .factorypath
 
+# Theia #
+##################
+.theia/
+
 # Idea #
 ##################
 *.iml
@@ -61,6 +65,7 @@ Thumbs.db
 */overlays
 *~
 .directory
+assembly/**/overlays/
 
 # Che files #
 #############
@@ -79,3 +84,21 @@ docs/assets/imgs
 plugins/plugin-terminal-ui/node_modules/
 plugins/plugin-terminal-ui/build/
 requirements.lock
+tests/e2e/dist/
+tests/e2e/node_modules/
+tests/e2e/report/
+tests/e2e/load-test-folder
+
+# Cypress modules #
+###################
+*/cypress/screenshots
+*/cypress/videos
+*/node_modules
+*/pids
+*/.pid
+*/.seed
+*/lib-cov
+*/coverage
+*/.grunt
+*/.lock-wscript
+*/cypress-tests/dist
